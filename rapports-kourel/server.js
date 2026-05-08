@@ -1,11 +1,23 @@
 import express from 'express'
 import cors from 'cors'
 import bodyParser from 'body-parser'
+import { fileURLToPath } from 'url'
+import { dirname, join } from 'path'
+import fs from 'fs'
 import { genererPDFDirectement } from './src/utils/pdfGeneratorService.js'
+
+const __dirname = dirname(fileURLToPath(import.meta.url))
+const isProd = process.env.NODE_ENV === 'production'
 
 const app = express()
 app.use(cors())
 app.use(bodyParser.json({ limit: '50mb' }))
+
+// En production : servir le frontend Vite buildé
+if (isProd) {
+  const distPath = join(__dirname, 'dist')
+  app.use(express.static(distPath))
+}
 
 // Log toutes les requêtes
 app.use((req, res, next) => {
@@ -146,11 +158,20 @@ app.use((err, req, res, next) => {
   res.status(500).json({ success: false, error: err.message || 'Erreur interne' })
 })
 
-const PORT = 3001
+// En production : toutes les routes non-API renvoient index.html (SPA)
+if (isProd) {
+  app.get('*', (req, res) => {
+    res.sendFile(join(__dirname, 'dist', 'index.html'))
+  })
+}
+
+const PORT = process.env.PORT || 3001
 const server = app.listen(PORT, () => {
-  console.log(`✅ Serveur API lancé sur http://localhost:${PORT}`)
-  console.log(`📝 POST http://localhost:${PORT}/api/generate-pdf pour générer un PDF`)
-  console.log(`🧪 GET  http://localhost:${PORT}/api/test-pdf pour tester`)
+  console.log(`✅ Serveur lancé sur http://localhost:${PORT}`)
+  if (!isProd) {
+    console.log(`📝 POST http://localhost:${PORT}/api/generate-pdf`)
+    console.log(`🧪 GET  http://localhost:${PORT}/api/test-pdf`)
+  }
 })
 
 // Gestion des erreurs d'écoute
