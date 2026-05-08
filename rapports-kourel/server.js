@@ -160,7 +160,7 @@ app.use((err, req, res, next) => {
 
 // En production : toutes les routes non-API renvoient index.html (SPA)
 if (isProd) {
-  app.get('*', (req, res) => {
+  app.get('*path', (req, res) => {
     res.sendFile(join(__dirname, 'dist', 'index.html'))
   })
 }
