@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { ChevronRight, ChevronLeft, Plus, Trash2, Edit2, Download, Save } from 'lucide-react'
+import { ChevronRight, ChevronLeft, Plus, Trash2, Edit2 } from 'lucide-react'
 import { FormulaireRapport } from './components/FormulaireRapport'
 import { useLocalStorage } from './hooks/useLocalStorage'
 
@@ -78,146 +78,169 @@ function App() {
   }
   
   const calculStatsProgamme = () => {
-    const etat = rapport.programme_annuel_etat
-    const termines = etat.filter(e => e.statut === 'termine').length
-    const enCours = etat.filter(e => e.statut === 'en_cours').length
-    const pasCommences = etat.filter(e => e.statut === 'pas_commence').length
-    
-    // Calcul taux global
+    const getEtatK = (id) => rapport.programme_annuel_etat.find(e => e.khassida_id === id)
+
+    const termines     = programmeAnnuel.filter(k => getEtatK(k.id)?.statut === 'termine').length
+    const enCours      = programmeAnnuel.filter(k => getEtatK(k.id)?.statut === 'en_cours').length
+    const pasCommences = programmeAnnuel.filter(k => {
+      const e = getEtatK(k.id)
+      return !e || e.statut === 'pas_commence'
+    }).length
+
     let somme = termines * 100
-    etat.filter(e => e.statut === 'en_cours').forEach(e => {
-      somme += e.pourcentage || 0
+    programmeAnnuel.forEach(k => {
+      const e = getEtatK(k.id)
+      if (e?.statut === 'en_cours') somme += e.pourcentage || 0
     })
     const tauxGlobal = programmeAnnuel.length > 0 ? Math.round(somme / programmeAnnuel.length) : 0
-    
+
     return { termines, enCours, pasCommences, tauxGlobal, total: programmeAnnuel.length }
   }
   
   // === RENDU ACCUEIL ===
   if (etape === 'accueil') {
     return (
-      <div className="min-h-screen bg-gris-clair py-8 px-4">
-        <div className="max-w-2xl mx-auto">
-          {/* Logo et titre */}
-          <div className="bg-white border-4 border-vert-principal rounded-lg p-8 mb-6 text-center">
-            <div className="w-48 h-48 mx-auto mb-4 rounded-lg flex items-center justify-center">
-              <img 
-                src="/images/logo-dmn.png" 
-                alt="Logo DMN UCAD" 
+      <div className="min-h-screen bg-gris-clair flex flex-col items-center justify-center px-4 py-4">
+        <div className="w-full max-w-3xl">
+
+          {/* Bandeau header */}
+          <div className="flex items-center gap-4 bg-vert-fonce text-white px-5 py-3 rounded-t-2xl">
+            <div className="w-10 h-10 rounded-lg bg-white flex items-center justify-center p-1 flex-shrink-0">
+              <img
+                src="/images/logo-dmn.png"
+                alt="Logo DMN"
                 className="w-full h-full object-contain"
               />
             </div>
-            <h1 className="text-3xl font-bold text-vert-fonce mb-2">
-              Daara Madjmahoun Noreyni
-            </h1>
-            <p className="text-lg text-vert-principal mb-1">
-              Université Cheikh Anta Diop de Dakar
-            </p>
-            <p className="text-gray-600">
-              Pôle Kourel Centrale -- Commission Conservatoire
-            </p>
+            <div className="min-w-0">
+              <div className="font-bold text-base leading-tight truncate">
+                Daara Madjmahoun Noreyni
+              </div>
+              <div className="text-xs leading-tight" style={{ color: '#8CD2B4' }}>
+                UCAD · Pôle Kourel Centrale · Commission Conservatoire
+              </div>
+            </div>
           </div>
-          
-          <div className="w-full h-1 bg-gradient-to-r from-vert-principal via-vert-clair to-orange-strat mb-6"></div>
-          
-          <h2 className="text-2xl font-bold text-vert-fonce mb-6 text-center">
-            Rapport de Suivi des Kourels
-          </h2>
-          
-          {/* Sélection kourel */}
-          <div className="bg-white rounded-lg p-6 mb-4 shadow-sm">
-            <label className="block text-sm font-bold text-vert-fonce mb-3">
-              Sélectionnez votre kourel :
-            </label>
-            <div className="space-y-2">
-              {KOURELS_DEFAULT.map(kourel => (
+
+          {/* Corps : logo à gauche, sélecteur à droite */}
+          <div className="bg-white shadow-xl flex rounded-b-2xl overflow-hidden">
+
+            {/* Colonne gauche – branding */}
+            <div
+              className="flex-shrink-0 flex flex-col items-center justify-center gap-3 p-6"
+              style={{ width: 180, background: '#E8F5E9', borderRight: '1px solid #C8E6C9' }}
+            >
+              <img
+                src="/images/logo-dmn.png"
+                alt="Logo DMN"
+                className="w-20 h-20 object-contain"
+                style={{ mixBlendMode: 'multiply' }}
+              />
+              <p className="text-center text-xs font-bold leading-snug" style={{ color: '#014421' }}>
+                Rapport de Suivi des Kourels
+              </p>
+              <div className="w-8 h-0.5 rounded" style={{ background: '#16824E' }} />
+            </div>
+
+            {/* Colonne droite – sélection */}
+            <div className="flex-1 p-5 flex flex-col">
+              <p className="text-xs font-bold uppercase tracking-widest mb-3" style={{ color: '#014421' }}>
+                Sélectionnez votre kourel
+              </p>
+
+              <div className="space-y-1.5 overflow-y-auto flex-1" style={{ maxHeight: 320 }}>
+                {KOURELS_DEFAULT.map(kourel => (
+                  <label
+                    key={kourel.id}
+                    className="flex items-center gap-2.5 px-3 py-2 border rounded-lg cursor-pointer transition-colors"
+                    style={{
+                      borderColor: kourelSelectionne === kourel.id ? '#16824E' : '#E5E7EB',
+                      background:  kourelSelectionne === kourel.id ? '#E8F5E9'  : 'white',
+                    }}
+                  >
+                    <input
+                      type="radio"
+                      name="kourel"
+                      value={kourel.id}
+                      checked={kourelSelectionne === kourel.id}
+                      onChange={() => setKourelSelectionne(kourel.id)}
+                      className="accent-vert-principal"
+                    />
+                    <div>
+                      <div className="text-sm font-semibold" style={{ color: '#014421' }}>
+                        {kourel.nom}
+                      </div>
+                      <div className="text-xs text-gray-500">{kourel.responsable}</div>
+                    </div>
+                  </label>
+                ))}
+
+                {/* Autre kourel */}
                 <label
-                  key={kourel.id}
-                  className="flex items-center p-3 border-2 rounded-lg cursor-pointer hover:bg-vert-pastel transition"
+                  className="flex items-start gap-2.5 px-3 py-2 border rounded-lg cursor-pointer transition-colors"
                   style={{
-                    borderColor: kourelSelectionne === kourel.id ? '#16824E' : '#E0E0E0',
-                    backgroundColor: kourelSelectionne === kourel.id ? '#E8F5E9' : 'white'
+                    borderColor: kourelSelectionne === 'autre' ? '#16824E' : '#E5E7EB',
+                    background:  kourelSelectionne === 'autre' ? '#E8F5E9'  : 'white',
                   }}
                 >
                   <input
                     type="radio"
                     name="kourel"
-                    value={kourel.id}
-                    checked={kourelSelectionne === kourel.id}
-                    onChange={() => setKourelSelectionne(kourel.id)}
-                    className="mr-3"
+                    value="autre"
+                    checked={kourelSelectionne === 'autre'}
+                    onChange={() => setKourelSelectionne('autre')}
+                    className="accent-vert-principal mt-0.5"
                   />
-                  <div>
-                    <div className="font-semibold text-vert-fonce">{kourel.nom}</div>
-                    <div className="text-sm text-gray-600">{kourel.responsable}</div>
+                  <div className="flex-1">
+                    <div className="text-sm font-semibold" style={{ color: '#014421' }}>
+                      Autre kourel
+                    </div>
+                    {kourelSelectionne === 'autre' && (
+                      <div className="space-y-1.5 mt-2">
+                        <input
+                          type="text"
+                          placeholder="Nom du kourel"
+                          value={autreKourel.nom}
+                          onChange={(e) => setAutreKourel({ ...autreKourel, nom: e.target.value })}
+                          className="w-full px-3 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:border-vert-principal"
+                        />
+                        <input
+                          type="text"
+                          placeholder="Responsable"
+                          value={autreKourel.responsable}
+                          onChange={(e) => setAutreKourel({ ...autreKourel, responsable: e.target.value })}
+                          className="w-full px-3 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:border-vert-principal"
+                        />
+                      </div>
+                    )}
                   </div>
                 </label>
-              ))}
-              
-              {/* Autre kourel */}
-              <label
-                className="flex items-start p-3 border-2 rounded-lg cursor-pointer hover:bg-vert-pastel transition"
-                style={{
-                  borderColor: kourelSelectionne === 'autre' ? '#16824E' : '#E0E0E0',
-                  backgroundColor: kourelSelectionne === 'autre' ? '#E8F5E9' : 'white'
-                }}
-              >
-                <input
-                  type="radio"
-                  name="kourel"
-                  value="autre"
-                  checked={kourelSelectionne === 'autre'}
-                  onChange={() => setKourelSelectionne('autre')}
-                  className="mr-3 mt-1"
-                />
-                <div className="flex-1">
-                  <div className="font-semibold text-vert-fonce mb-2">Autre kourel</div>
-                  {kourelSelectionne === 'autre' && (
-                    <div className="space-y-2">
-                      <input
-                        type="text"
-                        placeholder="Nom du kourel"
-                        value={autreKourel.nom}
-                        onChange={(e) => setAutreKourel({...autreKourel, nom: e.target.value})}
-                        className="w-full px-3 py-2 border rounded-lg"
-                      />
-                      <input
-                        type="text"
-                        placeholder="Responsable"
-                        value={autreKourel.responsable}
-                        onChange={(e) => setAutreKourel({...autreKourel, responsable: e.target.value})}
-                        className="w-full px-3 py-2 border rounded-lg"
-                      />
-                    </div>
-                  )}
-                </div>
-              </label>
+              </div>
             </div>
           </div>
-          
+
           {/* Boutons d'action */}
-          <div className="flex gap-4">
+          <div className="flex gap-3 mt-4">
             <button
               onClick={() => setEtape('config_programme')}
               disabled={!kourelSelectionne}
-              className="flex-1 bg-bleu-info text-white py-3 px-6 rounded-lg font-semibold hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              className="flex-1 flex items-center justify-center gap-2 py-2.5 px-5 rounded-xl font-semibold text-sm text-white hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition"
+              style={{ background: '#34495E' }}
             >
-              <Edit2 size={20} />
+              <Edit2 size={16} />
               Gérer Programme Annuel
             </button>
-            
             <button
-              onClick={() => {
-                setEtape('rapport')
-                setSousEtape(1)
-              }}
+              onClick={() => { setEtape('rapport'); setSousEtape(1) }}
               disabled={!kourelSelectionne}
-              className="flex-1 bg-vert-principal text-white py-3 px-6 rounded-lg font-semibold hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              className="flex-1 flex items-center justify-center gap-2 py-2.5 px-5 rounded-xl font-semibold text-sm text-white hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition"
+              style={{ background: '#16824E' }}
             >
               Créer un Rapport
-              <ChevronRight size={20} />
+              <ChevronRight size={16} />
             </button>
           </div>
+
         </div>
       </div>
     )
@@ -278,121 +301,149 @@ function ConfigProgrammeAnnuel({ kourel, programmeAnnuel, setProgrammeAnnuel, re
   }
   
   return (
-    <div className="min-h-screen bg-gris-clair py-8 px-4">
-      <div className="max-w-3xl mx-auto">
-        {/* Entête */}
-        <div className="bg-vert-principal text-white rounded-lg p-6 mb-6">
-          <h1 className="text-2xl font-bold mb-2">Programme Annuel</h1>
-          <p className="text-vert-pastel">{kourel.nom} — {kourel.responsable}</p>
-        </div>
-        
-        {/* Ajouter un khassida */}
-        <div className="bg-white rounded-lg p-6 mb-6 shadow-sm">
-          <h3 className="font-bold text-vert-fonce mb-4 flex items-center gap-2">
-            <Plus size={20} />
-            Ajouter un khassida
-          </h3>
-          <div className="grid grid-cols-2 gap-4 mb-4">
-            <input
-              type="text"
-              placeholder="Nom du khassida"
-              value={nouveau.nom}
-              onChange={(e) => setNouveau({...nouveau, nom: e.target.value})}
-              className="px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-vert-principal focus:outline-none"
-            />
-            <input
-              type="text"
-              placeholder="Mélodie (ex: Serigne Abdou Diop)"
-              value={nouveau.melodie}
-              onChange={(e) => setNouveau({...nouveau, melodie: e.target.value})}
-              className="px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-vert-principal focus:outline-none"
-            />
+    <div className="min-h-screen bg-gris-clair flex flex-col items-center justify-center px-4 py-4">
+      <div className="w-full max-w-3xl">
+
+        {/* Header compact — même style que les pages formulaire */}
+        <div className="flex items-center gap-3 bg-white rounded-xl shadow-sm px-5 py-3 mb-4">
+          <div
+            className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0"
+            style={{ background: '#014421' }}
+          >
+            <Edit2 size={15} color="white" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-bold truncate" style={{ color: '#014421' }}>
+              Programme Annuel
+            </p>
+            <p className="text-xs text-gray-400 truncate">
+              {kourel.nom} · {kourel.responsable}
+            </p>
           </div>
           <button
-            onClick={ajouterKhassida}
-            disabled={!nouveau.nom || !nouveau.melodie}
-            className="bg-vert-principal text-white px-6 py-2 rounded-lg font-semibold hover:opacity-90 disabled:opacity-50 flex items-center gap-2"
+            onClick={retour}
+            className="flex items-center gap-1.5 text-sm font-semibold text-gray-500 hover:text-vert-fonce transition py-1.5 px-3 rounded-lg hover:bg-gray-100"
           >
-            <Plus size={18} />
-            Ajouter
+            <ChevronLeft size={16} />
+            Retour
           </button>
         </div>
-        
-        {/* Liste des khassidas */}
-        <div className="bg-white rounded-lg p-6 mb-6 shadow-sm">
-          <h3 className="font-bold text-vert-fonce mb-4">
-            Liste des khassidas ({programmeAnnuel.length})
-          </h3>
-          {programmeAnnuel.length === 0 ? (
-            <p className="text-gray-500 text-center py-8">
-              Aucun khassida configuré. Ajoutez-en un ci-dessus.
-            </p>
-          ) : (
-            <div className="space-y-3">
-              {programmeAnnuel.map((khassida, index) => (
-                <div key={khassida.id} className="border-2 border-gray-200 rounded-lg p-4 hover:border-vert-principal transition">
-                  {enEdition === khassida.id ? (
-                    <div className="space-y-2">
-                      <input
-                        type="text"
-                        value={khassida.nom}
-                        onChange={(e) => modifierKhassida(khassida.id, { nom: e.target.value })}
-                        className="w-full px-3 py-2 border rounded-lg"
-                      />
-                      <input
-                        type="text"
-                        value={khassida.melodie}
-                        onChange={(e) => modifierKhassida(khassida.id, { melodie: e.target.value })}
-                        className="w-full px-3 py-2 border rounded-lg"
-                      />
-                      <button
-                        onClick={() => setEnEdition(null)}
-                        className="bg-vert-principal text-white px-4 py-1 rounded text-sm"
-                      >
-                        Terminer
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3">
-                          <span className="font-bold text-vert-fonce">{index + 1}.</span>
-                          <div>
-                            <div className="font-semibold text-vert-fonce">{khassida.nom}</div>
-                            <div className="text-sm text-gray-600">{khassida.melodie}</div>
+
+        {/* Contenu 2 colonnes */}
+        <div className="grid grid-cols-2 gap-4">
+
+          {/* Gauche : Ajouter */}
+          <div className="bg-white rounded-xl p-5 shadow-sm self-start">
+            <h3 className="text-sm font-bold mb-4 flex items-center gap-2" style={{ color: '#014421' }}>
+              <Plus size={15} />
+              Nouveau khassida
+            </h3>
+            <div className="space-y-3 mb-4">
+              <input
+                type="text"
+                placeholder="Nom du khassida"
+                value={nouveau.nom}
+                onChange={(e) => setNouveau({ ...nouveau, nom: e.target.value })}
+                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:border-vert-principal focus:outline-none"
+              />
+              <input
+                type="text"
+                placeholder="Mélodie (ex: Serigne Abdou Diop)"
+                value={nouveau.melodie}
+                onChange={(e) => setNouveau({ ...nouveau, melodie: e.target.value })}
+                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:border-vert-principal focus:outline-none"
+              />
+            </div>
+            <button
+              onClick={ajouterKhassida}
+              disabled={!nouveau.nom || !nouveau.melodie}
+              className="w-full flex items-center justify-center gap-2 py-2.5 text-sm font-semibold text-white rounded-lg disabled:opacity-40 hover:opacity-90 transition"
+              style={{ background: '#16824E' }}
+            >
+              <Plus size={15} />
+              Ajouter
+            </button>
+          </div>
+
+          {/* Droite : Liste */}
+          <div className="bg-white rounded-xl p-5 shadow-sm">
+            <h3 className="text-sm font-bold mb-4" style={{ color: '#014421' }}>
+              Khassidas ({programmeAnnuel.length})
+            </h3>
+            {programmeAnnuel.length === 0 ? (
+              <div className="text-center py-16 text-sm text-gray-400">
+                Aucun khassida configuré. Ajoutez-en un ci-contre.
+              </div>
+            ) : (
+              <div className="space-y-2 overflow-y-auto pr-1" style={{ maxHeight: 380 }}>
+                {programmeAnnuel.map((khassida, index) => (
+                  <div
+                    key={khassida.id}
+                    className="border border-gray-100 rounded-lg p-3 hover:border-vert-principal transition"
+                  >
+                    {enEdition === khassida.id ? (
+                      <div className="space-y-2">
+                        <input
+                          type="text"
+                          value={khassida.nom}
+                          onChange={(e) => modifierKhassida(khassida.id, { nom: e.target.value })}
+                          className="w-full px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-vert-principal"
+                        />
+                        <input
+                          type="text"
+                          value={khassida.melodie}
+                          onChange={(e) => modifierKhassida(khassida.id, { melodie: e.target.value })}
+                          className="w-full px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-vert-principal"
+                        />
+                        <button
+                          onClick={() => setEnEdition(null)}
+                          className="text-xs font-semibold text-white px-3 py-1 rounded-lg"
+                          style={{ background: '#16824E' }}
+                        >
+                          Terminer
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <span
+                            className="text-xs font-bold w-5 text-center flex-shrink-0"
+                            style={{ color: '#014421' }}
+                          >
+                            {index + 1}
+                          </span>
+                          <div className="min-w-0">
+                            <div className="text-sm font-semibold truncate" style={{ color: '#014421' }}>
+                              {khassida.nom}
+                            </div>
+                            <div className="text-xs text-gray-400 truncate">{khassida.melodie}</div>
                           </div>
                         </div>
+                        <div className="flex gap-1 flex-shrink-0">
+                          <button
+                            onClick={() => setEnEdition(khassida.id)}
+                            className="p-1.5 rounded-lg hover:bg-blue-50 transition"
+                            style={{ color: '#34495E' }}
+                          >
+                            <Edit2 size={14} />
+                          </button>
+                          <button
+                            onClick={() => supprimerKhassida(khassida.id)}
+                            className="p-1.5 rounded-lg hover:bg-red-50 transition"
+                            style={{ color: '#C0392B' }}
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
                       </div>
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => setEnEdition(khassida.id)}
-                          className="p-2 text-bleu-info hover:bg-bleu-pastel rounded"
-                        >
-                          <Edit2 size={18} />
-                        </button>
-                        <button
-                          onClick={() => supprimerKhassida(khassida.id)}
-                          className="p-2 text-rouge-alerte hover:bg-rouge-pastel rounded"
-                        >
-                          <Trash2 size={18} />
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
         </div>
-        
-        {/* Bouton retour */}
-        <button
-          onClick={retour}
-          className="bg-gray-500 text-white py-3 px-6 rounded-lg font-semibold hover:opacity-90 flex items-center gap-2"
-        >
-          <ChevronLeft size={20} />
-          Retour
-        </button>
       </div>
     </div>
   )

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { ChevronRight, ChevronLeft, Plus, Trash2, Download, Save } from 'lucide-react'
+import { ChevronRight, ChevronLeft, Plus, Trash2, Pencil, Download, User, Music, CalendarDays, Star } from 'lucide-react'
 import { genererPDF } from '../utils/pdfService'
 
 const MOIS = [
@@ -7,1071 +7,450 @@ const MOIS = [
   'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'
 ]
 
-export function FormulaireRapport({ 
-  kourel, 
-  programmeAnnuel, 
-  rapport, 
-  setRapport, 
-  sousEtape, 
-  setSousEtape, 
-  retour,
-  calculTaux,
-  calculStatut,
-  calculStatsProgamme
+// ─── SHELL PRINCIPAL ──────────────────────────────────────────────────────────
+// Stepper fixe en haut, boutons fixes en bas, seul le contenu change.
+export function FormulaireRapport({
+  kourel, programmeAnnuel, rapport, setRapport,
+  sousEtape, setSousEtape, retour,
+  calculTaux, calculStatut, calculStatsProgamme
 }) {
-  
-  // === ÉTAPE 1 : IDENTIFICATION ===
-  if (sousEtape === 1) {
-    return (
-      <div className="min-h-screen bg-gris-clair py-8 px-4">
-        <div className="max-w-3xl mx-auto">
-          {/* Progress */}
-          <div className="mb-6">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-semibold text-vert-fonce">Étape 1/4 : Identification</span>
-              <span className="text-sm text-gray-600">25%</span>
-            </div>
-            <div className="w-full bg-gray-200 rounded-full h-2">
-              <div className="bg-vert-principal h-2 rounded-full" style={{width: '25%'}}></div>
-            </div>
-          </div>
-          
-          {/* Formulaire */}
-          <div className="bg-white rounded-lg p-6 mb-6 shadow-sm">
-            <h2 className="text-xl font-bold text-vert-fonce mb-6">Informations du rapport</h2>
-            
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Kourel
-                </label>
-                <input
-                  type="text"
-                  value={kourel.nom}
-                  disabled
-                  className="w-full px-4 py-2 bg-gray-100 border-2 border-gray-300 rounded-lg"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Responsable
-                </label>
-                <input
-                  type="text"
-                  value={kourel.responsable}
-                  disabled
-                  className="w-full px-4 py-2 bg-gray-100 border-2 border-gray-300 rounded-lg"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Représentant (optionnel)
-                </label>
-                <input
-                  type="text"
-                  value={rapport.representant}
-                  onChange={(e) => setRapport({...rapport, representant: e.target.value})}
-                  placeholder="Laisser vide si identique au responsable"
-                  className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-vert-principal focus:outline-none"
-                />
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Mois du rapport
-                  </label>
-                  <select
-                    value={rapport.mois}
-                    onChange={(e) => setRapport({...rapport, mois: e.target.value})}
-                    className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-vert-principal focus:outline-none"
-                  >
-                    <option value="">Sélectionner...</option>
-                    {MOIS.map(mois => (
-                      <option key={mois} value={mois}>{mois}</option>
-                    ))}
-                  </select>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Année
-                  </label>
-                  <input
-                    type="number"
-                    value={rapport.annee}
-                    onChange={(e) => setRapport({...rapport, annee: parseInt(e.target.value)})}
-                    className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-vert-principal focus:outline-none"
-                  />
-                </div>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Date du rapport
-                </label>
-                <input
-                  type="date"
-                  value={rapport.date_rapport}
-                  onChange={(e) => setRapport({...rapport, date_rapport: e.target.value})}
-                  className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-vert-principal focus:outline-none"
-                />
-              </div>
-            </div>
-          </div>
-          
-          {/* Navigation */}
-          <div className="flex justify-between">
-            <button
-              onClick={retour}
-              className="bg-gray-500 text-white py-3 px-6 rounded-lg font-semibold hover:opacity-90 flex items-center gap-2"
-            >
-              <ChevronLeft size={20} />
-              Retour
-            </button>
-            
-            <button
-              onClick={() => setSousEtape(2)}
-              disabled={!rapport.mois}
-              className="bg-vert-principal text-white py-3 px-6 rounded-lg font-semibold hover:opacity-90 disabled:opacity-50 flex items-center gap-2"
-            >
-              Suivant
-              <ChevronRight size={20} />
-            </button>
-          </div>
-        </div>
-      </div>
-    )
-  }
-  
-  // === ÉTAPE 2 : MÉLODIES ===
-  if (sousEtape === 2) {
-    return <EtapeMelodies 
-      rapport={rapport}
-      setRapport={setRapport}
-      programmeAnnuel={programmeAnnuel}
-      setSousEtape={setSousEtape}
-      calculTaux={calculTaux}
-      calculStatut={calculStatut}
-    />
-  }
-  
-  // === ÉTAPE 3 : PROGRAMME ANNUEL ===
-  if (sousEtape === 3) {
-    return <EtapeProgrammeAnnuel 
-      rapport={rapport}
-      setRapport={setRapport}
-      programmeAnnuel={programmeAnnuel}
-      setSousEtape={setSousEtape}
-      calculStatsProgamme={calculStatsProgamme}
-    />
-  }
-  
-  // === ÉTAPE 4 : APPRÉCIATION ===
-  if (sousEtape === 4) {
-    return <EtapeAppreciation 
-      rapport={rapport}
-      setRapport={setRapport}
-      setSousEtape={setSousEtape}
-      kourel={kourel}
-      programmeAnnuel={programmeAnnuel}
-    />
-  }
-  
-  return null
-}
-
-// COMPOSANT : Étape Mélodies
-function EtapeMelodies({ rapport, setRapport, programmeAnnuel, setSousEtape, calculTaux, calculStatut }) {
-  const [nouvelleMelodie, setNouvelleMelodie] = useState({
-    source: 'programme', // 'programme' ou 'autre'
-    khassida_id: null,
-    nom: '',
-    melodie: '',
-    type: 'nouvelle', // 'nouvelle' ou 'revision'
-    mode: 'pages', // 'pages' ou 'dadj'
-    pages_faites: 0,
-    pages_total: 1,
-    dadj_completes: [0], // Premier Dadj coché par défaut
-    dadj_total: 1
-  })
-  
-  const [enAjout, setEnAjout] = useState(false)
-  
-  const ajouterMelodie = () => {
-    if (nouvelleMelodie.nom && nouvelleMelodie.melodie) {
-      const melodie = {...nouvelleMelodie}
-      
-      // Calcul taux
-      if (melodie.mode === 'pages') {
-        melodie.taux = Math.round((melodie.pages_faites / melodie.pages_total) * 100)
-      } else {
-        melodie.taux = Math.round((melodie.dadj_completes.length / melodie.dadj_total) * 100)
-      }
-      
-      melodie.statut = calculStatut(melodie.taux)
-      
-      setRapport({
-        ...rapport,
-        melodies: [...rapport.melodies, {...melodie, id: Date.now()}]
-      })
-      
-      // Reset
-      setNouvelleMelodie({
-        source: 'programme',
-        khassida_id: null,
-        nom: '',
-        melodie: '',
-        type: 'nouvelle',
-        mode: 'pages',
-        pages_faites: 0,
-        pages_total: 1,
-        dadj_completes: [0],
-        dadj_total: 1
-      })
-      setEnAjout(false)
-    }
-  }
-  
-  const supprimerMelodie = (id) => {
-    setRapport({
-      ...rapport,
-      melodies: rapport.melodies.filter(m => m.id !== id)
-    })
-  }
-  
-  const selectionnerKhassida = (khassidaId) => {
-    const khassida = programmeAnnuel.find(k => k.id === parseInt(khassidaId))
-    if (khassida) {
-      setNouvelleMelodie({
-        ...nouvelleMelodie,
-        khassida_id: khassida.id,
-        nom: khassida.nom,
-        melodie: khassida.melodie
-      })
-    }
-  }
-  
-  const ajouterDadj = () => {
-    setNouvelleMelodie({
-      ...nouvelleMelodie,
-      dadj_total: nouvelleMelodie.dadj_total + 1
-    })
-  }
-  
-  const toggleDadj = (index) => {
-    const dadj = nouvelleMelodie.dadj_completes
-    if (dadj.includes(index)) {
-      setNouvelleMelodie({
-        ...nouvelleMelodie,
-        dadj_completes: dadj.filter(d => d !== index)
-      })
-    } else {
-      setNouvelleMelodie({
-        ...nouvelleMelodie,
-        dadj_completes: [...dadj, index].sort((a, b) => a - b)
-      })
-    }
-  }
-  
-  return (
-    <div className="min-h-screen bg-gris-clair py-8 px-4">
-      <div className="max-w-4xl mx-auto">
-        {/* Progress */}
-        <div className="mb-6">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-semibold text-vert-fonce">Étape 2/4 : Avancement des Mélodies</span>
-            <span className="text-sm text-gray-600">50%</span>
-          </div>
-          <div className="w-full bg-gray-200 rounded-full h-2">
-            <div className="bg-vert-principal h-2 rounded-full" style={{width: '50%'}}></div>
-          </div>
-        </div>
-        
-        {/* Bouton ajouter */}
-        {!enAjout && (
-          <button
-            onClick={() => setEnAjout(true)}
-            className="w-full bg-vert-principal text-white py-3 px-6 rounded-lg font-semibold hover:opacity-90 flex items-center justify-center gap-2 mb-6"
-          >
-            <Plus size={20} />
-            Ajouter une mélodie
-          </button>
-        )}
-        
-        {/* Formulaire ajout */}
-        {enAjout && (
-          <div className="bg-white rounded-lg p-6 mb-6 shadow-lg border-2 border-vert-principal">
-            <h3 className="font-bold text-vert-fonce mb-4">Nouvelle mélodie</h3>
-            
-            {/* Source */}
-            <div className="mb-4">
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Source
-              </label>
-              <div className="flex gap-4">
-                <label className="flex items-center cursor-pointer">
-                  <input
-                    type="radio"
-                    value="programme"
-                    checked={nouvelleMelodie.source === 'programme'}
-                    onChange={(e) => setNouvelleMelodie({...nouvelleMelodie, source: e.target.value, nom: '', melodie: '', khassida_id: null})}
-                    className="mr-2"
-                  />
-                  <span>Khassida du programme annuel</span>
-                </label>
-                <label className="flex items-center cursor-pointer">
-                  <input
-                    type="radio"
-                    value="autre"
-                    checked={nouvelleMelodie.source === 'autre'}
-                    onChange={(e) => setNouvelleMelodie({...nouvelleMelodie, source: e.target.value, nom: '', melodie: '', khassida_id: null})}
-                    className="mr-2"
-                  />
-                  <span>Autre khassida</span>
-                </label>
-              </div>
-            </div>
-            
-            {/* Si programme annuel */}
-            {nouvelleMelodie.source === 'programme' && (
-              <div className="mb-4">
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Sélectionner un khassida
-                </label>
-                <select
-                  value={nouvelleMelodie.khassida_id || ''}
-                  onChange={(e) => selectionnerKhassida(e.target.value)}
-                  className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-vert-principal focus:outline-none"
-                >
-                  <option value="">-- Choisir --</option>
-                  {programmeAnnuel.map(k => (
-                    <option key={k.id} value={k.id}>
-                      {k.nom} ({k.melodie})
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
-            
-            {/* Si autre */}
-            {nouvelleMelodie.source === 'autre' && (
-              <div className="grid grid-cols-2 gap-4 mb-4">
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Nom du khassida
-                  </label>
-                  <input
-                    type="text"
-                    value={nouvelleMelodie.nom}
-                    onChange={(e) => setNouvelleMelodie({...nouvelleMelodie, nom: e.target.value})}
-                    className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-vert-principal focus:outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Mélodie
-                  </label>
-                  <input
-                    type="text"
-                    value={nouvelleMelodie.melodie}
-                    onChange={(e) => setNouvelleMelodie({...nouvelleMelodie, melodie: e.target.value})}
-                    placeholder="Ex: Serigne Abdou Diop"
-                    className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-vert-principal focus:outline-none"
-                  />
-                </div>
-              </div>
-            )}
-            
-            {/* Type */}
-            <div className="mb-4">
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Type
-              </label>
-              <div className="flex gap-4">
-                <label className="flex items-center cursor-pointer">
-                  <input
-                    type="radio"
-                    value="nouvelle"
-                    checked={nouvelleMelodie.type === 'nouvelle'}
-                    onChange={(e) => setNouvelleMelodie({...nouvelleMelodie, type: e.target.value})}
-                    className="mr-2"
-                  />
-                  <span>Nouvelle</span>
-                </label>
-                <label className="flex items-center cursor-pointer">
-                  <input
-                    type="radio"
-                    value="revision"
-                    checked={nouvelleMelodie.type === 'revision'}
-                    onChange={(e) => setNouvelleMelodie({...nouvelleMelodie, type: e.target.value})}
-                    className="mr-2"
-                  />
-                  <span>Révision</span>
-                </label>
-              </div>
-            </div>
-            
-            {/* Mode évaluation */}
-            <div className="mb-4">
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Mode d'évaluation
-              </label>
-              <div className="flex gap-4">
-                <label className="flex items-center cursor-pointer">
-                  <input
-                    type="radio"
-                    value="pages"
-                    checked={nouvelleMelodie.mode === 'pages'}
-                    onChange={(e) => setNouvelleMelodie({...nouvelleMelodie, mode: e.target.value})}
-                    className="mr-2"
-                  />
-                  <span>Par pages</span>
-                </label>
-                <label className="flex items-center cursor-pointer">
-                  <input
-                    type="radio"
-                    value="dadj"
-                    checked={nouvelleMelodie.mode === 'dadj'}
-                    onChange={(e) => setNouvelleMelodie({...nouvelleMelodie, mode: e.target.value})}
-                    className="mr-2"
-                  />
-                  <span>Par Dadj</span>
-                </label>
-              </div>
-            </div>
-            
-            {/* Par pages */}
-            {nouvelleMelodie.mode === 'pages' && (
-              <div className="bg-vert-pastel p-4 rounded-lg mb-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-semibold text-vert-fonce mb-2">
-                      Pages faites
-                    </label>
-                    <input
-                      type="number"
-                      min="0"
-                      value={nouvelleMelodie.pages_faites}
-                      onChange={(e) => setNouvelleMelodie({...nouvelleMelodie, pages_faites: parseInt(e.target.value) || 0})}
-                      className="w-full px-4 py-2 border-2 border-vert-principal rounded-lg"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-vert-fonce mb-2">
-                      Total pages
-                    </label>
-                    <input
-                      type="number"
-                      min="1"
-                      value={nouvelleMelodie.pages_total}
-                      onChange={(e) => setNouvelleMelodie({...nouvelleMelodie, pages_total: parseInt(e.target.value) || 1})}
-                      className="w-full px-4 py-2 border-2 border-vert-principal rounded-lg"
-                    />
-                  </div>
-                </div>
-                <div className="mt-3 text-center">
-                  <span className="text-2xl font-bold text-vert-principal">
-                    {Math.round((nouvelleMelodie.pages_faites / nouvelleMelodie.pages_total) * 100)}%
-                  </span>
-                </div>
-              </div>
-            )}
-            
-            {/* Par Dadj */}
-            {nouvelleMelodie.mode === 'dadj' && (
-              <div className="bg-vert-pastel p-4 rounded-lg mb-4">
-                <label className="block text-sm font-semibold text-vert-fonce mb-3">
-                  Dadj complétés
-                </label>
-                <div className="space-y-2 mb-4">
-                  {Array.from({length: nouvelleMelodie.dadj_total}, (_, i) => (
-                    <label key={i} className="flex items-center cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={nouvelleMelodie.dadj_completes.includes(i)}
-                        onChange={() => toggleDadj(i)}
-                        className="mr-3 w-5 h-5"
-                      />
-                      <span className="font-semibold text-vert-fonce">
-                        {i + 1}{i === 0 ? 'er' : 'ème'} Dadj
-                      </span>
-                    </label>
-                  ))}
-                </div>
-                <button
-                  onClick={ajouterDadj}
-                  className="bg-vert-principal text-white px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2"
-                >
-                  <Plus size={16} />
-                  Ajouter un Dadj
-                </button>
-                <div className="mt-3 text-center">
-                  <span className="text-sm text-gray-600">
-                    {nouvelleMelodie.dadj_completes.length} Dadj complétés sur {nouvelleMelodie.dadj_total}
-                  </span>
-                  <div className="text-2xl font-bold text-vert-principal mt-1">
-                    {Math.round((nouvelleMelodie.dadj_completes.length / nouvelleMelodie.dadj_total) * 100)}%
-                  </div>
-                </div>
-              </div>
-            )}
-            
-            {/* Boutons */}
-            <div className="flex gap-3">
-              <button
-                onClick={() => setEnAjout(false)}
-                className="flex-1 bg-gray-300 text-gray-700 py-2 px-4 rounded-lg font-semibold hover:opacity-90"
-              >
-                Annuler
-              </button>
-              <button
-                onClick={ajouterMelodie}
-                disabled={!nouvelleMelodie.nom || !nouvelleMelodie.melodie}
-                className="flex-1 bg-vert-principal text-white py-2 px-4 rounded-lg font-semibold hover:opacity-90 disabled:opacity-50"
-              >
-                Ajouter
-              </button>
-            </div>
-          </div>
-        )}
-        
-        {/* Liste des mélodies */}
-        <div className="bg-white rounded-lg p-6 mb-6 shadow-sm">
-          <h3 className="font-bold text-vert-fonce mb-4">
-            Mélodies ajoutées ({rapport.melodies.length})
-          </h3>
-          
-          {rapport.melodies.length === 0 ? (
-            <p className="text-gray-500 text-center py-8">
-              Aucune mélodie ajoutée. Cliquez sur "Ajouter une mélodie" ci-dessus.
-            </p>
-          ) : (
-            <div className="space-y-3">
-              {rapport.melodies.map((melodie) => {
-                const bgColor = melodie.statut.color === 'vert' ? 'bg-vert-pastel' : 
-                                melodie.statut.color === 'orange' ? 'bg-orange-pastel' : 'bg-rouge-pastel'
-                const borderColor = melodie.statut.color === 'vert' ? 'border-vert-principal' : 
-                                   melodie.statut.color === 'orange' ? 'border-orange-strat' : 'border-rouge-alerte'
-                
-                return (
-                  <div key={melodie.id} className={`${bgColor} border-2 ${borderColor} rounded-lg p-4`}>
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <h4 className="font-bold text-vert-fonce">{melodie.nom}</h4>
-                          {melodie.type === 'revision' && (
-                            <span className="text-xs bg-bleu-info text-white px-2 py-1 rounded">
-                              Révision
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-sm text-gray-600 mb-2">{melodie.melodie}</p>
-                        
-                        {melodie.mode === 'pages' ? (
-                          <p className="text-sm text-gray-700">
-                            {melodie.pages_faites} / {melodie.pages_total} pages
-                          </p>
-                        ) : (
-                          <p className="text-sm text-gray-700">
-                            {melodie.dadj_completes.length} Dadj complétés sur {melodie.dadj_total}
-                          </p>
-                        )}
-                        
-                        <div className="mt-2 flex items-center gap-3">
-                          <div className="flex-1 bg-gray-200 rounded-full h-3">
-                            <div 
-                              className={`h-3 rounded-full ${
-                                melodie.statut.color === 'vert' ? 'bg-vert-principal' :
-                                melodie.statut.color === 'orange' ? 'bg-orange-strat' : 'bg-rouge-alerte'
-                              }`}
-                              style={{width: `${melodie.taux}%`}}
-                            ></div>
-                          </div>
-                          <span className="font-bold text-sm">{melodie.taux}%</span>
-                          <span className={`text-xs font-semibold ${
-                            melodie.statut.color === 'vert' ? 'text-vert-principal' :
-                            melodie.statut.color === 'orange' ? 'text-orange-strat' : 'text-rouge-alerte'
-                          }`}>
-                            {melodie.statut.label}
-                          </span>
-                        </div>
-                      </div>
-                      
-                      <button
-                        onClick={() => supprimerMelodie(melodie.id)}
-                        className="ml-4 p-2 text-rouge-alerte hover:bg-rouge-pastel rounded"
-                      >
-                        <Trash2 size={18} />
-                      </button>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          )}
-        </div>
-        
-        {/* Navigation */}
-        <div className="flex justify-between">
-          <button
-            onClick={() => setSousEtape(1)}
-            className="bg-gray-500 text-white py-3 px-6 rounded-lg font-semibold hover:opacity-90 flex items-center gap-2"
-          >
-            <ChevronLeft size={20} />
-            Précédent
-          </button>
-          
-          <button
-            onClick={() => setSousEtape(3)}
-            className="bg-vert-principal text-white py-3 px-6 rounded-lg font-semibold hover:opacity-90 flex items-center gap-2"
-          >
-            Suivant
-            <ChevronRight size={20} />
-          </button>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// COMPOSANT : Étape Programme Annuel
-function EtapeProgrammeAnnuel({ rapport, setRapport, programmeAnnuel, setSousEtape, calculStatsProgamme }) {
-  
-  // Initialiser l'état si vide
-  useEffect(() => {
-    if (rapport.programme_annuel_etat.length === 0 && programmeAnnuel.length > 0) {
-      setRapport({
-        ...rapport,
-        programme_annuel_etat: programmeAnnuel.map(k => ({
-          khassida_id: k.id,
-          statut: 'pas_commence',
-          pourcentage: 0
-        }))
-      })
-    }
-  }, [])
-  
-  const updateEtat = (khassidaId, statut, pourcentage = 0) => {
-    const nouvelEtat = rapport.programme_annuel_etat.map(e => 
-      e.khassida_id === khassidaId ? { ...e, statut, pourcentage } : e
-    )
-    setRapport({ ...rapport, programme_annuel_etat: nouvelEtat })
-  }
-  
-  const getEtat = (khassidaId) => {
-    return rapport.programme_annuel_etat.find(e => e.khassida_id === khassidaId) || 
-           { statut: 'pas_commence', pourcentage: 0 }
-  }
-  
-  const stats = calculStatsProgamme()
-  
-  return (
-    <div className="min-h-screen bg-gris-clair py-8 px-4">
-      <div className="max-w-4xl mx-auto">
-        {/* Progress */}
-        <div className="mb-6">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-semibold text-vert-fonce">Étape 3/4 : Programme Annuel</span>
-            <span className="text-sm text-gray-600">75%</span>
-          </div>
-          <div className="w-full bg-gray-200 rounded-full h-2">
-            <div className="bg-vert-principal h-2 rounded-full" style={{width: '75%'}}></div>
-          </div>
-        </div>
-        
-        {programmeAnnuel.length === 0 ? (
-          <div className="bg-orange-pastel border-2 border-orange-strat rounded-lg p-6 mb-6">
-            <p className="text-center text-gray-700">
-              Aucun khassida dans le programme annuel. Vous pouvez passer cette étape.
-            </p>
-          </div>
-        ) : (
-          <>
-            {/* Stats globales */}
-            <div className="bg-bleu-pastel border-2 border-bleu-info rounded-lg p-6 mb-6">
-              <h3 className="font-bold text-bleu-info mb-4">Progression globale</h3>
-              
-              <div className="grid grid-cols-4 gap-4 mb-4">
-                <div className="text-center">
-                  <div className="text-3xl font-bold text-vert-principal">{stats.termines}</div>
-                  <div className="text-sm text-gray-600">Terminés</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-3xl font-bold text-orange-strat">{stats.enCours}</div>
-                  <div className="text-sm text-gray-600">En cours</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-3xl font-bold text-rouge-alerte">{stats.pasCommences}</div>
-                  <div className="text-sm text-gray-600">Pas commencés</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-3xl font-bold text-bleu-info">{stats.tauxGlobal}%</div>
-                  <div className="text-sm text-gray-600">Taux global</div>
-                </div>
-              </div>
-              
-              <div className="w-full bg-gray-200 rounded-full h-4">
-                <div 
-                  className="bg-bleu-info h-4 rounded-full transition-all"
-                  style={{width: `${stats.tauxGlobal}%`}}
-                ></div>
-              </div>
-            </div>
-            
-            {/* Liste des khassidas */}
-            <div className="bg-white rounded-lg p-6 mb-6 shadow-sm">
-              <h3 className="font-bold text-vert-fonce mb-4">
-                État des khassidas ({programmeAnnuel.length})
-              </h3>
-              
-              <div className="space-y-4">
-                {programmeAnnuel.map((khassida, index) => {
-                  const etat = getEtat(khassida.id)
-                  
-                  return (
-                    <div key={khassida.id} className="border-2 border-gray-200 rounded-lg p-4">
-                      <div className="flex items-start gap-3 mb-3">
-                        <span className="font-bold text-vert-fonce">{index + 1}.</span>
-                        <div className="flex-1">
-                          <h4 className="font-semibold text-vert-fonce">{khassida.nom}</h4>
-                          <p className="text-sm text-gray-600">{khassida.melodie}</p>
-                        </div>
-                      </div>
-                      
-                      <div className="space-y-2 pl-6">
-                        <label className="flex items-center cursor-pointer">
-                          <input
-                            type="radio"
-                            name={`khassida_${khassida.id}`}
-                            checked={etat.statut === 'termine'}
-                            onChange={() => updateEtat(khassida.id, 'termine', 100)}
-                            className="mr-3"
-                          />
-                          <span className="font-semibold text-vert-principal">Terminé</span>
-                        </label>
-                        
-                        <label className="flex items-center cursor-pointer">
-                          <input
-                            type="radio"
-                            name={`khassida_${khassida.id}`}
-                            checked={etat.statut === 'en_cours'}
-                            onChange={() => updateEtat(khassida.id, 'en_cours', etat.pourcentage)}
-                            className="mr-3"
-                          />
-                          <span className="font-semibold text-orange-strat">En cours</span>
-                          {etat.statut === 'en_cours' && (
-                            <input
-                              type="number"
-                              min="0"
-                              max="100"
-                              value={etat.pourcentage}
-                              onChange={(e) => updateEtat(khassida.id, 'en_cours', parseInt(e.target.value) || 0)}
-                              className="ml-3 w-20 px-2 py-1 border-2 border-orange-strat rounded"
-                              placeholder="%"
-                            />
-                          )}
-                        </label>
-                        
-                        <label className="flex items-center cursor-pointer">
-                          <input
-                            type="radio"
-                            name={`khassida_${khassida.id}`}
-                            checked={etat.statut === 'pas_commence'}
-                            onChange={() => updateEtat(khassida.id, 'pas_commence', 0)}
-                            className="mr-3"
-                          />
-                          <span className="font-semibold text-gray-600">Pas commencé</span>
-                        </label>
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-            
-            {/* Textareas */}
-            <div className="bg-white rounded-lg p-6 mb-6 shadow-sm space-y-4">
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Objectifs atteints
-                </label>
-                <textarea
-                  value={rapport.programme_annuel_textes.objectifs_atteints}
-                  onChange={(e) => setRapport({
-                    ...rapport,
-                    programme_annuel_textes: {
-                      ...rapport.programme_annuel_textes,
-                      objectifs_atteints: e.target.value
-                    }
-                  })}
-                  rows="3"
-                  className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-vert-principal focus:outline-none"
-                  placeholder="Listez les khassidas terminés et objectifs atteints..."
-                ></textarea>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Objectifs en cours
-                </label>
-                <textarea
-                  value={rapport.programme_annuel_textes.objectifs_en_cours}
-                  onChange={(e) => setRapport({
-                    ...rapport,
-                    programme_annuel_textes: {
-                      ...rapport.programme_annuel_textes,
-                      objectifs_en_cours: e.target.value
-                    }
-                  })}
-                  rows="3"
-                  className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-vert-principal focus:outline-none"
-                  placeholder="Khassidas en cours avec leur avancement..."
-                ></textarea>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Objectifs non atteints
-                </label>
-                <textarea
-                  value={rapport.programme_annuel_textes.objectifs_non_atteints}
-                  onChange={(e) => setRapport({
-                    ...rapport,
-                    programme_annuel_textes: {
-                      ...rapport.programme_annuel_textes,
-                      objectifs_non_atteints: e.target.value
-                    }
-                  })}
-                  rows="3"
-                  className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-vert-principal focus:outline-none"
-                  placeholder="Khassidas pas commencés ou en retard..."
-                ></textarea>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Ajustements nécessaires
-                </label>
-                <textarea
-                  value={rapport.programme_annuel_textes.ajustements}
-                  onChange={(e) => setRapport({
-                    ...rapport,
-                    programme_annuel_textes: {
-                      ...rapport.programme_annuel_textes,
-                      ajustements: e.target.value
-                    }
-                  })}
-                  rows="3"
-                  className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-vert-principal focus:outline-none"
-                  placeholder="Actions correctives, ajustements prévus..."
-                ></textarea>
-              </div>
-            </div>
-          </>
-        )}
-        
-        {/* Navigation */}
-        <div className="flex justify-between">
-          <button
-            onClick={() => setSousEtape(2)}
-            className="bg-gray-500 text-white py-3 px-6 rounded-lg font-semibold hover:opacity-90 flex items-center gap-2"
-          >
-            <ChevronLeft size={20} />
-            Précédent
-          </button>
-          
-          <button
-            onClick={() => setSousEtape(4)}
-            className="bg-vert-principal text-white py-3 px-6 rounded-lg font-semibold hover:opacity-90 flex items-center gap-2"
-          >
-            Suivant
-            <ChevronRight size={20} />
-          </button>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// COMPOSANT : Étape Appréciation
-function EtapeAppreciation({ rapport, setRapport, setSousEtape, kourel, programmeAnnuel }) {
-  
-  // const genererPDF = async () => {
-  //   // TODO: Implémenter génération PDF LaTeX
-  //   alert('Génération PDF : Fonctionnalité en cours de développement...')
-  // }
-
   const [loading, setLoading] = useState(false)
+  const [progress, setProgress] = useState(0)
+  const [succes, setSucces] = useState(false)
   const [error, setError] = useState(null)
 
   const genererPDFClick = async () => {
     setLoading(true)
+    setSucces(false)
     setError(null)
-    
+    setProgress(0)
+    const timer = setInterval(() => {
+      setProgress(prev => {
+        if (prev >= 99) return 99
+        const inc = prev < 20 ? 5 : prev < 45 ? 2.5 : prev < 80 ? 0.8 : 0.15
+        return Math.min(99, Math.round((prev + inc) * 10) / 10)
+      })
+    }, 250)
     const result = await genererPDF(rapport, kourel, programmeAnnuel)
-    
+    clearInterval(timer)
     if (result.success) {
-      alert('✅ PDF généré avec succès !')
+      setProgress(100)
+      setSucces(true)
+      setTimeout(() => { setLoading(false); setProgress(0); setSucces(false) }, 1500)
     } else {
+      setLoading(false)
+      setProgress(0)
       setError(result.error)
-      alert(`❌ Erreur : ${result.error}`)
     }
-    
-    setLoading(false)
   }
-    
+
+  const peutSuivre = sousEtape === 1 ? !!rapport.mois : true
+
   return (
-    <div className="min-h-screen bg-gris-clair py-8 px-4">
-      <div className="max-w-4xl mx-auto">
-        {/* Progress */}
-        <div className="mb-6">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-semibold text-vert-fonce">Étape 4/4 : Appréciation & Conclusion</span>
-            <span className="text-sm text-gray-600">100%</span>
-          </div>
-          <div className="w-full bg-gray-200 rounded-full h-2">
-            <div className="bg-vert-principal h-2 rounded-full" style={{width: '100%'}}></div>
-          </div>
-        </div>
-        
-        {/* Formulaire */}
-        <div className="bg-white rounded-lg p-6 mb-6 shadow-sm space-y-6">
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
-              Appréciation générale
-            </label>
-            <textarea
-              value={rapport.appreciation.generale}
-              onChange={(e) => setRapport({
-                ...rapport,
-                appreciation: { ...rapport.appreciation, generale: e.target.value }
-              })}
-              rows="4"
-              className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-vert-principal focus:outline-none"
-              placeholder="Bilan global du mois, contexte, dynamique d'équipe..."
-            ></textarea>
-          </div>
-          
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-semibold text-vert-principal mb-2 flex items-center gap-2">
-                <span className="w-6 h-6 bg-vert-principal text-white rounded-full flex items-center justify-center text-sm">✓</span>
-                Points positifs
-              </label>
-              <textarea
-                value={rapport.appreciation.points_positifs}
-                onChange={(e) => setRapport({
-                  ...rapport,
-                  appreciation: { ...rapport.appreciation, points_positifs: e.target.value }
-                })}
-                rows="4"
-                className="w-full px-4 py-2 border-2 border-vert-principal rounded-lg focus:border-vert-fonce focus:outline-none"
-                placeholder="Mélodies terminées, bons rattrapages..."
-              ></textarea>
-            </div>
-            
-            <div>
-              <label className="block text-sm font-semibold text-orange-strat mb-2 flex items-center gap-2">
-                <span className="w-6 h-6 bg-orange-strat text-white rounded-full flex items-center justify-center text-sm">!</span>
-                À surveiller
-              </label>
-              <textarea
-                value={rapport.appreciation.a_surveiller}
-                onChange={(e) => setRapport({
-                  ...rapport,
-                  appreciation: { ...rapport.appreciation, a_surveiller: e.target.value }
-                })}
-                rows="4"
-                className="w-full px-4 py-2 border-2 border-orange-strat rounded-lg focus:border-orange-strat focus:outline-none"
-                placeholder="Points nécessitant attention..."
-              ></textarea>
-            </div>
-          </div>
-          
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-semibold text-rouge-alerte mb-2 flex items-center gap-2">
-                <span className="w-6 h-6 bg-rouge-alerte text-white rounded-full flex items-center justify-center text-sm">×</span>
-                En retard
-              </label>
-              <textarea
-                value={rapport.appreciation.en_retard}
-                onChange={(e) => setRapport({
-                  ...rapport,
-                  appreciation: { ...rapport.appreciation, en_retard: e.target.value }
-                })}
-                rows="4"
-                className="w-full px-4 py-2 border-2 border-rouge-alerte rounded-lg focus:border-rouge-alerte focus:outline-none"
-                placeholder="Mélodies en retard, actions urgentes..."
-              ></textarea>
-            </div>
-            
-            <div>
-              <label className="block text-sm font-semibold text-bleu-info mb-2 flex items-center gap-2">
-                <span className="w-6 h-6 bg-bleu-info text-white rounded-full flex items-center justify-center text-sm">→</span>
-                Priorités mois suivant
-              </label>
-              <textarea
-                value={rapport.appreciation.priorites}
-                onChange={(e) => setRapport({
-                  ...rapport,
-                  appreciation: { ...rapport.appreciation, priorites: e.target.value }
-                })}
-                rows="4"
-                className="w-full px-4 py-2 border-2 border-bleu-info rounded-lg focus:border-bleu-info focus:outline-none"
-                placeholder="Objectifs du prochain mois..."
-              ></textarea>
-            </div>
-          </div>
-        </div>
-        
-        {/* Résumé */}
-        <div className="bg-vert-pastel border-2 border-vert-principal rounded-lg p-6 mb-6">
-          <h3 className="font-bold text-vert-fonce mb-3">Résumé du rapport</h3>
-          <div className="grid grid-cols-2 gap-4 text-sm">
-            <div>
-              <span className="font-semibold">Kourel :</span> {kourel.nom}
-            </div>
-            <div>
-              <span className="font-semibold">Période :</span> {rapport.mois} {rapport.annee}
-            </div>
-            <div>
-              <span className="font-semibold">Mélodies :</span> {rapport.melodies.length} ajoutées
-            </div>
-            <div>
-              <span className="font-semibold">Programme annuel :</span> {
-                rapport.programme_annuel_etat.length > 0 ? 'Configuré' : 'Non configuré'
-              }
-            </div>
-          </div>
-        </div>
-        
-        {/* Navigation */}
-        <div className="flex justify-between">
-          <button
-            onClick={() => setSousEtape(3)}
-            className="bg-gray-500 text-white py-3 px-6 rounded-lg font-semibold hover:opacity-90 flex items-center gap-2"
-          >
-            <ChevronLeft size={20} />
-            Précédent
-          </button>
-          
-          <button
-            onClick={genererPDFClick}
-            disabled={loading}
-            className="bg-vert-principal text-white py-4 px-8 rounded-lg font-bold text-lg hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-3 shadow-lg"
-          >
-            <Download size={24} />
-            {loading ? 'Génération en cours...' : 'Télécharger le PDF'}
-          </button>
+    <div className="min-h-screen bg-gris-clair flex flex-col items-center justify-center px-4 py-4">
+      {loading && <LoadingModal progress={Math.round(progress)} succes={succes} />}
+
+      <div
+        className="w-full max-w-3xl flex flex-col rounded-2xl shadow-xl overflow-hidden"
+        style={{ maxHeight: 'calc(100vh - 2rem)' }}
+      >
+        {/* ── STEPPER — toujours au même endroit ── */}
+        <div className="bg-white px-6 pt-5 pb-3 flex-shrink-0 border-b border-gray-100">
+          <Stepper etape={sousEtape} />
         </div>
 
-        {error && (
-          <div className="mt-4 bg-rouge-pastel border-2 border-rouge-alerte rounded-lg p-4 text-rouge-alerte">
-            <strong>Erreur :</strong> {error}
+        {/* ── CONTENU — seule zone qui change ── */}
+        <div className="flex-1 overflow-y-auto bg-gray-50 px-5 py-4">
+          {sousEtape === 1 && (
+            <Step1Identification kourel={kourel} rapport={rapport} setRapport={setRapport} />
+          )}
+          {sousEtape === 2 && (
+            <Step2Melodies
+              rapport={rapport} setRapport={setRapport}
+              programmeAnnuel={programmeAnnuel}
+              calculTaux={calculTaux} calculStatut={calculStatut}
+            />
+          )}
+          {sousEtape === 3 && (
+            <Step3Programme
+              rapport={rapport} setRapport={setRapport}
+              programmeAnnuel={programmeAnnuel}
+              calculStatsProgamme={calculStatsProgamme}
+            />
+          )}
+          {sousEtape === 4 && (
+            <Step4Appreciation
+              rapport={rapport} setRapport={setRapport}
+              kourel={kourel} programmeAnnuel={programmeAnnuel}
+            />
+          )}
+          {error && (
+            <div className="mt-3 bg-rouge-pastel border border-rouge-alerte rounded-xl p-3 text-sm text-rouge-alerte">
+              <strong>Erreur :</strong> {error}
+            </div>
+          )}
+        </div>
+
+        {/* ── NAVIGATION — toujours au même endroit ── */}
+        <div className="bg-white px-6 py-4 flex-shrink-0 border-t border-gray-100 flex justify-between items-center">
+          <button
+            onClick={sousEtape === 1 ? retour : () => setSousEtape(sousEtape - 1)}
+            className="flex items-center gap-2 py-2.5 px-5 rounded-xl text-sm font-semibold text-white bg-gray-500 hover:opacity-90 transition"
+          >
+            <ChevronLeft size={16} />
+            {sousEtape === 1 ? 'Retour' : 'Précédent'}
+          </button>
+
+          {sousEtape === 4 ? (
+            <button
+              onClick={genererPDFClick}
+              disabled={loading}
+              className="flex items-center gap-2 py-2.5 px-5 rounded-xl text-sm font-semibold text-white bg-vert-principal hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition"
+            >
+              <Download size={16} />
+              Télécharger le PDF
+            </button>
+          ) : (
+            <button
+              onClick={() => setSousEtape(sousEtape + 1)}
+              disabled={!peutSuivre}
+              className="flex items-center gap-2 py-2.5 px-5 rounded-xl text-sm font-semibold text-white bg-vert-principal hover:opacity-90 disabled:opacity-40 transition"
+            >
+              Suivant
+              <ChevronRight size={16} />
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── STEP 1 : Identification ──────────────────────────────────────────────────
+function Step1Identification({ kourel, rapport, setRapport }) {
+  return (
+    <div className="bg-white rounded-xl p-5 shadow-sm">
+      <div className="grid grid-cols-2 gap-4 mb-4">
+        <div>
+          <label className="block text-xs font-semibold text-gray-400 mb-1.5 uppercase tracking-wide">Kourel</label>
+          <input type="text" value={kourel.nom} disabled
+            className="w-full px-3 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg text-gray-500" />
+        </div>
+        <div>
+          <label className="block text-xs font-semibold text-gray-400 mb-1.5 uppercase tracking-wide">Responsable</label>
+          <input type="text" value={kourel.responsable} disabled
+            className="w-full px-3 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg text-gray-500" />
+        </div>
+      </div>
+      <div className="grid grid-cols-3 gap-4 mb-4">
+        <div>
+          <label className="block text-xs font-semibold text-gray-400 mb-1.5 uppercase tracking-wide">Mois</label>
+          <select value={rapport.mois} onChange={(e) => setRapport({ ...rapport, mois: e.target.value })}
+            className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:border-vert-principal focus:outline-none">
+            <option value="">Sélectionner...</option>
+            {MOIS.map(m => <option key={m} value={m}>{m}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="block text-xs font-semibold text-gray-400 mb-1.5 uppercase tracking-wide">Année</label>
+          <input type="number" value={rapport.annee}
+            onChange={(e) => setRapport({ ...rapport, annee: parseInt(e.target.value) })}
+            className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:border-vert-principal focus:outline-none" />
+        </div>
+        <div>
+          <label className="block text-xs font-semibold text-gray-400 mb-1.5 uppercase tracking-wide">Date rapport</label>
+          <input type="date" value={rapport.date_rapport}
+            onChange={(e) => setRapport({ ...rapport, date_rapport: e.target.value })}
+            className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:border-vert-principal focus:outline-none" />
+        </div>
+      </div>
+      <div>
+        <label className="block text-xs font-semibold text-gray-400 mb-1.5 uppercase tracking-wide">
+          Représentant <span className="normal-case font-normal">(optionnel)</span>
+        </label>
+        <input type="text" value={rapport.representant}
+          onChange={(e) => setRapport({ ...rapport, representant: e.target.value })}
+          placeholder="Laisser vide si identique au responsable"
+          className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:border-vert-principal focus:outline-none" />
+      </div>
+    </div>
+  )
+}
+
+// ─── STEP 2 : Mélodies ───────────────────────────────────────────────────────
+const MEL_VIDE = {
+  source: 'programme', khassida_id: null, nom: '', melodie: '',
+  type: 'nouvelle', mode: 'pages', pages_faites: 0, pages_total: 1,
+  dadj_completes: [0], dadj_total: 1
+}
+
+function FormMelodie({ mel, setMel, programmeAnnuel, onConfirm, onCancel, titre, labelConfirm }) {
+  const selKhassida = (khassidaId) => {
+    const k = programmeAnnuel.find(k => k.id === parseInt(khassidaId))
+    if (k) setMel({ ...mel, khassida_id: k.id, nom: k.nom, melodie: k.melodie })
+  }
+  const toggleDadj = (i) => {
+    const d = mel.dadj_completes
+    setMel({ ...mel, dadj_completes: d.includes(i) ? d.filter(x => x !== i) : [...d, i].sort((a, b) => a - b) })
+  }
+  return (
+    <div className="bg-white rounded-xl p-5 mb-4 shadow-sm" style={{ border: '1.5px solid #16824E' }}>
+      <p className="text-sm font-bold mb-4" style={{ color: '#014421' }}>{titre}</p>
+
+      <div className="grid grid-cols-2 gap-4 mb-3">
+        <div>
+          <label className="block text-xs font-semibold text-gray-400 mb-1.5 uppercase tracking-wide">Source</label>
+          <div className="flex flex-col gap-1.5 text-sm">
+            {['programme', 'autre'].map(v => (
+              <label key={v} className="flex items-center gap-2 cursor-pointer">
+                <input type="radio" value={v} checked={mel.source === v}
+                  onChange={() => setMel({ ...mel, source: v, nom: '', melodie: '', khassida_id: null })} />
+                {v === 'programme' ? 'Khassida du programme' : 'Autre khassida'}
+              </label>
+            ))}
+          </div>
+        </div>
+        <div>
+          <label className="block text-xs font-semibold text-gray-400 mb-1.5 uppercase tracking-wide">Type</label>
+          <div className="flex flex-col gap-1.5 text-sm">
+            {['nouvelle', 'revision'].map(v => (
+              <label key={v} className="flex items-center gap-2 cursor-pointer">
+                <input type="radio" value={v} checked={mel.type === v} onChange={() => setMel({ ...mel, type: v })} />
+                {v === 'nouvelle' ? 'Nouvelle' : 'Révision'}
+              </label>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {mel.source === 'programme' && (
+        <div className="mb-3">
+          <label className="block text-xs font-semibold text-gray-400 mb-1.5 uppercase tracking-wide">Khassida</label>
+          <select value={mel.khassida_id || ''} onChange={(e) => selKhassida(e.target.value)}
+            className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:border-vert-principal focus:outline-none">
+            <option value="">-- Choisir --</option>
+            {programmeAnnuel.map(k => <option key={k.id} value={k.id}>{k.nom} ({k.melodie})</option>)}
+          </select>
+        </div>
+      )}
+
+      {mel.source === 'autre' && (
+        <div className="grid grid-cols-2 gap-3 mb-3">
+          <div>
+            <label className="block text-xs font-semibold text-gray-400 mb-1.5 uppercase tracking-wide">Nom</label>
+            <input type="text" value={mel.nom} onChange={(e) => setMel({ ...mel, nom: e.target.value })}
+              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:border-vert-principal focus:outline-none" />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-gray-400 mb-1.5 uppercase tracking-wide">Mélodie</label>
+            <input type="text" value={mel.melodie} onChange={(e) => setMel({ ...mel, melodie: e.target.value })}
+              placeholder="Ex: Serigne Abdou Diop"
+              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:border-vert-principal focus:outline-none" />
+          </div>
+        </div>
+      )}
+
+      <div className="mb-3">
+        <label className="block text-xs font-semibold text-gray-400 mb-1.5 uppercase tracking-wide">Évaluation</label>
+        <div className="flex gap-6 text-sm">
+          {['pages', 'dadj'].map(v => (
+            <label key={v} className="flex items-center gap-2 cursor-pointer">
+              <input type="radio" value={v} checked={mel.mode === v} onChange={() => setMel({ ...mel, mode: v })} />
+              {v === 'pages' ? 'Par pages' : 'Par Dadj'}
+            </label>
+          ))}
+        </div>
+      </div>
+
+      {mel.mode === 'pages' && (
+        <div className="bg-vert-pastel rounded-lg p-3 mb-3">
+          <div className="grid grid-cols-3 gap-3 items-end">
+            <div>
+              <label className="block text-xs font-semibold text-vert-fonce mb-1">Pages faites</label>
+              <input type="number" min="0" value={mel.pages_faites}
+                onChange={(e) => setMel({ ...mel, pages_faites: parseInt(e.target.value) || 0 })}
+                className="w-full px-3 py-2 text-sm border border-vert-principal rounded-lg" />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-vert-fonce mb-1">Total pages</label>
+              <input type="number" min="1" value={mel.pages_total}
+                onChange={(e) => setMel({ ...mel, pages_total: parseInt(e.target.value) || 1 })}
+                className="w-full px-3 py-2 text-sm border border-vert-principal rounded-lg" />
+            </div>
+            <div className="text-center text-2xl font-bold text-vert-principal">
+              {Math.round((mel.pages_faites / mel.pages_total) * 100)}%
+            </div>
+          </div>
+        </div>
+      )}
+
+      {mel.mode === 'dadj' && (
+        <div className="bg-vert-pastel rounded-lg p-3 mb-3">
+          <label className="block text-xs font-semibold text-vert-fonce mb-2">Dadj complétés</label>
+          <div className="space-y-1.5 mb-3">
+            {Array.from({ length: mel.dadj_total }, (_, i) => (
+              <label key={i} className="flex items-center gap-2 cursor-pointer text-sm">
+                <input type="checkbox" checked={mel.dadj_completes.includes(i)} onChange={() => toggleDadj(i)} className="w-4 h-4" />
+                <span className="font-semibold text-vert-fonce">{i + 1}{i === 0 ? 'er' : 'ème'} Dadj</span>
+              </label>
+            ))}
+          </div>
+          <div className="flex items-center justify-between">
+            <button onClick={() => setMel({ ...mel, dadj_total: mel.dadj_total + 1 })}
+              className="flex items-center gap-1.5 text-xs font-semibold text-white px-3 py-1.5 rounded-lg"
+              style={{ background: '#16824E' }}>
+              <Plus size={12} /> Ajouter un Dadj
+            </button>
+            <span className="text-xl font-bold text-vert-principal">
+              {Math.round((mel.dadj_completes.length / mel.dadj_total) * 100)}%
+            </span>
+          </div>
+        </div>
+      )}
+
+      <div className="flex gap-3">
+        <button onClick={onCancel}
+          className="flex-1 py-2 text-sm font-semibold bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition">
+          Annuler
+        </button>
+        <button onClick={onConfirm} disabled={!mel.nom || !mel.melodie}
+          className="flex-1 py-2 text-sm font-semibold text-white rounded-lg hover:opacity-90 disabled:opacity-40 transition"
+          style={{ background: '#16824E' }}>
+          {labelConfirm}
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function Step2Melodies({ rapport, setRapport, programmeAnnuel, calculTaux, calculStatut }) {
+  const [mel, setMel] = useState({ ...MEL_VIDE })
+  const [enAjout, setEnAjout] = useState(false)
+  const [enEditionId, setEnEditionId] = useState(null)
+  const [melEdition, setMelEdition] = useState(null)
+
+  const resetMel = () => setMel({ ...MEL_VIDE })
+
+  const calculerTauxEtStatut = (m) => {
+    const taux = m.mode === 'pages'
+      ? Math.round((m.pages_faites / m.pages_total) * 100)
+      : Math.round((m.dadj_completes.length / m.dadj_total) * 100)
+    return { taux, statut: calculStatut(taux) }
+  }
+
+  const ajouter = () => {
+    if (!mel.nom || !mel.melodie) return
+    const { taux, statut } = calculerTauxEtStatut(mel)
+    setRapport({ ...rapport, melodies: [...rapport.melodies, { ...mel, id: Date.now(), taux, statut }] })
+    resetMel()
+    setEnAjout(false)
+  }
+
+  const ouvrirEdition = (m) => {
+    setEnEditionId(m.id)
+    setMelEdition({ ...m })
+    setEnAjout(false)
+  }
+
+  const sauvegarderEdition = () => {
+    if (!melEdition.nom || !melEdition.melodie) return
+    const { taux, statut } = calculerTauxEtStatut(melEdition)
+    setRapport({
+      ...rapport,
+      melodies: rapport.melodies.map(m =>
+        m.id === enEditionId ? { ...melEdition, taux, statut } : m
+      )
+    })
+    setEnEditionId(null)
+    setMelEdition(null)
+  }
+
+  const annulerEdition = () => { setEnEditionId(null); setMelEdition(null) }
+
+  const supprimer = (id) => setRapport({ ...rapport, melodies: rapport.melodies.filter(m => m.id !== id) })
+
+  return (
+    <div>
+      {!enAjout && enEditionId === null && (
+        <button onClick={() => setEnAjout(true)}
+          className="w-full flex items-center justify-center gap-2 py-2.5 px-5 rounded-xl text-sm font-semibold text-white bg-vert-principal hover:opacity-90 transition mb-4">
+          <Plus size={15} /> Ajouter une mélodie
+        </button>
+      )}
+
+      {enAjout && (
+        <FormMelodie
+          mel={mel} setMel={setMel}
+          programmeAnnuel={programmeAnnuel}
+          onConfirm={ajouter}
+          onCancel={() => { setEnAjout(false); resetMel() }}
+          titre="Nouvelle mélodie"
+          labelConfirm="Ajouter"
+        />
+      )}
+
+      <div className="bg-white rounded-xl p-5 shadow-sm">
+        <p className="text-xs font-bold mb-3 uppercase tracking-wide" style={{ color: '#014421' }}>
+          Mélodies ajoutées ({rapport.melodies.length})
+        </p>
+        {rapport.melodies.length === 0 ? (
+          <p className="text-sm text-gray-400 text-center py-6">
+            Aucune mélodie. Cliquez sur "Ajouter une mélodie" ci-dessus.
+          </p>
+        ) : (
+          <div className="space-y-2">
+            {rapport.melodies.map((m) => {
+              if (enEditionId === m.id && melEdition) {
+                return (
+                  <div key={m.id}>
+                    <FormMelodie
+                      mel={melEdition} setMel={setMelEdition}
+                      programmeAnnuel={programmeAnnuel}
+                      onConfirm={sauvegarderEdition}
+                      onCancel={annulerEdition}
+                      titre={`Modifier — ${m.nom}`}
+                      labelConfirm="Enregistrer"
+                    />
+                  </div>
+                )
+              }
+              const c = m.statut.color
+              const bg = c === 'vert' ? 'bg-vert-pastel' : c === 'orange' ? 'bg-orange-pastel' : 'bg-rouge-pastel'
+              const brd = c === 'vert' ? 'border-vert-principal' : c === 'orange' ? 'border-orange-strat' : 'border-rouge-alerte'
+              const bar = c === 'vert' ? 'bg-vert-principal' : c === 'orange' ? 'bg-orange-strat' : 'bg-rouge-alerte'
+              return (
+                <div key={m.id} className={`${bg} border ${brd} rounded-xl p-3 flex items-start gap-2`}>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-0.5">
+                      <span className="text-sm font-bold truncate" style={{ color: '#014421' }}>{m.nom}</span>
+                      {m.type === 'revision' && (
+                        <span className="text-xs bg-bleu-info text-white px-1.5 py-0.5 rounded flex-shrink-0">Révision</span>
+                      )}
+                    </div>
+                    <p className="text-xs text-gray-500 mb-1">{m.melodie}</p>
+                    <p className="text-xs text-gray-600 mb-1.5">
+                      {m.mode === 'pages' ? `${m.pages_faites} / ${m.pages_total} pages` : `${m.dadj_completes.length} Dadj sur ${m.dadj_total}`}
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1 bg-white bg-opacity-60 rounded-full h-1.5">
+                        <div className={`h-1.5 rounded-full ${bar}`} style={{ width: `${m.taux}%` }} />
+                      </div>
+                      <span className="text-xs font-bold flex-shrink-0">{m.taux}%</span>
+                    </div>
+                  </div>
+                  <div className="flex flex-col gap-1 flex-shrink-0">
+                    <button onClick={() => ouvrirEdition(m)}
+                      className="p-1.5 rounded-lg hover:bg-white hover:bg-opacity-60 transition" style={{ color: '#014421' }}>
+                      <Pencil size={14} />
+                    </button>
+                    <button onClick={() => supprimer(m.id)}
+                      className="p-1.5 rounded-lg hover:bg-red-50 transition" style={{ color: '#C0392B' }}>
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                </div>
+              )
+            })}
           </div>
         )}
       </div>
@@ -1079,4 +458,307 @@ function EtapeAppreciation({ rapport, setRapport, setSousEtape, kourel, programm
   )
 }
 
-// Suite dans le prochain fichier (Génération PDF)...
+// ─── STEP 3 : Programme Annuel ────────────────────────────────────────────────
+function Step3Programme({ rapport, setRapport, programmeAnnuel, calculStatsProgamme }) {
+  useEffect(() => {
+    if (rapport.programme_annuel_etat.length === 0 && programmeAnnuel.length > 0) {
+      setRapport({
+        ...rapport,
+        programme_annuel_etat: programmeAnnuel.map(k => ({ khassida_id: k.id, statut: 'pas_commence', pourcentage: 0 }))
+      })
+    }
+  }, [])
+
+  // Calcule le taux moyen des mélodies enregistrées pour un khassida donné
+  const getTauxDepuisMelodies = (khassidaId) => {
+    const mels = rapport.melodies.filter(m => m.khassida_id === khassidaId)
+    if (mels.length === 0) return null
+    return Math.round(mels.reduce((sum, m) => sum + (m.taux || 0), 0) / mels.length)
+  }
+
+  // Synchronise le pourcentage stocké des khassidas "en_cours" avec le taux réel des mélodies
+  const melKey = rapport.melodies.map(m => `${m.khassida_id}:${m.taux}`).sort().join('|')
+  useEffect(() => {
+    if (rapport.programme_annuel_etat.length === 0) return
+    let changed = false
+    const updated = rapport.programme_annuel_etat.map(etat => {
+      if (etat.statut !== 'en_cours') return etat
+      const taux = getTauxDepuisMelodies(etat.khassida_id)
+      if (taux === null || taux === etat.pourcentage) return etat
+      changed = true
+      return { ...etat, pourcentage: taux }
+    })
+    if (changed) setRapport({ ...rapport, programme_annuel_etat: updated })
+  }, [melKey])
+
+  const updateEtat = (khassidaId, statut, pourcentage = 0) => {
+    const existe = rapport.programme_annuel_etat.some(e => e.khassida_id === khassidaId)
+    const nouvelEtat = existe
+      ? rapport.programme_annuel_etat.map(e => e.khassida_id === khassidaId ? { ...e, statut, pourcentage } : e)
+      : [...rapport.programme_annuel_etat, { khassida_id: khassidaId, statut, pourcentage }]
+    setRapport({ ...rapport, programme_annuel_etat: nouvelEtat })
+  }
+
+  const selectionnerEnCours = (khassidaId, pourcentageActuel) => {
+    const tauAuto = getTauxDepuisMelodies(khassidaId)
+    updateEtat(khassidaId, 'en_cours', tauAuto !== null ? tauAuto : pourcentageActuel)
+  }
+
+  const getEtat = (id) =>
+    rapport.programme_annuel_etat.find(e => e.khassida_id === id) || { statut: 'pas_commence', pourcentage: 0 }
+
+  const stats = calculStatsProgamme()
+
+  if (programmeAnnuel.length === 0) {
+    return (
+      <div className="bg-orange-pastel border border-orange-strat rounded-xl p-4 text-sm text-center text-gray-600">
+        Aucun khassida dans le programme annuel. Vous pouvez passer cette étape.
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Stats globales */}
+      <div className="bg-bleu-pastel border border-bleu-info rounded-xl p-4">
+        <p className="text-xs font-bold text-bleu-info mb-3 uppercase tracking-wide">Progression globale</p>
+        <div className="grid grid-cols-4 gap-3 mb-3 text-center">
+          <div><div className="text-xl font-bold text-vert-principal">{stats.termines}</div><div className="text-xs text-gray-500">Terminés</div></div>
+          <div><div className="text-xl font-bold text-orange-strat">{stats.enCours}</div><div className="text-xs text-gray-500">En cours</div></div>
+          <div><div className="text-xl font-bold text-rouge-alerte">{stats.pasCommences}</div><div className="text-xs text-gray-500">Non commencés</div></div>
+          <div><div className="text-xl font-bold text-bleu-info">{stats.tauxGlobal}%</div><div className="text-xs text-gray-500">Taux global</div></div>
+        </div>
+        <div className="w-full bg-white bg-opacity-60 rounded-full h-2">
+          <div className="bg-bleu-info h-2 rounded-full transition-all" style={{ width: `${stats.tauxGlobal}%` }} />
+        </div>
+      </div>
+
+      {/* Liste khassidas */}
+      <div className="bg-white rounded-xl p-5 shadow-sm">
+        <p className="text-xs font-bold mb-3 uppercase tracking-wide" style={{ color: '#014421' }}>
+          État des khassidas ({programmeAnnuel.length})
+        </p>
+        <div className="space-y-2">
+          {programmeAnnuel.map((k, idx) => {
+            const e = getEtat(k.id)
+            const tauxAuto = getTauxDepuisMelodies(k.id)
+            const aMelodies = tauxAuto !== null
+            return (
+              <div key={k.id} className={`border rounded-lg p-3 transition-colors ${
+                e.statut === 'termine' ? 'border-vert-principal bg-vert-pastel bg-opacity-30' :
+                e.statut === 'en_cours' ? 'border-orange-strat bg-orange-pastel bg-opacity-30' :
+                'border-gray-100'
+              }`}>
+                <div className="flex items-start gap-2 mb-2">
+                  <span className="text-xs font-bold flex-shrink-0 mt-0.5" style={{ color: '#014421' }}>{idx + 1}.</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-sm font-semibold" style={{ color: '#014421' }}>{k.nom}</span>
+                      {aMelodies && (
+                        <span className="text-xs px-1.5 py-0.5 rounded font-semibold flex-shrink-0"
+                          style={{ background: '#E8F5E9', color: '#16824E' }}>
+                          {tauxAuto}% depuis mélodies
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-xs text-gray-400">{k.melodie}</div>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap gap-4 pl-5 text-xs mb-2">
+                  <label className="flex items-center gap-1.5 cursor-pointer">
+                    <input type="radio" name={`k_${k.id}`} checked={e.statut === 'termine'} onChange={() => updateEtat(k.id, 'termine', 100)} className="accent-vert-principal" />
+                    <span className="font-semibold text-vert-principal">Terminé</span>
+                  </label>
+                  <label className="flex items-center gap-1.5 cursor-pointer">
+                    <input type="radio" name={`k_${k.id}`} checked={e.statut === 'en_cours'} onChange={() => selectionnerEnCours(k.id, e.pourcentage)} className="accent-orange-strat" />
+                    <span className="font-semibold text-orange-strat">En cours</span>
+                  </label>
+                  <label className="flex items-center gap-1.5 cursor-pointer">
+                    <input type="radio" name={`k_${k.id}`} checked={e.statut === 'pas_commence'} onChange={() => updateEtat(k.id, 'pas_commence', 0)} />
+                    <span className="text-gray-500">Pas commencé</span>
+                  </label>
+                </div>
+
+                {e.statut === 'en_cours' && (
+                  <div className="pl-5">
+                    <div className="flex items-center gap-3">
+                      <div className="flex-1 bg-white bg-opacity-70 rounded-full h-2 overflow-hidden">
+                        <div className="h-2 rounded-full transition-all duration-300"
+                          style={{ width: `${e.pourcentage}%`, background: '#E67E22' }} />
+                      </div>
+                      <div className="flex items-center gap-1.5 flex-shrink-0">
+                        <input
+                          type="number" min="0" max="100" value={e.pourcentage}
+                          onChange={(ev) => updateEtat(k.id, 'en_cours', Math.min(100, Math.max(0, parseInt(ev.target.value) || 0)))}
+                          className="w-14 px-2 py-1 border border-orange-strat rounded-lg text-xs text-center font-bold focus:outline-none"
+                          style={{ color: '#E67E22' }}
+                        />
+                        <span className="text-xs font-bold text-orange-strat">%</span>
+                      </div>
+                    </div>
+                    {aMelodies && (
+                      <p className="text-xs mt-1" style={{ color: '#16824E' }}>
+                        Rempli automatiquement · modifiable
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* Textareas */}
+      <div className="bg-white rounded-xl p-5 shadow-sm space-y-3">
+        {[
+          { key: 'objectifs_atteints',     label: 'Objectifs atteints',      ph: 'Khassidas terminés...' },
+          { key: 'objectifs_en_cours',     label: 'Objectifs en cours',      ph: 'Khassidas en cours...' },
+          { key: 'objectifs_non_atteints', label: 'Objectifs non atteints',  ph: 'Khassidas en retard...' },
+          { key: 'ajustements',            label: 'Ajustements nécessaires', ph: 'Actions correctives...' },
+        ].map(({ key, label, ph }) => (
+          <div key={key}>
+            <label className="block text-xs font-semibold text-gray-400 mb-1.5 uppercase tracking-wide">{label}</label>
+            <textarea rows="2" value={rapport.programme_annuel_textes[key]}
+              onChange={(e) => setRapport({ ...rapport, programme_annuel_textes: { ...rapport.programme_annuel_textes, [key]: e.target.value } })}
+              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:border-vert-principal focus:outline-none resize-none"
+              placeholder={ph} />
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// ─── STEP 4 : Appréciation ───────────────────────────────────────────────────
+function Step4Appreciation({ rapport, setRapport, kourel, programmeAnnuel }) {
+  return (
+    <div className="space-y-4">
+      <div className="bg-white rounded-xl p-5 shadow-sm">
+        <label className="block text-xs font-semibold text-gray-400 mb-1.5 uppercase tracking-wide">Appréciation générale</label>
+        <textarea rows="3" value={rapport.appreciation.generale}
+          onChange={(e) => setRapport({ ...rapport, appreciation: { ...rapport.appreciation, generale: e.target.value } })}
+          className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:border-vert-principal focus:outline-none resize-none"
+          placeholder="Bilan global du mois, contexte, dynamique d'équipe..." />
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        {[
+          { key: 'points_positifs', label: 'Points positifs',      color: '#16824E', ph: 'Mélodies terminées, bons rattrapages...' },
+          { key: 'a_surveiller',   label: 'À surveiller',          color: '#E67E22', ph: 'Points nécessitant attention...' },
+          { key: 'en_retard',      label: 'En retard',             color: '#C0392B', ph: 'Mélodies en retard, actions urgentes...' },
+          { key: 'priorites',      label: 'Priorités mois suivant',color: '#34495E', ph: 'Objectifs du prochain mois...' },
+        ].map(({ key, label, color, ph }) => (
+          <div key={key} className="bg-white rounded-xl p-4 shadow-sm">
+            <label className="block text-xs font-bold mb-1.5 uppercase tracking-wide" style={{ color }}>
+              {label}
+            </label>
+            <textarea rows="3" value={rapport.appreciation[key]}
+              onChange={(e) => setRapport({ ...rapport, appreciation: { ...rapport.appreciation, [key]: e.target.value } })}
+              className="w-full px-3 py-2 text-sm border rounded-lg focus:outline-none resize-none"
+              style={{ borderColor: color + '55' }}
+              placeholder={ph} />
+          </div>
+        ))}
+      </div>
+
+      <div className="bg-vert-pastel border border-vert-principal rounded-xl p-4">
+        <p className="text-xs font-bold mb-2 uppercase tracking-wide" style={{ color: '#014421' }}>Résumé</p>
+        <div className="grid grid-cols-2 gap-1.5 text-xs text-gray-600">
+          <div><span className="font-semibold">Kourel :</span> {kourel.nom}</div>
+          <div><span className="font-semibold">Période :</span> {rapport.mois} {rapport.annee}</div>
+          <div><span className="font-semibold">Mélodies :</span> {rapport.melodies.length} ajoutées</div>
+          <div><span className="font-semibold">Programme :</span> {rapport.programme_annuel_etat.length > 0 ? 'Configuré' : 'Non configuré'}</div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── STEPPER ──────────────────────────────────────────────────────────────────
+function Stepper({ etape }) {
+  const steps = [
+    { label: 'Identification', Icon: User },
+    { label: 'Mélodies',       Icon: Music },
+    { label: 'Programme',      Icon: CalendarDays },
+    { label: 'Appréciation',   Icon: Star },
+  ]
+  return (
+    <div className="flex items-start justify-center">
+      {steps.map((s, i) => {
+        const num = i + 1
+        const done = num < etape
+        const actif = num === etape
+        return (
+          <div key={i} className="flex items-start">
+            <div className="flex flex-col items-center" style={{ minWidth: 68 }}>
+              <div className="flex items-center justify-center rounded-full transition-all duration-300"
+                style={{
+                  width: 38, height: 38,
+                  background: done ? '#16824E' : actif ? '#014421' : '#F3F4F6',
+                  boxShadow: actif ? '0 0 0 4px #E8F5E9' : 'none',
+                }}>
+                {done ? (
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={3}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                  </svg>
+                ) : (
+                  <s.Icon size={16} color={actif ? '#fff' : '#9CA3AF'} strokeWidth={2} />
+                )}
+              </div>
+              <span className="mt-2 text-center leading-tight" style={{
+                fontSize: 11, fontWeight: actif ? 700 : 500,
+                color: done ? '#16824E' : actif ? '#014421' : '#9CA3AF',
+                maxWidth: 62,
+              }}>
+                {s.label}
+              </span>
+            </div>
+            {i < steps.length - 1 && (
+              <div className="flex-shrink-0" style={{
+                height: 2, width: 44, marginTop: 18, marginLeft: 2, marginRight: 2,
+                borderRadius: 2, background: done ? '#16824E' : '#E5E7EB',
+                transition: 'background 0.3s',
+              }} />
+            )}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+// ─── LOADING MODAL ────────────────────────────────────────────────────────────
+function LoadingModal({ progress, succes }) {
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50">
+      <div className="bg-white rounded-2xl p-10 max-w-xs w-full mx-4 shadow-2xl flex flex-col items-center gap-6">
+        {succes ? (
+          <div className="w-16 h-16 bg-vert-pastel rounded-full flex items-center justify-center">
+            <svg className="w-9 h-9 text-vert-principal" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+            </svg>
+          </div>
+        ) : (
+          <div className="w-16 h-16 rounded-full animate-spin border-4"
+            style={{ borderColor: '#E8F5E9', borderTopColor: '#16824E' }} />
+        )}
+        <p className="text-lg font-bold text-vert-fonce text-center">
+          {succes ? 'PDF téléchargé !' : 'Génération du PDF...'}
+        </p>
+        <div className="w-full relative h-8 bg-gray-100 rounded-full overflow-hidden border border-gray-200">
+          <div className="h-full rounded-full transition-all duration-500 ease-out"
+            style={{
+              width: `${progress}%`,
+              background: succes ? '#16824E' : 'linear-gradient(90deg, #014421, #16824E, #8CD2B4)'
+            }} />
+          <span className="absolute inset-0 flex items-center justify-center text-sm font-bold text-white"
+            style={{ textShadow: '0 1px 3px rgba(0,0,0,0.5)' }}>
+            {progress}%
+          </span>
+        </div>
+      </div>
+    </div>
+  )
+}
