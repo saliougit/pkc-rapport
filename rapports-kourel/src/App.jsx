@@ -1,17 +1,12 @@
 import { useState, useEffect } from 'react'
-import { ChevronRight, ChevronLeft, Plus, Trash2, Edit2 } from 'lucide-react'
+import { ChevronRight, ChevronLeft, Plus, Trash2, Edit2, ShieldCheck, Loader } from 'lucide-react'
 import { FormulaireRapport } from './components/FormulaireRapport'
+import { AdminPanel } from './components/AdminPanel'
 import { useLocalStorage } from './hooks/useLocalStorage'
-
-// Liste des kourels par défaut
-const KOURELS_DEFAULT = [
-  { id: 1, nom: 'Kourel 1', responsable: 'Elhadji NDIAYE' },
-  { id: 2, nom: 'Kourel 2', responsable: 'Abdoul Hakim BABOU' },
-  { id: 3, nom: 'Kourel 3', responsable: 'Malang DIATTA' },
-  { id: 4, nom: 'Kourel 4', responsable: 'M. Falilou SEYE' },
-  { id: 5, nom: 'Kourel Touba Parcelles', responsable: 'Bassirou DIOUM' },
-  { id: 6, nom: 'Kourel Sokhna Astou Gawane', responsable: 'Bassirou DIOUM' }
-]
+import {
+  fetchKourels, fetchProgramme,
+  ajouterKhassida, modifierKhassida, supprimerKhassida
+} from './lib/supabase'
 
 const MOIS = [
   'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
@@ -19,16 +14,41 @@ const MOIS = [
 ]
 
 function App() {
-  // État global
-  const [etape, setEtape] = useState('accueil') // accueil, config_programme, rapport
-  const [sousEtape, setSousEtape] = useState(1) // Pour le formulaire rapport (1-4)
-  
-  // Kourel sélectionné - avec localStorage
+  const [etape, setEtape] = useState('accueil') // accueil, config_programme, rapport, admin
+  const [sousEtape, setSousEtape] = useState(1)
+
+  // Kourels depuis Supabase
+  const [kourels, setKourels] = useState([])
+  const [loadingKourels, setLoadingKourels] = useState(true)
+
+  // Kourel sélectionné
   const [kourelSelectionne, setKourelSelectionne] = useLocalStorage('kourel_selectionne', null)
   const [autreKourel, setAutreKourel] = useLocalStorage('kourel_autre', { nom: '', responsable: '' })
-  
-  // Programme annuel - avec localStorage (résout les problèmes de persistence)
-  const [programmeAnnuel, setProgrammeAnnuel] = useLocalStorage('programme_annuel', [])
+
+  // Programme annuel depuis Supabase (par kourel)
+  const [programmeAnnuel, setProgrammeAnnuel] = useState([])
+  const [loadingProgramme, setLoadingProgramme] = useState(false)
+
+  // Chargement initial des kourels
+  useEffect(() => {
+    fetchKourels()
+      .then(setKourels)
+      .catch(() => setKourels([]))
+      .finally(() => setLoadingKourels(false))
+  }, [])
+
+  // Chargement du programme quand un kourel est sélectionné
+  useEffect(() => {
+    if (!kourelSelectionne || kourelSelectionne === 'autre') {
+      setProgrammeAnnuel([])
+      return
+    }
+    setLoadingProgramme(true)
+    fetchProgramme(kourelSelectionne)
+      .then(setProgrammeAnnuel)
+      .catch(() => setProgrammeAnnuel([]))
+      .finally(() => setLoadingProgramme(false))
+  }, [kourelSelectionne])
   
   // Données du rapport mensuel - avec localStorage
   const [rapport, setRapport] = useLocalStorage('rapport_actuel', {
@@ -53,14 +73,9 @@ function App() {
     }
   })
   
-  // Les données sont automatiquement sauvegardées via le hook useLocalStorage!
-  
-  // Fonctions helpers
   const getKourelActuel = () => {
-    if (kourelSelectionne === 'autre') {
-      return autreKourel
-    }
-    return KOURELS_DEFAULT.find(k => k.id === kourelSelectionne)
+    if (kourelSelectionne === 'autre') return autreKourel
+    return kourels.find(k => k.id === kourelSelectionne)
   }
   
   const calculTaux = (mode, data) => {
@@ -97,6 +112,16 @@ function App() {
     return { termines, enCours, pasCommences, tauxGlobal, total: programmeAnnuel.length }
   }
   
+  // === RENDU ADMIN ===
+  if (etape === 'admin') {
+    return (
+      <AdminPanel
+        onRetour={() => setEtape('accueil')}
+        onKourelsChange={(updated) => setKourels(updated)}
+      />
+    )
+  }
+
   // === RENDU ACCUEIL ===
   if (etape === 'accueil') {
     return (
@@ -106,36 +131,33 @@ function App() {
           {/* Bandeau header */}
           <div className="flex items-center gap-4 bg-vert-fonce text-white px-5 py-3 rounded-t-2xl">
             <div className="w-10 h-10 rounded-lg bg-white flex items-center justify-center p-1 flex-shrink-0">
-              <img
-                src="/images/logo-dmn.png"
-                alt="Logo DMN"
-                className="w-full h-full object-contain"
-              />
+              <img src="/images/logo-dmn.png" alt="Logo DMN" className="w-full h-full object-contain" />
             </div>
-            <div className="min-w-0">
-              <div className="font-bold text-base leading-tight truncate">
-                Daara Madjmahoun Noreyni
-              </div>
+            <div className="min-w-0 flex-1">
+              <div className="font-bold text-base leading-tight truncate">Daara Madjmahoun Noreyni</div>
               <div className="text-xs leading-tight" style={{ color: '#8CD2B4' }}>
                 UCAD · Pôle Kourel Centrale · Commission Conservatoire
               </div>
             </div>
+            <button
+              onClick={() => setEtape('admin')}
+              title="Espace Administrateur"
+              className="flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1.5 rounded-lg transition flex-shrink-0"
+              style={{ background: 'rgba(255,255,255,0.12)', color: '#8CD2B4' }}
+            >
+              <ShieldCheck size={13} />
+              Admin
+            </button>
           </div>
 
           {/* Corps : logo à gauche, sélecteur à droite */}
           <div className="bg-white shadow-xl flex rounded-b-2xl overflow-hidden">
 
             {/* Colonne gauche – branding */}
-            <div
-              className="flex-shrink-0 flex flex-col items-center justify-center gap-3 p-6"
-              style={{ width: 180, background: '#E8F5E9', borderRight: '1px solid #C8E6C9' }}
-            >
-              <img
-                src="/images/logo-dmn.png"
-                alt="Logo DMN"
-                className="w-20 h-20 object-contain"
-                style={{ mixBlendMode: 'multiply' }}
-              />
+            <div className="flex-shrink-0 flex flex-col items-center justify-center gap-3 p-6"
+              style={{ width: 180, background: '#E8F5E9', borderRight: '1px solid #C8E6C9' }}>
+              <img src="/images/logo-dmn.png" alt="Logo DMN"
+                className="w-20 h-20 object-contain" style={{ mixBlendMode: 'multiply' }} />
               <p className="text-center text-xs font-bold leading-snug" style={{ color: '#014421' }}>
                 Rapport de Suivi des Kourels
               </p>
@@ -148,74 +170,56 @@ function App() {
                 Sélectionnez votre kourel
               </p>
 
-              <div className="space-y-1.5 overflow-y-auto flex-1" style={{ maxHeight: 320 }}>
-                {KOURELS_DEFAULT.map(kourel => (
-                  <label
-                    key={kourel.id}
-                    className="flex items-center gap-2.5 px-3 py-2 border rounded-lg cursor-pointer transition-colors"
-                    style={{
-                      borderColor: kourelSelectionne === kourel.id ? '#16824E' : '#E5E7EB',
-                      background:  kourelSelectionne === kourel.id ? '#E8F5E9'  : 'white',
-                    }}
-                  >
-                    <input
-                      type="radio"
-                      name="kourel"
-                      value={kourel.id}
-                      checked={kourelSelectionne === kourel.id}
-                      onChange={() => setKourelSelectionne(kourel.id)}
-                      className="accent-vert-principal"
-                    />
-                    <div>
-                      <div className="text-sm font-semibold" style={{ color: '#014421' }}>
-                        {kourel.nom}
+              {loadingKourels ? (
+                <div className="flex-1 flex items-center justify-center">
+                  <Loader size={22} className="animate-spin" style={{ color: '#16824E' }} />
+                </div>
+              ) : (
+                <div className="space-y-1.5 overflow-y-auto flex-1" style={{ maxHeight: 320 }}>
+                  {kourels.map(kourel => (
+                    <label key={kourel.id}
+                      className="flex items-center gap-2.5 px-3 py-2 border rounded-lg cursor-pointer transition-colors"
+                      style={{
+                        borderColor: kourelSelectionne === kourel.id ? '#16824E' : '#E5E7EB',
+                        background:  kourelSelectionne === kourel.id ? '#E8F5E9'  : 'white',
+                      }}>
+                      <input type="radio" name="kourel" value={kourel.id}
+                        checked={kourelSelectionne === kourel.id}
+                        onChange={() => setKourelSelectionne(kourel.id)}
+                        className="accent-vert-principal" />
+                      <div>
+                        <div className="text-sm font-semibold" style={{ color: '#014421' }}>{kourel.nom}</div>
+                        <div className="text-xs text-gray-500">{kourel.responsable}</div>
                       </div>
-                      <div className="text-xs text-gray-500">{kourel.responsable}</div>
+                    </label>
+                  ))}
+
+                  {/* Autre kourel */}
+                  <label className="flex items-start gap-2.5 px-3 py-2 border rounded-lg cursor-pointer transition-colors"
+                    style={{
+                      borderColor: kourelSelectionne === 'autre' ? '#16824E' : '#E5E7EB',
+                      background:  kourelSelectionne === 'autre' ? '#E8F5E9'  : 'white',
+                    }}>
+                    <input type="radio" name="kourel" value="autre"
+                      checked={kourelSelectionne === 'autre'}
+                      onChange={() => setKourelSelectionne('autre')}
+                      className="accent-vert-principal mt-0.5" />
+                    <div className="flex-1">
+                      <div className="text-sm font-semibold" style={{ color: '#014421' }}>Autre kourel</div>
+                      {kourelSelectionne === 'autre' && (
+                        <div className="space-y-1.5 mt-2">
+                          <input type="text" placeholder="Nom du kourel" value={autreKourel.nom}
+                            onChange={(e) => setAutreKourel({ ...autreKourel, nom: e.target.value })}
+                            className="w-full px-3 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:border-vert-principal" />
+                          <input type="text" placeholder="Responsable" value={autreKourel.responsable}
+                            onChange={(e) => setAutreKourel({ ...autreKourel, responsable: e.target.value })}
+                            className="w-full px-3 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:border-vert-principal" />
+                        </div>
+                      )}
                     </div>
                   </label>
-                ))}
-
-                {/* Autre kourel */}
-                <label
-                  className="flex items-start gap-2.5 px-3 py-2 border rounded-lg cursor-pointer transition-colors"
-                  style={{
-                    borderColor: kourelSelectionne === 'autre' ? '#16824E' : '#E5E7EB',
-                    background:  kourelSelectionne === 'autre' ? '#E8F5E9'  : 'white',
-                  }}
-                >
-                  <input
-                    type="radio"
-                    name="kourel"
-                    value="autre"
-                    checked={kourelSelectionne === 'autre'}
-                    onChange={() => setKourelSelectionne('autre')}
-                    className="accent-vert-principal mt-0.5"
-                  />
-                  <div className="flex-1">
-                    <div className="text-sm font-semibold" style={{ color: '#014421' }}>
-                      Autre kourel
-                    </div>
-                    {kourelSelectionne === 'autre' && (
-                      <div className="space-y-1.5 mt-2">
-                        <input
-                          type="text"
-                          placeholder="Nom du kourel"
-                          value={autreKourel.nom}
-                          onChange={(e) => setAutreKourel({ ...autreKourel, nom: e.target.value })}
-                          className="w-full px-3 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:border-vert-principal"
-                        />
-                        <input
-                          type="text"
-                          placeholder="Responsable"
-                          value={autreKourel.responsable}
-                          onChange={(e) => setAutreKourel({ ...autreKourel, responsable: e.target.value })}
-                          className="w-full px-3 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:border-vert-principal"
-                        />
-                      </div>
-                    )}
-                  </div>
-                </label>
-              </div>
+                </div>
+              )}
             </div>
           </div>
 
@@ -223,21 +227,21 @@ function App() {
           <div className="flex gap-3 mt-4">
             <button
               onClick={() => setEtape('config_programme')}
-              disabled={!kourelSelectionne}
+              disabled={!kourelSelectionne || kourelSelectionne === 'autre' || loadingProgramme}
               className="flex-1 flex items-center justify-center gap-2 py-2.5 px-5 rounded-xl font-semibold text-sm text-white hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition"
               style={{ background: '#34495E' }}
             >
               <Edit2 size={16} />
-              Gérer Programme Annuel
+              Programme Annuel
             </button>
             <button
               onClick={() => { setEtape('rapport'); setSousEtape(1) }}
-              disabled={!kourelSelectionne}
+              disabled={!kourelSelectionne || loadingProgramme}
               className="flex-1 flex items-center justify-center gap-2 py-2.5 px-5 rounded-xl font-semibold text-sm text-white hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition"
               style={{ background: '#16824E' }}
             >
-              Créer un Rapport
-              <ChevronRight size={16} />
+              {loadingProgramme ? <Loader size={15} className="animate-spin" /> : <ChevronRight size={16} />}
+              {loadingProgramme ? 'Chargement...' : 'Créer un Rapport'}
             </button>
           </div>
 
@@ -245,17 +249,20 @@ function App() {
       </div>
     )
   }
-  
+
   // === RENDU CONFIGURATION PROGRAMME ANNUEL ===
   if (etape === 'config_programme') {
-    return <ConfigProgrammeAnnuel 
-      kourel={getKourelActuel()}
-      programmeAnnuel={programmeAnnuel}
-      setProgrammeAnnuel={setProgrammeAnnuel}
-      retour={() => setEtape('accueil')}
-    />
+    return (
+      <ConfigProgrammeAnnuel
+        kourel={getKourelActuel()}
+        kourelId={kourelSelectionne}
+        programmeAnnuel={programmeAnnuel}
+        setProgrammeAnnuel={setProgrammeAnnuel}
+        retour={() => setEtape('accueil')}
+      />
+    )
   }
-  
+
   // === RENDU FORMULAIRE RAPPORT ===
   if (etape === 'rapport') {
     return <FormulaireRapport 
@@ -275,163 +282,126 @@ function App() {
   return null
 }
 
-// COMPOSANT : Configuration Programme Annuel
-function ConfigProgrammeAnnuel({ kourel, programmeAnnuel, setProgrammeAnnuel, retour }) {
+// COMPOSANT : Configuration Programme Annuel (accessible au responsable, sauvegarde Supabase)
+function ConfigProgrammeAnnuel({ kourel, kourelId, programmeAnnuel, setProgrammeAnnuel, retour }) {
   const [enEdition, setEnEdition] = useState(null)
   const [nouveau, setNouveau] = useState({ nom: '', melodie: '' })
-  
-  const ajouterKhassida = () => {
-    if (nouveau.nom && nouveau.melodie) {
-      setProgrammeAnnuel([...programmeAnnuel, {
-        id: Date.now(),
-        nom: nouveau.nom,
-        melodie: nouveau.melodie
-      }])
+  const [saving, setSaving] = useState(false)
+
+  const ajouter = async () => {
+    if (!nouveau.nom || !nouveau.melodie) return
+    setSaving(true)
+    try {
+      const k = await ajouterKhassida(kourelId, nouveau.nom, nouveau.melodie, programmeAnnuel.length)
+      setProgrammeAnnuel([...programmeAnnuel, k])
       setNouveau({ nom: '', melodie: '' })
+    } finally {
+      setSaving(false)
     }
   }
-  
-  const supprimerKhassida = (id) => {
+
+  const supprimer = async (id) => {
+    await supprimerKhassida(id)
     setProgrammeAnnuel(programmeAnnuel.filter(k => k.id !== id))
   }
-  
-  const modifierKhassida = (id, data) => {
-    setProgrammeAnnuel(programmeAnnuel.map(k => k.id === id ? {...k, ...data} : k))
-    setEnEdition(null)
+
+  const sauvegarderEdition = async (k) => {
+    setSaving(true)
+    try {
+      await modifierKhassida(k.id, k.nom, k.melodie)
+      setProgrammeAnnuel(programmeAnnuel.map(p => p.id === k.id ? k : p))
+      setEnEdition(null)
+    } finally {
+      setSaving(false)
+    }
   }
-  
+
   return (
     <div className="min-h-screen bg-gris-clair flex flex-col items-center justify-center px-4 py-4">
       <div className="w-full max-w-3xl">
 
-        {/* Header compact — même style que les pages formulaire */}
         <div className="flex items-center gap-3 bg-white rounded-xl shadow-sm px-5 py-3 mb-4">
-          <div
-            className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0"
-            style={{ background: '#014421' }}
-          >
+          <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: '#014421' }}>
             <Edit2 size={15} color="white" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-bold truncate" style={{ color: '#014421' }}>
-              Programme Annuel
-            </p>
-            <p className="text-xs text-gray-400 truncate">
-              {kourel.nom} · {kourel.responsable}
-            </p>
+            <p className="text-sm font-bold truncate" style={{ color: '#014421' }}>Programme Annuel</p>
+            <p className="text-xs text-gray-400 truncate">{kourel?.nom} · {kourel?.responsable}</p>
           </div>
-          <button
-            onClick={retour}
-            className="flex items-center gap-1.5 text-sm font-semibold text-gray-500 hover:text-vert-fonce transition py-1.5 px-3 rounded-lg hover:bg-gray-100"
-          >
-            <ChevronLeft size={16} />
-            Retour
+          <button onClick={retour}
+            className="flex items-center gap-1.5 text-sm font-semibold text-gray-500 hover:text-vert-fonce transition py-1.5 px-3 rounded-lg hover:bg-gray-100">
+            <ChevronLeft size={16} /> Retour
           </button>
         </div>
 
-        {/* Contenu 2 colonnes */}
         <div className="grid grid-cols-2 gap-4">
-
-          {/* Gauche : Ajouter */}
+          {/* Ajouter */}
           <div className="bg-white rounded-xl p-5 shadow-sm self-start">
             <h3 className="text-sm font-bold mb-4 flex items-center gap-2" style={{ color: '#014421' }}>
-              <Plus size={15} />
-              Nouveau khassida
+              <Plus size={15} /> Nouveau khassida
             </h3>
             <div className="space-y-3 mb-4">
-              <input
-                type="text"
-                placeholder="Nom du khassida"
-                value={nouveau.nom}
+              <input type="text" placeholder="Nom du khassida" value={nouveau.nom}
                 onChange={(e) => setNouveau({ ...nouveau, nom: e.target.value })}
-                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:border-vert-principal focus:outline-none"
-              />
-              <input
-                type="text"
-                placeholder="Mélodie (ex: Serigne Abdou Diop)"
-                value={nouveau.melodie}
+                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:border-vert-principal focus:outline-none" />
+              <input type="text" placeholder="Mélodie (ex: Serigne Abdou Diop)" value={nouveau.melodie}
                 onChange={(e) => setNouveau({ ...nouveau, melodie: e.target.value })}
-                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:border-vert-principal focus:outline-none"
-              />
+                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:border-vert-principal focus:outline-none" />
             </div>
-            <button
-              onClick={ajouterKhassida}
-              disabled={!nouveau.nom || !nouveau.melodie}
+            <button onClick={ajouter} disabled={!nouveau.nom || !nouveau.melodie || saving}
               className="w-full flex items-center justify-center gap-2 py-2.5 text-sm font-semibold text-white rounded-lg disabled:opacity-40 hover:opacity-90 transition"
-              style={{ background: '#16824E' }}
-            >
-              <Plus size={15} />
-              Ajouter
+              style={{ background: '#16824E' }}>
+              <Plus size={15} /> {saving ? 'Enregistrement...' : 'Ajouter'}
             </button>
           </div>
 
-          {/* Droite : Liste */}
+          {/* Liste */}
           <div className="bg-white rounded-xl p-5 shadow-sm">
             <h3 className="text-sm font-bold mb-4" style={{ color: '#014421' }}>
               Khassidas ({programmeAnnuel.length})
             </h3>
             {programmeAnnuel.length === 0 ? (
-              <div className="text-center py-16 text-sm text-gray-400">
-                Aucun khassida configuré. Ajoutez-en un ci-contre.
-              </div>
+              <div className="text-center py-16 text-sm text-gray-400">Aucun khassida. Ajoutez-en un ci-contre.</div>
             ) : (
               <div className="space-y-2 overflow-y-auto pr-1" style={{ maxHeight: 380 }}>
-                {programmeAnnuel.map((khassida, index) => (
-                  <div
-                    key={khassida.id}
-                    className="border border-gray-100 rounded-lg p-3 hover:border-vert-principal transition"
-                  >
-                    {enEdition === khassida.id ? (
+                {programmeAnnuel.map((k, index) => (
+                  <div key={k.id} className="border border-gray-100 rounded-lg p-3 hover:border-vert-principal transition">
+                    {enEdition?.id === k.id ? (
                       <div className="space-y-2">
-                        <input
-                          type="text"
-                          value={khassida.nom}
-                          onChange={(e) => modifierKhassida(khassida.id, { nom: e.target.value })}
-                          className="w-full px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-vert-principal"
-                        />
-                        <input
-                          type="text"
-                          value={khassida.melodie}
-                          onChange={(e) => modifierKhassida(khassida.id, { melodie: e.target.value })}
-                          className="w-full px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-vert-principal"
-                        />
-                        <button
-                          onClick={() => setEnEdition(null)}
-                          className="text-xs font-semibold text-white px-3 py-1 rounded-lg"
-                          style={{ background: '#16824E' }}
-                        >
-                          Terminer
-                        </button>
+                        <input type="text" value={enEdition.nom}
+                          onChange={(e) => setEnEdition({ ...enEdition, nom: e.target.value })}
+                          className="w-full px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-vert-principal" />
+                        <input type="text" value={enEdition.melodie}
+                          onChange={(e) => setEnEdition({ ...enEdition, melodie: e.target.value })}
+                          className="w-full px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-vert-principal" />
+                        <div className="flex gap-2">
+                          <button onClick={() => sauvegarderEdition(enEdition)}
+                            className="text-xs font-semibold text-white px-3 py-1.5 rounded-lg"
+                            style={{ background: '#16824E' }}>
+                            {saving ? 'Enregistrement...' : 'Sauvegarder'}
+                          </button>
+                          <button onClick={() => setEnEdition(null)}
+                            className="text-xs font-semibold text-gray-500 px-3 py-1.5 rounded-lg hover:bg-gray-100">
+                            Annuler
+                          </button>
+                        </div>
                       </div>
                     ) : (
                       <div className="flex items-center justify-between gap-2">
                         <div className="flex items-center gap-2.5 min-w-0">
-                          <span
-                            className="text-xs font-bold w-5 text-center flex-shrink-0"
-                            style={{ color: '#014421' }}
-                          >
-                            {index + 1}
-                          </span>
+                          <span className="text-xs font-bold w-5 text-center flex-shrink-0" style={{ color: '#014421' }}>{index + 1}</span>
                           <div className="min-w-0">
-                            <div className="text-sm font-semibold truncate" style={{ color: '#014421' }}>
-                              {khassida.nom}
-                            </div>
-                            <div className="text-xs text-gray-400 truncate">{khassida.melodie}</div>
+                            <div className="text-sm font-semibold truncate" style={{ color: '#014421' }}>{k.nom}</div>
+                            <div className="text-xs text-gray-400 truncate">{k.melodie}</div>
                           </div>
                         </div>
                         <div className="flex gap-1 flex-shrink-0">
-                          <button
-                            onClick={() => setEnEdition(khassida.id)}
-                            className="p-1.5 rounded-lg hover:bg-blue-50 transition"
-                            style={{ color: '#34495E' }}
-                          >
+                          <button onClick={() => setEnEdition({ ...k })}
+                            className="p-1.5 rounded-lg hover:bg-blue-50 transition" style={{ color: '#34495E' }}>
                             <Edit2 size={14} />
                           </button>
-                          <button
-                            onClick={() => supprimerKhassida(khassida.id)}
-                            className="p-1.5 rounded-lg hover:bg-red-50 transition"
-                            style={{ color: '#C0392B' }}
-                          >
+                          <button onClick={() => supprimer(k.id)}
+                            className="p-1.5 rounded-lg hover:bg-red-50 transition" style={{ color: '#C0392B' }}>
                             <Trash2 size={14} />
                           </button>
                         </div>
@@ -442,12 +412,10 @@ function ConfigProgrammeAnnuel({ kourel, programmeAnnuel, setProgrammeAnnuel, re
               </div>
             )}
           </div>
-
         </div>
       </div>
     </div>
   )
 }
 
-// Suite dans le prochain fichier...
 export default App
