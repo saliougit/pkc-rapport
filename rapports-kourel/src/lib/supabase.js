@@ -27,10 +27,10 @@ export async function ajouterKourel(nom, responsable) {
   return data
 }
 
-export async function modifierKourel(id, nom, responsable) {
+export async function modifierKourel(id, nom, responsable, telephone, callmebot_apikey) {
   const { error } = await supabase
     .from('kourels')
-    .update({ nom, responsable })
+    .update({ nom, responsable, telephone, callmebot_apikey })
     .eq('id', id)
   if (error) throw error
 }

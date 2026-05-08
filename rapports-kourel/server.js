@@ -4,7 +4,42 @@ import bodyParser from 'body-parser'
 import { fileURLToPath } from 'url'
 import { dirname, join } from 'path'
 import fs from 'fs'
+import cron from 'node-cron'
+import { createClient } from '@supabase/supabase-js'
 import { genererPDFDirectement } from './src/utils/pdfGeneratorService.js'
+
+// Client Supabase côté serveur (pour les notifications)
+const supabaseServer = createClient(
+  process.env.VITE_SUPABASE_URL,
+  process.env.VITE_SUPABASE_ANON_KEY
+)
+
+const MOIS_FR = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre']
+
+async function envoyerWhatsApp(telephone, apikey, message) {
+  const url = `https://api.callmebot.com/whatsapp.php?phone=${encodeURIComponent(telephone)}&text=${encodeURIComponent(message)}&apikey=${apikey}`
+  const res = await fetch(url)
+  return res.ok
+}
+
+async function envoyerRappelKourels(kourelId = null) {
+  let query = supabaseServer.from('kourels').select('*').eq('actif', true).not('telephone', 'is', null).not('callmebot_apikey', 'is', null)
+  if (kourelId) query = query.eq('id', kourelId)
+  const { data: kourels, error } = await query
+  if (error || !kourels?.length) return { envoyes: 0, erreurs: 0 }
+
+  const now = new Date()
+  const mois = MOIS_FR[now.getMonth()]
+  const annee = now.getFullYear()
+
+  let envoyes = 0, erreurs = 0
+  for (const k of kourels) {
+    const message = `Assalamu Alaikum ${k.responsable},\n\nRappel : merci de soumettre le rapport mensuel du *${k.nom}* pour *${mois} ${annee}* avant le 5 du mois.\n\nBarakallahu fiikum\n— DMN · Commission Conservatoire`
+    const ok = await envoyerWhatsApp(k.telephone, k.callmebot_apikey, message)
+    ok ? envoyes++ : erreurs++
+  }
+  return { envoyes, erreurs }
+}
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const isProd = process.env.NODE_ENV === 'production'
@@ -157,6 +192,27 @@ app.use((err, req, res, next) => {
   console.error('❌ MIDDLEWARE ERREUR:', err.message)
   res.status(500).json({ success: false, error: err.message || 'Erreur interne' })
 })
+
+// ── Endpoint envoi rappel WhatsApp ───────────────────────────────────────────
+app.post('/api/send-rappel', async (req, res) => {
+  try {
+    const { kourel_id } = req.body
+    const { envoyes, erreurs } = await envoyerRappelKourels(kourel_id || null)
+    res.json({
+      success: true,
+      message: `${envoyes} rappel(s) envoyé(s)${erreurs > 0 ? `, ${erreurs} échec(s)` : ''}.`
+    })
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message })
+  }
+})
+
+// ── Cron : rappel automatique le 1er de chaque mois à 9h00 ───────────────────
+cron.schedule('0 9 1 * *', async () => {
+  console.log('📅 Cron: envoi des rappels WhatsApp mensuels...')
+  const { envoyes, erreurs } = await envoyerRappelKourels()
+  console.log(`✅ Cron: ${envoyes} envoyé(s), ${erreurs} échec(s)`)
+}, { timezone: 'Africa/Dakar' })
 
 // En production : toutes les routes non-API renvoient index.html (SPA)
 if (isProd) {

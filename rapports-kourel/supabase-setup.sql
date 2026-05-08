@@ -48,6 +48,13 @@ CREATE POLICY "programme_write_all"
   WITH CHECK (true);
 
 -- =============================================
+-- NOTIFICATIONS WHATSAPP (CallMeBot)
+-- À exécuter si les tables existent déjà
+-- =============================================
+ALTER TABLE kourels ADD COLUMN IF NOT EXISTS telephone TEXT;
+ALTER TABLE kourels ADD COLUMN IF NOT EXISTS callmebot_apikey TEXT;
+
+-- =============================================
 -- DONNÉES INITIALES (optionnel)
 -- =============================================
 INSERT INTO kourels (nom, responsable) VALUES

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import {
   ChevronLeft, Plus, Trash2, Edit2, Save, X,
-  LogOut, Users, BookOpen, ShieldCheck, Loader
+  LogOut, Users, BookOpen, ShieldCheck, Loader, Bell, Phone, Key, Send
 } from 'lucide-react'
 import {
   loginAdmin, logoutAdmin, getSession,
@@ -277,11 +277,30 @@ export function AdminPanel({ onRetour, onKourelsChange }) {
   const sauvegarderEdition = async (k) => {
     setSaving(true)
     try {
-      await modifierKourel(k.id, k.nom, k.responsable)
+      await modifierKourel(k.id, k.nom, k.responsable, k.telephone, k.callmebot_apikey)
       const updated = kourels.map(c => c.id === k.id ? k : c)
       setKourels(updated)
       onKourelsChange(updated)
       setEnEdition(null)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const envoyerRappel = async (kourelUnique = null) => {
+    const cible = kourelUnique ? `un kourel` : `tous les kourels`
+    if (!confirm(`Envoyer le rappel WhatsApp à ${cible} maintenant ?`)) return
+    setSaving(true)
+    try {
+      const res = await fetch('/api/send-rappel', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ kourel_id: kourelUnique?.id || null })
+      })
+      const data = await res.json()
+      alert(data.message || 'Rappels envoyés !')
+    } catch {
+      alert('Erreur lors de l\'envoi.')
     } finally {
       setSaving(false)
     }
@@ -375,25 +394,49 @@ export function AdminPanel({ onRetour, onKourelsChange }) {
 
             {/* Liste Kourels */}
             <div className="bg-white rounded-xl p-5 shadow-sm">
-              <h3 className="text-sm font-bold mb-4 flex items-center gap-2" style={{ color: '#014421' }}>
-                <Users size={15} /> Kourels ({kourels.length})
-              </h3>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-sm font-bold flex items-center gap-2" style={{ color: '#014421' }}>
+                  <Users size={15} /> Kourels ({kourels.length})
+                </h3>
+                <button onClick={() => envoyerRappel(null)}
+                  disabled={saving}
+                  className="flex items-center gap-1.5 text-xs font-semibold text-white px-3 py-1.5 rounded-lg disabled:opacity-40 transition"
+                  style={{ background: '#25D366' }} title="Envoyer rappel à tous">
+                  <Send size={12} /> Rappel global
+                </button>
+              </div>
               {loading ? (
                 <div className="flex justify-center py-8"><Loader size={20} className="animate-spin text-gray-300" /></div>
               ) : kourels.length === 0 ? (
                 <p className="text-sm text-gray-400 text-center py-8">Aucun kourel.</p>
               ) : (
-                <div className="space-y-2 overflow-y-auto pr-1" style={{ maxHeight: 380 }}>
+                <div className="space-y-2 overflow-y-auto pr-1" style={{ maxHeight: 360 }}>
                   {kourels.map(k => (
                     <div key={k.id} className="border border-gray-100 rounded-lg p-3 hover:border-vert-principal transition">
                       {enEdition?.id === k.id ? (
                         <div className="space-y-2">
                           <input type="text" value={enEdition.nom}
                             onChange={e => setEnEdition({ ...enEdition, nom: e.target.value })}
+                            placeholder="Nom du kourel"
                             className="w-full px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-vert-principal" />
                           <input type="text" value={enEdition.responsable}
                             onChange={e => setEnEdition({ ...enEdition, responsable: e.target.value })}
+                            placeholder="Responsable"
                             className="w-full px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-vert-principal" />
+                          <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg" style={{ background: '#f0fdf4' }}>
+                            <Phone size={11} style={{ color: '#16824E', flexShrink: 0 }} />
+                            <input type="text" value={enEdition.telephone || ''}
+                              onChange={e => setEnEdition({ ...enEdition, telephone: e.target.value })}
+                              placeholder="+221 77 000 00 00"
+                              className="flex-1 text-xs bg-transparent border-none outline-none" />
+                          </div>
+                          <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg" style={{ background: '#f0fdf4' }}>
+                            <Key size={11} style={{ color: '#16824E', flexShrink: 0 }} />
+                            <input type="text" value={enEdition.callmebot_apikey || ''}
+                              onChange={e => setEnEdition({ ...enEdition, callmebot_apikey: e.target.value })}
+                              placeholder="Clé CallMeBot"
+                              className="flex-1 text-xs bg-transparent border-none outline-none" />
+                          </div>
                           <div className="flex gap-2">
                             <button onClick={() => sauvegarderEdition(enEdition)}
                               className="flex items-center gap-1 text-xs font-semibold text-white px-3 py-1.5 rounded-lg"
@@ -409,10 +452,25 @@ export function AdminPanel({ onRetour, onKourelsChange }) {
                       ) : (
                         <div className="flex items-center gap-2">
                           <div className="flex-1 min-w-0">
-                            <div className="text-sm font-semibold truncate" style={{ color: '#014421' }}>{k.nom}</div>
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-sm font-semibold truncate" style={{ color: '#014421' }}>{k.nom}</span>
+                              {k.telephone && k.callmebot_apikey ? (
+                                <span className="text-xs px-1.5 py-0.5 rounded font-semibold flex-shrink-0"
+                                  style={{ background: '#dcfce7', color: '#16824E' }}>WA</span>
+                              ) : (
+                                <span className="text-xs px-1.5 py-0.5 rounded font-semibold flex-shrink-0"
+                                  style={{ background: '#f3f4f6', color: '#9ca3af' }}>—</span>
+                              )}
+                            </div>
                             <div className="text-xs text-gray-400 truncate">{k.responsable}</div>
                           </div>
                           <div className="flex gap-1 flex-shrink-0">
+                            {k.telephone && k.callmebot_apikey && (
+                              <button onClick={() => envoyerRappel(k)} title="Envoyer rappel"
+                                className="p-1.5 rounded-lg hover:bg-green-50 transition" style={{ color: '#25D366' }}>
+                                <Send size={13} />
+                              </button>
+                            )}
                             <button onClick={() => ouvrirProgramme(k)} title="Gérer le programme"
                               className="p-1.5 rounded-lg hover:bg-vert-pastel transition" style={{ color: '#16824E' }}>
                               <BookOpen size={13} />
