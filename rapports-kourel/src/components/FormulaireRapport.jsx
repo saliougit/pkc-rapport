@@ -338,7 +338,7 @@ function FormMelodie({ mel, setMel, programmeAnnuel, onConfirm, onCancel, titre,
       <div className="mb-4">
         <label className="block text-xs font-semibold text-gray-400 mb-2 uppercase tracking-wide">Taux de maîtrise</label>
         <input type="number" min="0" max="100" value={mel.taux_maitrise}
-          onChange={(e) => setMel({ ...mel, taux_maitrise: parseInt(e.target.value) || 0 })}
+          onChange={(e) => setMel({ ...mel, taux_maitrise: Math.min(100, Math.max(0, parseInt(e.target.value) || 0)) })}
           className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:border-vert-principal focus:outline-none" />
         <p className="text-xs text-gray-400 mt-1">Indiquer le pourcentage de maîtrise de cette mélodie (0-100%)</p>
       </div>
@@ -757,7 +757,7 @@ function Stepper({ etape }) {
         const actif = num === etape
         return (
           <div key={i} className="flex items-center flex-shrink-0">
-            <div className="flex flex-col items-center" style={{ minWidth: '45px', minWidth: 'clamp(45px, 12vw, 70px)' }}>
+            <div className="flex flex-col items-center" style={{ minWidth: 'clamp(45px, 12vw, 70px)' }}>
               <div className="flex items-center justify-center rounded-full transition-all duration-300"
                 style={{
                   width: 'clamp(24px, 7vw, 38px)', 
