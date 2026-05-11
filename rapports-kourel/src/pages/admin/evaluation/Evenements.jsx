@@ -1,9 +1,8 @@
 import { useState, useMemo } from 'react'
-import { Plus, Edit2, Trash2, Save, X, Loader, Calendar, MapPin, Users, ChevronRight, ChevronDown, Eye, CheckCircle2, Clock, AlertCircle, ToggleLeft, ToggleRight, Copy, KeyRound } from 'lucide-react'
+import { Plus, Edit2, Trash2, Save, X, Loader, Calendar, MapPin, Users, ChevronRight, ChevronDown, Eye, CheckCircle2, Clock, AlertCircle, ToggleLeft, Copy, KeyRound } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Badge } from '@/components/ui/badge'
 import {
@@ -17,8 +16,7 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
-import { Card, CardContent } from '@/components/ui/card'
+import { Card } from '@/components/ui/card'
 import { ComboboxMulti } from '@/components/ui/combobox'
 import { PageHeader } from '@/components/layout/PageHeader'
 import {
@@ -67,10 +65,27 @@ const SECTIONS = [
   { id: 'generale', label: 'Appréciation générale' },
 ]
 
-const APPRECIATIONS = ['Mauvais', 'Médiocre', 'Passable', 'Bien', 'Très bien', 'Excellent']
-
 function formatDate(d) {
   return new Date(d).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
+}
+
+function CodeRow({ membre, code }) {
+  const [copied, setCopied] = useState(false)
+  return (
+    <div className="flex items-center justify-between bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+      <div className="min-w-0">
+        <p className="text-xs font-semibold text-gris-700 truncate">{membre ? `${membre.prenom} ${membre.nom}` : '—'}</p>
+        <span className="text-xs font-mono font-bold text-amber-800 tracking-wider">{code}</span>
+      </div>
+      <button
+        type="button"
+        onClick={() => { navigator.clipboard.writeText(code); setCopied(true); setTimeout(() => setCopied(false), 2000) }}
+        className="text-xs text-amber-700 hover:text-amber-900 font-semibold px-2 py-1 rounded hover:bg-amber-100 transition flex items-center gap-1 flex-shrink-0"
+      >
+        <Copy size={11} /> {copied ? 'Copié !' : 'Copier'}
+      </button>
+    </div>
+  )
 }
 
 function EvaluateurDetail({ evaluateur, note, code, onCopyCode }) {
@@ -180,6 +195,11 @@ function EvaluateurDetail({ evaluateur, note, code, onCopyCode }) {
   )
 }
 
+function genCode() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+  return Array.from({ length: 8 }, () => chars[Math.floor(Math.random() * chars.length)]).join('')
+}
+
 export function EvenementsPage() {
   const [data, setData] = useState([
     {
@@ -188,7 +208,7 @@ export function EvenementsPage() {
       evaluateurs: [1, 2],
       paginateurs: [],
       statut: 'terminé',
-      codes: { 1: 'EVAL-001-01', 2: 'EVAL-001-02' },
+      codes: { 1: 'AX7K2M9P', 2: 'BN3P5QR7' },
       notes: {
         1: {
           notes: {
@@ -222,7 +242,7 @@ export function EvenementsPage() {
       evaluateurs: [2, 3, 5],
       paginateurs: [1],
       statut: 'à venir',
-      codes: { 2: 'EVAL-002-02', 3: 'EVAL-002-03', 5: 'EVAL-002-05' },
+      codes: { 2: 'CQ8RS4TY', 3: 'DV6WX2NB', 5: 'FZ1PA7KL' },
       notes: {},
     },
     {
@@ -231,7 +251,7 @@ export function EvenementsPage() {
       evaluateurs: [1, 3, 4],
       paginateurs: [2, 5],
       statut: 'en cours',
-      codes: { 1: 'EVAL-003-01', 3: 'EVAL-003-03', 4: 'EVAL-003-04' },
+      codes: { 1: 'GH5MC3YR', 3: 'JT9QD6PK', 4: 'LN2VB8XS' },
       notes: {
         1: {
           notes: {
@@ -250,7 +270,7 @@ export function EvenementsPage() {
   const [detailEvent, setDetailEvent] = useState(null)
   const [form, setForm] = useState({
     type_id: '', date: '', lieu: '', kourel: '',
-    evaluateurs: [], paginateurs: [],
+    evaluateurs: [], paginateurs: [], codes: {},
   })
   const [editingId, setEditingId] = useState(null)
   const [saving, setSaving] = useState(false)
@@ -375,7 +395,7 @@ export function EvenementsPage() {
   })
 
   const ouvrirAjout = () => {
-    setForm({ type_id: '', date: '', lieu: '', kourel: '', evaluateurs: [], paginateurs: [] })
+    setForm({ type_id: '', date: '', lieu: '', kourel: '', evaluateurs: [], paginateurs: [], codes: {} })
     setEditingId(null)
     setSheetOpen(true)
   }
@@ -383,23 +403,22 @@ export function EvenementsPage() {
     setForm({
       type_id: String(e.type_id), date: e.date, lieu: e.lieu, kourel: e.kourel,
       evaluateurs: [...e.evaluateurs], paginateurs: [...(e.paginateurs || [])],
+      codes: { ...(e.codes || {}) },
     })
     setEditingId(e.id)
     setSheetOpen(true)
   }
-  const toggleItem = (field, id) => {
-    setForm(f => ({
-      ...f,
-      [field]: f[field].includes(id) ? f[field].filter(x => x !== id) : [...f[field], id],
-    }))
-  }
-  function genererCodes(evenementId, evaluateurs) {
+  function genererCodes(evaluateurs, existingCodes = {}) {
     const codes = {}
     evaluateurs.forEach(membreId => {
-      const key = `EVAL-${String(evenementId).padStart(3, '0')}-${String(membreId).padStart(2, '0')}`
-      codes[membreId] = key
+      codes[membreId] = existingCodes[membreId] || genCode()
     })
     return codes
+  }
+
+  const changerStatutEvent = (id, statut) => {
+    setData(list => list.map(e => e.id === id ? { ...e, statut } : e))
+    setDetailEvent(d => d ? { ...d, statut } : d)
   }
 
   const sauvegarder = async () => {
@@ -418,9 +437,7 @@ export function EvenementsPage() {
       paginateurs: form.paginateurs || [],
       statut,
       notes: editingId ? data.find(e => e.id === editingId)?.notes || {} : {},
-      codes: editingId
-        ? (data.find(e => e.id === editingId)?.codes || genererCodes(editingId, form.evaluateurs))
-        : genererCodes(newId, form.evaluateurs),
+      codes: genererCodes(form.evaluateurs, form.codes),
     }
     if (editingId) {
       setData(list => list.map(e => e.id === editingId ? { ...e, ...payload } : e))
@@ -535,13 +552,20 @@ export function EvenementsPage() {
                       <span className="flex items-center gap-1.5 font-medium text-gris-700"><Users size={13} />{detailEvent.kourel}</span>
                     </div>
                   </div>
-                  <Badge className={`text-xs font-semibold px-2.5 py-0.5 ${
-                    detailEvent.statut === 'terminé' ? 'text-vert-700 bg-vert-50' :
-                    detailEvent.statut === 'en cours' ? 'text-blue-700 bg-blue-50' :
-                    'text-amber-700 bg-amber-50'
-                  }`}>
-                    {detailEvent.statut}
-                  </Badge>
+                  <Select value={detailEvent.statut} onValueChange={s => changerStatutEvent(detailEvent.id, s)}>
+                    <SelectTrigger className={`h-8 w-36 text-xs font-semibold border-0 ${
+                      detailEvent.statut === 'terminé' ? 'bg-vert-50 text-vert-700' :
+                      detailEvent.statut === 'en cours' ? 'bg-blue-50 text-blue-700' :
+                      'bg-amber-50 text-amber-700'
+                    }`}>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="à venir">À venir</SelectItem>
+                      <SelectItem value="en cours">En cours</SelectItem>
+                      <SelectItem value="terminé">Terminé</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </SheetHeader>
 
@@ -666,11 +690,28 @@ export function EvenementsPage() {
                   subtitle: m.kourel,
                 }))}
                 selected={form.evaluateurs}
-                onChange={v => setForm(f => ({ ...f, evaluateurs: v }))}
+                onChange={v => setForm(f => {
+                  const newCodes = { ...f.codes }
+                  v.forEach(id => { if (!newCodes[id]) newCodes[id] = genCode() })
+                  return { ...f, evaluateurs: v, codes: newCodes }
+                })}
                 placeholder="Rechercher un membre…"
                 emptyMessage="Aucun membre trouvé"
               />
             </div>
+
+            {form.evaluateurs.length > 0 && (
+              <div className="space-y-2">
+                <Label className="text-xs font-semibold text-gris-500 uppercase tracking-wider flex items-center gap-1.5">
+                  <KeyRound size={12} /> Codes d'accès générés
+                </Label>
+                <div className="space-y-1.5">
+                  {form.evaluateurs.map(id => (
+                    <CodeRow key={id} membre={MEMBRES_MOCK.find(x => x.id === id)} code={form.codes[id] || genCode()} />
+                  ))}
+                </div>
+              </div>
+            )}
 
             <div className="space-y-2">
               <Label className="text-xs font-semibold text-gris-500 uppercase tracking-wider">

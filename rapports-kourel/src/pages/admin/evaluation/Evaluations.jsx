@@ -135,6 +135,30 @@ function getStatusEval(notes) {
   return { label: 'Soumis', class: 'bg-vert-50 text-vert-700' }
 }
 
+const APPREC_COLORS = {
+  'Mauvais':   { color: '#EF4444', bg: '#FEF2F2' },
+  'Médiocre':  { color: '#F97316', bg: '#FFF7ED' },
+  'Passable':  { color: '#EAB308', bg: '#FEFCE8' },
+  'Bien':      { color: '#22C55E', bg: '#F0FDF4' },
+  'Très bien': { color: '#16824E', bg: '#F0FDF4' },
+  'Excellent': { color: '#014421', bg: '#DCFCE7' },
+}
+
+function getModeAppreciation(notesObj, sectionId) {
+  const apprs = Object.values(notesObj || {})
+    .map(n => n.notes?.[sectionId]?.appreciation)
+    .filter(Boolean)
+  if (!apprs.length) return null
+  const counts = apprs.reduce((acc, a) => ({ ...acc, [a]: (acc[a] || 0) + 1 }), {})
+  return Object.entries(counts).sort((a, b) => b[1] - a[1])[0][0]
+}
+
+function getNoteFinaleAvg(notesObj) {
+  const vals = Object.values(notesObj || {}).map(n => n.note_finale).filter(v => v != null)
+  if (!vals.length) return null
+  return (vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(1)
+}
+
 // ── Carte événement ──────────────────────────────────────────────────────────
 function EventCard({ event, onClick }) {
   const moy = getMoyenneGlobale(event.notes)
@@ -401,7 +425,7 @@ export function EvaluationsPage() {
   }
 
   return (
-    <div>
+    <div className="h-full flex flex-col">
       <PageHeader
         breadcrumb={['Comité & Évaluation', 'Évaluations']}
         title="Évaluations"
@@ -409,7 +433,7 @@ export function EvaluationsPage() {
       />
 
       {/* Barre de recherche et filtres */}
-      <div className="flex flex-col sm:flex-row gap-3 mb-5">
+      <div className="flex flex-col sm:flex-row gap-3 mb-5 flex-shrink-0">
         <div className="relative flex-1 max-w-sm">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gris-400" />
           <Input
@@ -460,32 +484,34 @@ export function EvaluationsPage() {
         </div>
       </div>
 
-      {/* Grille des cartes */}
-      {pagines.length === 0 ? (
-        <div className="text-center py-16 border border-dashed border-gris-200 rounded-lg bg-gris-50/50">
-          <Search size={36} className="mx-auto mb-3 text-gris-300" />
-          <p className="text-sm font-semibold text-gris-700">Aucun résultat</p>
-          <p className="text-xs text-gris-500 mt-1">Essayez de modifier vos filtres.</p>
-        </div>
-      ) : (
-        <>
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-xs text-gris-500">
-              {filtres.length} résultat{filtres.length > 1 ? 's' : ''}
-              {filtres.length !== evenements.length && (
-                <span> (sur {evenements.length})</span>
-              )}
-            </p>
+      {/* Grille des cartes + pagination dans zone scrollable */}
+      <div className="flex-1 min-h-0 overflow-y-auto pr-1">
+        {pagines.length === 0 ? (
+          <div className="text-center py-16 border border-dashed border-gris-200 rounded-lg bg-gris-50/50">
+            <Search size={36} className="mx-auto mb-3 text-gris-300" />
+            <p className="text-sm font-semibold text-gris-700">Aucun résultat</p>
+            <p className="text-xs text-gris-500 mt-1">Essayez de modifier vos filtres.</p>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-            {pagines.map(e => (
-              <EventCard key={e.id} event={e} onClick={ouvrirDetail} />
-            ))}
-          </div>
+        ) : (
+          <>
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-xs text-gris-500">
+                {filtres.length} résultat{filtres.length > 1 ? 's' : ''}
+                {filtres.length !== evenements.length && (
+                  <span> (sur {evenements.length})</span>
+                )}
+              </p>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+              {pagines.map(e => (
+                <EventCard key={e.id} event={e} onClick={ouvrirDetail} />
+              ))}
+            </div>
 
-          <Pagination currentPage={pageCourante} totalPages={totalPages} onPageChange={setPage} />
-        </>
-      )}
+            <Pagination currentPage={pageCourante} totalPages={totalPages} onPageChange={setPage} />
+          </>
+        )}
+      </div>
 
       {/* Detail Sheet */}
       <Sheet open={!!selected} onOpenChange={open => { if (!open) setSelected(null) }}>
@@ -534,61 +560,78 @@ export function EvaluationsPage() {
                 )}
 
                 {Object.keys(selected.notes).length > 0 && (
-                  <Card className="border-vert-200 bg-vert-50/50">
-                    <CardContent className="p-4">
-                      <p className="text-xs font-bold text-vert-800 uppercase tracking-wider mb-3">
-                        Synthèse des évaluations
-                      </p>
-                      <div className="space-y-2">
-                        {SECTIONS.map(section => {
-                          const vals = Object.values(selected.notes)
-                            .map(n => n.notes?.[section.id]?.note)
-                            .filter(v => v != null)
-                          const moy = vals.length > 0
-                            ? (vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(1)
-                            : null
+                  <div className="space-y-3">
+                    <p className="text-xs font-bold text-gris-500 uppercase tracking-widest">Synthèse des évaluations</p>
+
+                    {/* Section by section */}
+                    <div className="rounded-xl border border-gris-200 overflow-hidden bg-white">
+                      <div className="grid grid-cols-[1fr_auto_auto] gap-x-3 px-3 py-2 border-b border-gris-100 bg-gris-50">
+                        <span className="text-[10px] font-bold text-gris-400 uppercase tracking-wider">Section</span>
+                        <span className="text-[10px] font-bold text-gris-400 uppercase tracking-wider text-right">Appréciation</span>
+                        <span className="text-[10px] font-bold text-gris-400 uppercase tracking-wider text-right w-12">Moy.</span>
+                      </div>
+                      {SECTIONS.filter(s => s.id !== 'generale').map(section => {
+                        const vals = Object.values(selected.notes).map(n => n.notes?.[section.id]?.note).filter(v => v != null)
+                        const moy = vals.length > 0 ? (vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(1) : null
+                        const appr = getModeAppreciation(selected.notes, section.id)
+                        const ac = appr ? APPREC_COLORS[appr] : null
+                        return (
+                          <div key={section.id} className="grid grid-cols-[1fr_auto_auto] gap-x-3 items-center px-3 py-2.5 border-b border-gris-50 last:border-0">
+                            <span className="text-xs font-medium text-gris-700">{section.label}</span>
+                            {appr ? (
+                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ color: ac.color, background: ac.bg }}>
+                                {appr}
+                              </span>
+                            ) : <span className="text-xs text-gris-300">—</span>}
+                            <span className="text-xs font-bold text-gris-800 text-right w-12">{moy ? `${moy}/10` : '—'}</span>
+                          </div>
+                        )
+                      })}
+                    </div>
+
+                    {/* Bilan général */}
+                    {(() => {
+                      const noteFin = getNoteFinaleAvg(selected.notes)
+                      const apprGen = getModeAppreciation(selected.notes, 'generale')
+                      const ac = apprGen ? APPREC_COLORS[apprGen] : null
+                      if (!noteFin && !apprGen) return null
+                      return (
+                        <div className="rounded-xl border-2 border-vert-200 bg-vert-50/50 px-4 py-3 flex items-center justify-between gap-4">
+                          <div>
+                            <p className="text-[10px] font-bold text-vert-600 uppercase tracking-wider mb-1">Bilan général</p>
+                            {apprGen && (
+                              <span className="text-xs font-bold px-2.5 py-1 rounded-full" style={{ color: ac.color, background: ac.bg }}>
+                                {apprGen}
+                              </span>
+                            )}
+                          </div>
+                          {noteFin && (
+                            <div className="text-right">
+                              <p className="text-[10px] text-vert-600 font-semibold mb-0.5">Note générale</p>
+                              <p className="text-2xl font-black text-vert-700 leading-none">{noteFin}<span className="text-sm text-vert-500">/10</span></p>
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })()}
+
+                    {/* Commentaires des évaluateurs */}
+                    {Object.entries(selected.notes).some(([, n]) => n.commentaire) && (
+                      <div className="space-y-1.5">
+                        <p className="text-[10px] font-bold text-gris-400 uppercase tracking-wider">Commentaires</p>
+                        {Object.entries(selected.notes).map(([id, n]) => {
+                          if (!n.commentaire) return null
+                          const m = MEMBRES.find(x => x.id === parseInt(id))
                           return (
-                            <div key={section.id} className="flex items-center justify-between gap-4">
-                              <span className="text-xs font-medium text-vert-700">{section.label}</span>
-                              {moy != null ? (
-                                <div className="flex items-center gap-1">
-                                  <span className="text-xs font-bold text-gris-800">{moy}/10</span>
-                                  <div className="flex items-center gap-0.5">
-                                    {Array.from({ length: 5 }, (_, i) => (
-                                      <Star key={i} size={9}
-                                        className={i < Math.round((moy / 10) * 5) ? 'fill-amber-400 text-amber-400' : 'text-gris-200'}
-                                      />
-                                    ))}
-                                  </div>
-                                </div>
-                              ) : (
-                                <span className="text-xs text-gris-400">—</span>
-                              )}
+                            <div key={id} className="bg-gris-50 rounded-lg px-3 py-2.5 border border-gris-100">
+                              <p className="text-[10px] font-bold text-gris-500 mb-1">{m ? `${m.prenom} ${m.nom}` : `Évaluateur ${id}`}</p>
+                              <p className="text-xs text-gris-700 leading-relaxed italic">"{n.commentaire}"</p>
                             </div>
                           )
                         })}
-                        <Separator className="bg-vert-200" />
-                        {(() => {
-                          const g = getMoyenneGlobale(selected.notes)
-                          return g != null ? (
-                            <div className="flex items-center justify-between gap-4 pt-1">
-                              <span className="text-xs font-bold text-vert-800">Moyenne globale</span>
-                              <div className="flex items-center gap-1">
-                                <span className="text-sm font-bold text-gris-950">{g}/10</span>
-                                <div className="flex items-center gap-0.5">
-                                  {Array.from({ length: 5 }, (_, i) => (
-                                    <Star key={i} size={10}
-                                      className={i < Math.round((g / 10) * 5) ? 'fill-amber-400 text-amber-400' : 'text-gris-200'}
-                                    />
-                                  ))}
-                                </div>
-                              </div>
-                            </div>
-                          ) : null
-                        })()}
                       </div>
-                    </CardContent>
-                  </Card>
+                    )}
+                  </div>
                 )}
 
                 <div>
