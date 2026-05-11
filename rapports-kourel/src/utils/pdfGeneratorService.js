@@ -110,6 +110,8 @@ function uploadPost(url, buffer, contentType) {
   })
 }
 
+const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms))
+
 export async function genererPDFDirectement(rapport, kourel, programmeAnnuel = []) {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'latex-'))
   const texFile = path.join(tempDir, 'rapport.tex')
@@ -122,19 +124,37 @@ export async function genererPDFDirectement(rapport, kourel, programmeAnnuel = [
     console.log('📦 Création de l\'archive tar.gz...')
     const tarGzBuffer = createTarGz(texFile)
 
-    console.log('🚀 Envoi vers LaTeX.Online API...')
     const url = 'https://latexonline.cc/data?target=rapport.tex&command=pdflatex'
-    const pdfBuffer = await uploadPost(url, tarGzBuffer, 'application/gzip')
+    const MAX_TENTATIVES = 3
+    let dernierreErreur = null
 
-    if (!pdfBuffer || pdfBuffer.length === 0) {
-      throw new Error('PDF vide reçu de LaTeX.Online')
+    for (let tentative = 1; tentative <= MAX_TENTATIVES; tentative++) {
+      try {
+        console.log(`🚀 Tentative ${tentative}/${MAX_TENTATIVES} — envoi vers LaTeX.Online...`)
+        const pdfBuffer = await uploadPost(url, tarGzBuffer, 'application/gzip')
+
+        if (!pdfBuffer || pdfBuffer.length === 0) {
+          throw new Error('PDF vide reçu de LaTeX.Online')
+        }
+
+        console.log(`✅ PDF généré avec succès (${Math.round(pdfBuffer.length / 1024)} KB)`)
+        return pdfBuffer
+
+      } catch (err) {
+        dernierreErreur = err
+        console.warn(`⚠️ Tentative ${tentative} échouée : ${err.message}`)
+        if (tentative < MAX_TENTATIVES) {
+          const delai = tentative * 2000  // 2s puis 4s
+          console.log(`⏳ Nouvelle tentative dans ${delai / 1000}s...`)
+          await sleep(delai)
+        }
+      }
     }
 
-    console.log(`✅ PDF généré avec succès (${Math.round(pdfBuffer.length / 1024)} KB)`)
-    return pdfBuffer
+    throw dernierreErreur
 
   } catch (error) {
-    console.error('❌ Erreur détaillée:', error.message)
+    console.error('❌ Erreur définitive après 3 tentatives :', error.message)
     throw error
   } finally {
     try { fs.rmSync(tempDir, { recursive: true, force: true }) } catch (e) {}
