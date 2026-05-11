@@ -1,6 +1,7 @@
 // src/utils/latexGenerator.js
 
 export function genererLatex(rapport, kourel, programmeAnnuel) {
+  // Pour les \node TikZ : les sauts de ligne cassent la compilation
   const escape = (str) => {
     if (!str) return ''
     return str
@@ -8,6 +9,18 @@ export function genererLatex(rapport, kourel, programmeAnnuel) {
       .replace(/[&%$#_{}]/g, '\\$&')
       .replace(/~/g, '\\textasciitilde{}')
       .replace(/\^/g, '\\textasciicircum{}')
+      .replace(/\r?\n/g, ' ')
+  }
+
+  // Pour les tcolorbox / paragraphes : \n → \\ (saut de ligne LaTeX)
+  const escapeBlock = (str) => {
+    if (!str) return ''
+    return str
+      .replace(/\\/g, '\\textbackslash{}')
+      .replace(/[&%$#_{}]/g, '\\$&')
+      .replace(/~/g, '\\textasciitilde{}')
+      .replace(/\^/g, '\\textasciicircum{}')
+      .replace(/\r?\n/g, '\\\\ ')
   }
 
   const calcStatsPA = () => {
@@ -156,7 +169,7 @@ export function genererLatex(rapport, kourel, programmeAnnuel) {
 \\begin{tikzpicture}
     \\fill[VertFonce] (0,0) rectangle (\\textwidth, 1.1cm);
     \\fill[VertPrincipal] (0,0) rectangle (\\textwidth, 0.85cm);
-    \\node[text=white, font=\\large\\bfseries] at (0.5\\textwidth, 0.42cm) {RAPPORT ${escape(kourel.nom).toUpperCase()} -- ${escape(rapport.mois).toUpperCase()} ${rapport.annee}};
+    \\node[text=white, font=\\normalsize\\bfseries, text width=15.5cm, align=center] at (8.1,0.42cm) {RAPPORT ${escape(kourel.nom).toUpperCase()} -- ${escape(rapport.mois).toUpperCase()} ${rapport.annee}};
 \\end{tikzpicture}
 
 \\vspace{0.5cm}
@@ -256,7 +269,7 @@ ${statsPA ? `% --- Programme Annuel ---
         boxrule=0.4mm, arc=2mm, top=2mm, bottom=2mm
     ]
         \\small\\textbf{\\color{VertFonce}$\\checkmark$ Objectifs atteints}\\\\[0.2cm]
-        ${escape(rapport.programme_annuel_textes?.objectifs_atteints || 'Non renseigné')}
+        ${escapeBlock(rapport.programme_annuel_textes?.objectifs_atteints || 'Non renseigné')}
     \\end{tcolorbox}
     \\vspace{0.3cm}
     \\begin{tcolorbox}[
@@ -264,7 +277,7 @@ ${statsPA ? `% --- Programme Annuel ---
         boxrule=0.4mm, arc=2mm, top=2mm, bottom=2mm
     ]
         \\small\\textbf{\\color{OrangeStrat}$\\circledast$ Objectifs en cours}\\\\[0.2cm]
-        ${escape(rapport.programme_annuel_textes?.objectifs_en_cours || 'Non renseigné')}
+        ${escapeBlock(rapport.programme_annuel_textes?.objectifs_en_cours || 'Non renseigné')}
     \\end{tcolorbox}
 \\end{minipage}
 \\hfill
@@ -274,7 +287,7 @@ ${statsPA ? `% --- Programme Annuel ---
         boxrule=0.4mm, arc=2mm, top=2mm, bottom=2mm
     ]
         \\small\\textbf{\\color{RougeAlerte}$\\times$ Objectifs non atteints}\\\\[0.2cm]
-        ${escape(rapport.programme_annuel_textes?.objectifs_non_atteints || rapport.appreciation?.en_retard || 'Non renseigné')}
+        ${escapeBlock(rapport.programme_annuel_textes?.objectifs_non_atteints || rapport.appreciation?.en_retard || 'Non renseigné')}
     \\end{tcolorbox}
     \\vspace{0.3cm}
     \\begin{tcolorbox}[
@@ -282,7 +295,7 @@ ${statsPA ? `% --- Programme Annuel ---
         boxrule=0.4mm, arc=2mm, top=2mm, bottom=2mm
     ]
         \\small\\textbf{\\color{BleuInfo}$\\rightarrow$ Ajustements nécessaires}\\\\[0.2cm]
-        ${escape(rapport.programme_annuel_textes?.ajustements || 'Non renseigné')}
+        ${escapeBlock(rapport.programme_annuel_textes?.ajustements || 'Non renseigné')}
     \\end{tcolorbox}
 \\end{minipage}
 
@@ -304,7 +317,7 @@ ${statsPA ? `% --- Programme Annuel ---
     boxed title style={colback=OrangeStrat, arc=2mm}
 ]
 \\vspace{0.15cm}
-${escape(rapport.appreciation?.generale || 'Non renseignée')}
+${escapeBlock(rapport.appreciation?.generale || 'Non renseignée')}
 \\end{tcolorbox}
 
 \\vspace{0.5cm}
@@ -331,7 +344,7 @@ ${escape(rapport.appreciation?.generale || 'Non renseignée')}
         \\centering
         \\pastille{VertPrincipal}{\\checkmark}\\\\[0.2cm]
         \\small\\textbf{Positifs}\\\\[0.15cm]
-        {\\tiny ${escape(rapport.appreciation?.points_positifs || 'Non renseigné')}}
+        {\\tiny ${escapeBlock(rapport.appreciation?.points_positifs || 'Non renseigné')}}
     \\end{tcolorbox}
 \\end{minipage}
 \\hfill
@@ -343,7 +356,7 @@ ${escape(rapport.appreciation?.generale || 'Non renseignée')}
         \\centering
         \\pastille{OrangeStrat}{!}\\\\[0.2cm]
         \\small\\textbf{À surveiller}\\\\[0.15cm]
-        {\\tiny ${escape(rapport.appreciation?.a_surveiller || 'Non renseigné')}}
+        {\\tiny ${escapeBlock(rapport.appreciation?.a_surveiller || 'Non renseigné')}}
     \\end{tcolorbox}
 \\end{minipage}
 \\hfill
@@ -355,7 +368,7 @@ ${escape(rapport.appreciation?.generale || 'Non renseignée')}
         \\centering
         \\pastille{RougeAlerte}{\\textrm{$\\times$}}\\\\[0.2cm]
         \\small\\textbf{En retard}\\\\[0.15cm]
-        {\\tiny ${escape(rapport.appreciation?.en_retard || 'Non renseigné')}}
+        {\\tiny ${escapeBlock(rapport.appreciation?.en_retard || 'Non renseigné')}}
     \\end{tcolorbox}
 \\end{minipage}
 \\hfill
@@ -367,7 +380,7 @@ ${escape(rapport.appreciation?.generale || 'Non renseignée')}
         \\centering
         \\pastille{BleuInfo}{$\\rightarrow$}\\\\[0.2cm]
         \\small\\textbf{Priorités}\\\\[0.15cm]
-        {\\tiny ${escape(rapport.appreciation?.priorites || 'Non renseigné')}}
+        {\\tiny ${escapeBlock(rapport.appreciation?.priorites || 'Non renseigné')}}
     \\end{tcolorbox}
 \\end{minipage}
 

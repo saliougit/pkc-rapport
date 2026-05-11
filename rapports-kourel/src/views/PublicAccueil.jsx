@@ -95,15 +95,15 @@ export default function PublicAccueil() {
                 <label className="block text-xs font-semibold text-gris-500 mb-1.5 uppercase tracking-wide">
                   Code d'évaluation
                 </label>
-                <div className="flex gap-2">
+                <div className="flex flex-col sm:flex-row gap-2">
                   <Input
                     value={code}
                     onChange={e => { setCode(e.target.value); setError('') }}
                     placeholder="Entrez votre code…"
-                    className="flex-1 h-10 text-sm font-mono tracking-wider uppercase"
+                    className="flex-1 h-11 text-sm font-mono tracking-wider uppercase"
                   />
                   <button type="submit"
-                    className="px-4 py-2 bg-amber-600 text-white text-sm font-semibold rounded-lg hover:bg-amber-700 transition flex items-center gap-1.5 flex-shrink-0"
+                    className="w-full sm:w-auto h-11 px-5 bg-amber-600 text-white text-sm font-semibold rounded-lg hover:bg-amber-700 transition flex items-center justify-center gap-1.5 flex-shrink-0"
                   >
                     Accéder <ChevronRight size={15} />
                   </button>

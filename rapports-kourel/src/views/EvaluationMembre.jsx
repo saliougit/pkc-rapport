@@ -1,21 +1,21 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { ChevronRight, ChevronLeft, Save, CheckCircle2, Clock, Calendar, MapPin, Users, Star, Music, ClipboardCheck, Loader, FileText } from 'lucide-react'
-import { Input } from '@/components/ui/input'
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
-import { cn } from '@/lib/utils'
+import {
+  ChevronRight, ChevronLeft, CheckCircle2, Clock,
+  Calendar, MapPin, Users, Music, FileText,
+  ArrowLeft, ArrowRight, AlertCircle,
+} from 'lucide-react'
 
-// ─── Données mock ───────────────────────────────────────────────────────────
+// ─── Données mock ─────────────────────────────────────────────────────────────
+
 const MEMBRES = [
-  { id: 1, prenom: 'Ibrahima', nom: 'Fall', kourel: 'Kourel Serigne Babacar Sy' },
-  { id: 2, prenom: 'Moussa', nom: 'Diop', kourel: 'Kourel El Hadj Malick Sy' },
-  { id: 3, prenom: 'Abdoulaye', nom: 'Niang', kourel: 'Kourel Serigne Moussa Ka' },
-  { id: 4, prenom: 'Cheikh', nom: 'Mbaye', kourel: 'Kourel Mame Thierno' },
-  { id: 5, prenom: 'Fatou', nom: 'Sow', kourel: 'Kourel Serigne Babacar Sy' },
+  { id: 1, prenom: 'Ibrahima',   nom: 'Fall',  kourel: 'Kourel Serigne Babacar Sy' },
+  { id: 2, prenom: 'Moussa',     nom: 'Diop',  kourel: 'Kourel El Hadj Malick Sy' },
+  { id: 3, prenom: 'Abdoulaye',  nom: 'Niang', kourel: 'Kourel Serigne Moussa Ka' },
+  { id: 4, prenom: 'Cheikh',     nom: 'Mbaye', kourel: 'Kourel Mame Thierno' },
+  { id: 5, prenom: 'Fatou',      nom: 'Sow',   kourel: 'Kourel Serigne Babacar Sy' },
 ]
 const TYPES = ['Goudj', 'Aldiouma', 'Ziar', 'Magal']
-
-// Simulation de codes valides (format: EVAL-{evenement_id}-{membre_id})
 const CODES = {
   'EVAL-001-01': { evenement_id: 1, membre_id: 1 },
   'EVAL-001-02': { evenement_id: 1, membre_id: 2 },
@@ -26,75 +26,253 @@ const CODES = {
   'EVAL-003-03': { evenement_id: 3, membre_id: 3 },
   'EVAL-003-04': { evenement_id: 3, membre_id: 4 },
 }
-
 const EVENEMENTS = [
-  { id: 1, type_id: 1, date: '2026-04-15', lieu: 'CAMPUS', kourel: 'Kourel Serigne Babacar Sy', evaluateurs: [1, 2], statut: 'terminé' },
-  { id: 2, type_id: 2, date: '2026-05-02', lieu: 'ESP', kourel: 'Kourel El Hadj Malick Sy', evaluateurs: [2, 3, 5], statut: 'à venir' },
-  { id: 3, type_id: 4, date: '2026-05-20', lieu: 'CAMPUS', kourel: 'Kourel Serigne Moussa Ka', evaluateurs: [1, 3, 4], statut: 'en cours' },
+  { id: 1, type_id: 1, date: '2026-04-15', lieu: 'CAMPUS', kourel: 'Kourel Serigne Babacar Sy', statut: 'terminé' },
+  { id: 2, type_id: 2, date: '2026-05-02', lieu: 'ESP',    kourel: 'Kourel El Hadj Malick Sy',  statut: 'à venir' },
+  { id: 3, type_id: 4, date: '2026-05-20', lieu: 'CAMPUS', kourel: 'Kourel Serigne Moussa Ka',  statut: 'en cours' },
 ]
 
 const SECTIONS = [
-  { id: 'melodie', label: 'Maitrise de la mélodie', icon: Music },
-  { id: 'hourouf', label: 'Phonétique "Hourouf"', icon: FileText },
-  { id: 'timing', label: 'Temps de prestation', icon: Clock },
-  { id: 'discipline', label: 'Discipline', icon: Users },
-  { id: 'ponctualite', label: 'Ponctualité / Présence', icon: Clock },
+  { id: 'melodie',     label: 'Maitrise de la mélodie',  icon: Music,         color: '#3B82F6', bg: '#EFF6FF' },
+  { id: 'hourouf',     label: 'Phonétique "Hourouf"',    icon: FileText,      color: '#8B5CF6', bg: '#F5F3FF' },
+  { id: 'timing',      label: 'Temps de prestation',     icon: Clock,         color: '#F59E0B', bg: '#FFFBEB' },
+  { id: 'discipline',  label: 'Discipline',              icon: Users,         color: '#EF4444', bg: '#FEF2F2' },
+  { id: 'ponctualite', label: 'Ponctualité / Présence',  icon: Calendar,      color: '#10B981', bg: '#ECFDF5' },
 ]
 
-const APPRECIATIONS = ['Mauvais', 'Médiocre', 'Passable', 'Bien', 'Très bien', 'Excellent']
+const APPRECIATIONS = [
+  { label: 'Mauvais',   value: 'Mauvais',   color: '#ee6161', bg: '#FEF2F2', active: '#EF4444', min: 0,   max: 2,   mid: 1   },
+  { label: 'Médiocre',  value: 'Médiocre',  color: '#F97316', bg: '#FFF7ED', active: '#F97316', min: 2.5, max: 4,   mid: 3   },
+  { label: 'Passable',  value: 'Passable',  color: '#EAB308', bg: '#FEFCE8', active: '#EAB308', min: 4.5, max: 5.5, mid: 5   },
+  { label: 'Bien',      value: 'Bien',      color: '#22C55E', bg: '#F0FDF4', active: '#22C55E', min: 6,   max: 7.5, mid: 7   },
+  { label: 'Très bien', value: 'Très bien', color: '#16824E', bg: '#F0FDF4', active: '#16824E', min: 8,   max: 9,   mid: 8.5 },
+  { label: 'Excellent', value: 'Excellent', color: '#014421', bg: '#DCFCE7', active: '#014421', min: 9.5, max: 10,  mid: 10  },
+]
+
+function getAppreciationFromNote(note) {
+  if (note == null) return ''
+  return APPRECIATIONS.find(a => note >= a.min && note <= a.max)?.value ?? ''
+}
 
 function formatDate(d) {
   return new Date(d).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
 }
-
 function getTypeName(id) { return TYPES[id - 1] || '—' }
+const sectionVide = () => ({ appreciation: '', note: null, remarques: '' })
 
-const sectionVide = () => ({ appreciation: '', remarques: '', note: null })
+// ─── Composant NoteSelector ───────────────────────────────────────────────────
 
-// ─── STEPPER ────────────────────────────────────────────────────────────────
-function Stepper({ etape }) {
-  const steps = [
-    { label: 'Identification', Icon: Calendar },
-    { label: 'Évaluation', Icon: ClipboardCheck },
-    { label: 'Finalisation', Icon: Star },
-  ]
+function NoteSelector({ value, onChange }) {
+  const dec = () => onChange(Math.max(0, (value ?? 0) - 0.5))
+  const inc = () => onChange(Math.min(10, (value ?? 0) + 0.5))
+  const pct = ((value ?? 0) / 10) * 100
+  const noteColor = !value ? '#9CA3AF'
+    : value < 4 ? '#EF4444'
+    : value < 6 ? '#F97316'
+    : value < 8 ? '#EAB308'
+    : '#16824E'
+
   return (
-    <div className="flex items-center justify-center px-1 sm:px-2">
-      {steps.map((s, i) => {
-        const num = i + 1
-        const done = num < etape
-        const actif = num === etape
-        return (
-          <div key={i} className="flex items-center flex-shrink-0">
-            <div className="flex flex-col items-center" style={{ minWidth: 'clamp(45px, 12vw, 70px)' }}>
-              <div className="flex items-center justify-center rounded-full transition-all duration-300"
+    <div className="flex flex-col items-center gap-3">
+      <div className="flex items-center gap-5">
+        <button
+          type="button"
+          onClick={dec}
+          disabled={!value || value <= 0}
+          className="w-12 h-12 rounded-full border-2 border-gris-200 flex items-center justify-center text-xl font-bold text-gris-600 disabled:opacity-30 hover:border-gris-400 active:scale-95 transition-all"
+        >
+          −
+        </button>
+
+        <div className="flex flex-col items-center">
+          <div
+            className="w-20 h-20 rounded-full flex items-center justify-center border-4 transition-all duration-300"
+            style={{
+              borderColor: noteColor,
+              background: value ? noteColor + '15' : '#F9FAFB',
+            }}
+          >
+            <span
+              className="text-2xl font-black leading-none"
+              style={{ color: noteColor }}
+            >
+              {value != null ? value : '—'}
+            </span>
+          </div>
+          <span className="text-[10px] text-gris-400 mt-1">/10</span>
+        </div>
+
+        <button
+          type="button"
+          onClick={inc}
+          disabled={value >= 10}
+          className="w-12 h-12 rounded-full border-2 border-gris-200 flex items-center justify-center text-xl font-bold text-gris-600 disabled:opacity-30 hover:border-gris-400 active:scale-95 transition-all"
+        >
+          +
+        </button>
+      </div>
+
+      {/* Barre de progression */}
+      <div className="w-full bg-gris-100 rounded-full h-1.5">
+        <div
+          className="h-1.5 rounded-full transition-all duration-300"
+          style={{ width: `${pct}%`, background: noteColor }}
+        />
+      </div>
+    </div>
+  )
+}
+
+// ─── Carte section (étape 2) ──────────────────────────────────────────────────
+
+function SectionCard({ section, data, onChange, index, total }) {
+  const Icon = section.icon
+  const donePct = Math.round(((index) / total) * 100)
+
+  return (
+    <div className="flex flex-col gap-5">
+      {/* En-tête section */}
+      <div className="rounded-2xl overflow-hidden" style={{ background: section.bg, border: `1.5px solid ${section.color}22` }}>
+        <div
+          className="flex items-center gap-3 px-5 py-4"
+          style={{ background: section.color }}
+        >
+          <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center flex-shrink-0">
+            <Icon size={20} color="white" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-white font-bold text-base leading-tight">{section.label}</p>
+            <p className="text-white/70 text-xs mt-0.5">{index}/{total} sections</p>
+          </div>
+          <div className="w-10 h-10 rounded-full border-2 border-white/30 flex items-center justify-center flex-shrink-0">
+            <span className="text-white text-xs font-bold">{Math.round((index / total) * 100)}%</span>
+          </div>
+        </div>
+        {/* Mini progress */}
+        <div className="h-1 bg-white/30">
+          <div
+            className="h-1 transition-all duration-500"
+            style={{ width: `${donePct}%`, background: 'white' }}
+          />
+        </div>
+      </div>
+
+      {/* Appréciation */}
+      <div>
+        <p className="text-xs font-bold text-gris-500 uppercase tracking-widest mb-3">
+          Appréciation
+        </p>
+        <div className="grid grid-cols-3 gap-2">
+          {APPRECIATIONS.map(a => {
+            const selected = data.appreciation === a.value
+            return (
+              <button
+                key={a.value}
+                type="button"
+                onClick={() => onChange({ appreciation: a.value, note: a.mid })}
+                className="py-3 px-2 rounded-xl text-sm font-semibold border-2 transition-all duration-150 active:scale-95"
                 style={{
-                  width: 'clamp(24px, 7vw, 38px)', height: 'clamp(24px, 7vw, 38px)',
-                  background: done ? '#16824E' : actif ? '#014421' : '#F3F4F6',
-                  boxShadow: actif ? '0 0 0 2px #E8F5E9' : 'none',
-                }}>
+                  borderColor: selected ? a.active : '#E5E7EB',
+                  background: selected ? a.active : 'white',
+                  color: selected ? 'white' : a.color,
+                }}
+              >
+                {a.label}
+              </button>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* Note */}
+      <div>
+        <p className="text-xs font-bold text-gris-500 uppercase tracking-widest mb-3">
+          Note
+        </p>
+        <div className="bg-gris-50 rounded-2xl py-5 px-4">
+          <NoteSelector
+            value={data.note}
+            onChange={v => onChange({ note: v, appreciation: getAppreciationFromNote(v) })}
+          />
+        </div>
+      </div>
+
+      {/* Remarques */}
+      <div>
+        <p className="text-xs font-bold text-gris-500 uppercase tracking-widest mb-2">
+          Remarques <span className="font-normal normal-case text-gris-400">(optionnel)</span>
+        </p>
+        <textarea
+          value={data.remarques}
+          onChange={e => onChange({ remarques: e.target.value })}
+          rows={3}
+          placeholder="Vos observations sur cette section…"
+          className="w-full px-4 py-3 text-sm border border-gris-200 rounded-xl focus:border-vert-700 focus:outline-none resize-none bg-white placeholder:text-gris-400"
+        />
+      </div>
+    </div>
+  )
+}
+
+// ─── Toast validation ─────────────────────────────────────────────────────────
+
+function Toast({ manque, onClose }) {
+  useEffect(() => {
+    const t = setTimeout(onClose, 3000)
+    return () => clearTimeout(t)
+  }, [])
+
+  const msg = manque.includes('appreciation') && manque.includes('note')
+    ? 'Choisissez une appréciation et une note'
+    : manque.includes('appreciation')
+    ? 'Choisissez une appréciation'
+    : 'Donnez une note sur 10'
+
+  return (
+    <div className="fixed bottom-24 left-4 right-4 z-50 flex justify-center pointer-events-none">
+      <div className="flex items-center gap-2.5 bg-gris-950 text-white px-4 py-3 rounded-2xl shadow-lg max-w-xs w-full pointer-events-auto">
+        <AlertCircle size={16} className="flex-shrink-0 text-orange-400" />
+        <p className="text-sm font-semibold">{msg}</p>
+      </div>
+    </div>
+  )
+}
+
+// ─── Dots stepper ─────────────────────────────────────────────────────────────
+
+function DotsStep({ etape }) {
+  const steps = ['Identification', 'Évaluation', 'Finalisation']
+  return (
+    <div className="flex items-center justify-center gap-2 py-2">
+      {steps.map((s, i) => {
+        const n = i + 1
+        const done = n < etape
+        const actif = n === etape
+        return (
+          <div key={s} className="flex items-center gap-2">
+            <div className="flex flex-col items-center gap-1">
+              <div
+                className="rounded-full transition-all duration-300 flex items-center justify-center"
+                style={{
+                  width: actif ? 32 : 24,
+                  height: actif ? 32 : 24,
+                  background: done ? '#16824E' : actif ? '#014421' : '#E5E7EB',
+                }}
+              >
                 {done ? (
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={3}
-                    style={{ width: 'clamp(10px, 3vw, 16px)', height: 'clamp(10px, 3vw, 16px)' }}>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={3}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                   </svg>
                 ) : (
-                  <s.Icon size={12} color={actif ? '#fff' : '#9CA3AF'} strokeWidth={2}
-                    style={{ width: 'clamp(10px, 3vw, 16px)', height: 'clamp(10px, 3vw, 16px)' }} />
+                  <span className="text-xs font-bold" style={{ color: actif ? 'white' : '#9CA3AF' }}>{n}</span>
                 )}
               </div>
-              <span className="mt-0.5 text-center leading-tight" style={{
-                fontSize: 'clamp(7px, 2.5vw, 11px)', fontWeight: actif ? 700 : 500,
-                color: done ? '#16824E' : actif ? '#014421' : '#9CA3AF',
-                maxWidth: 'clamp(40px, 10vw, 62px)',
-              }}>{s.label}</span>
+              <span className="text-[10px] font-semibold" style={{ color: done ? '#16824E' : actif ? '#014421' : '#9CA3AF' }}>
+                {s}
+              </span>
             </div>
             {i < steps.length - 1 && (
-              <div style={{
-                height: 2, width: 'clamp(12px, 4vw, 44px)', marginTop: '10px',
-                marginLeft: '1px', marginRight: '1px', borderRadius: 2,
-                background: done ? '#16824E' : '#E5E7EB', transition: 'background 0.3s',
-              }} />
+              <div className="w-8 h-0.5 rounded mb-4" style={{ background: done ? '#16824E' : '#E5E7EB' }} />
             )}
           </div>
         )
@@ -103,106 +281,143 @@ function Stepper({ etape }) {
   )
 }
 
-// ─── LOADING MODAL ──────────────────────────────────────────────────────────
-function LoadingModal({ progress, succes }) {
+// ─── Écran saisie du code ─────────────────────────────────────────────────────
+
+function EcranCode({ onValide }) {
+  const [code, setCode] = useState('')
+  const [error, setError] = useState('')
+
+  const valider = (e) => {
+    e?.preventDefault()
+    const cUpper = code.toUpperCase().trim()
+    if (!cUpper) { setError('Veuillez entrer votre code.'); return }
+    const data = CODES[cUpper]
+    if (!data) { setError('Code invalide. Vérifiez le code reçu.'); return }
+    const evenement = EVENEMENTS.find(e => e.id === data.evenement_id)
+    const membre = MEMBRES.find(m => m.id === data.membre_id)
+    if (!evenement || !membre) { setError('Événement introuvable.'); return }
+    onValide({ code: cUpper, evenement, membre })
+  }
+
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50">
-      <div className="bg-white rounded-2xl p-10 max-w-xs w-full mx-4 shadow-2xl flex flex-col items-center gap-6">
-        {succes ? (
-          <div className="w-16 h-16 bg-vert-pastel rounded-full flex items-center justify-center">
-            <svg className="w-9 h-9 text-vert-principal" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-            </svg>
-          </div>
-        ) : (
-          <div className="w-16 h-16 rounded-full animate-spin border-4"
-            style={{ borderColor: '#E8F5E9', borderTopColor: '#16824E' }} />
-        )}
-        <p className="text-lg font-bold text-vert-fonce text-center">
-          {succes ? 'Évaluation soumise !' : 'Soumission en cours...'}
+    <div className="min-h-screen flex justify-center" style={{ background: '#014421' }}>
+    <div className="w-full max-w-md flex flex-col min-h-screen">
+      {/* Haut décoratif */}
+      <div className="flex-1 flex flex-col items-center justify-center px-5 pt-12 pb-6">
+        <div className="w-16 h-16 rounded-2xl bg-white flex items-center justify-center mb-5 shadow-lg">
+          <img src="/images/logo-dmn.png" alt="DMN" className="w-11 h-11 object-contain" />
+        </div>
+        <h1 className="text-white text-xl font-black text-center mb-1">DMN · Évaluation</h1>
+        <p className="text-vert-200 text-xs text-center">Comité Suivi & Évaluation</p>
+      </div>
+
+      {/* Card code */}
+      <div className="bg-white rounded-t-3xl px-5 pt-8 pb-8 shadow-2xl">
+        <p className="text-gris-950 text-lg font-black mb-1">Accéder à l'évaluation</p>
+        <p className="text-gris-500 text-sm mb-6">
+          Saisissez le code qui vous a été communiqué par l'administrateur.
         </p>
-        <div className="w-full relative h-8 bg-gray-100 rounded-full overflow-hidden border border-gray-200">
-          <div className="h-full rounded-full transition-all duration-500 ease-out"
-            style={{
-              width: `${progress}%`,
-              background: succes ? '#16824E' : 'linear-gradient(90deg, #014421, #16824E, #8CD2B4)'
-            }} />
-          <span className="absolute inset-0 flex items-center justify-center text-sm font-bold text-white"
-            style={{ textShadow: '0 1px 3px rgba(0,0,0,0.5)' }}>{progress}%</span>
+
+        <form onSubmit={valider} className="space-y-4">
+          <div>
+            <label className="block text-xs font-bold text-gris-500 uppercase tracking-widest mb-2">
+              Code d'accès
+            </label>
+            <input
+              value={code}
+              onChange={e => { setCode(e.target.value.toUpperCase()); setError('') }}
+              placeholder="EVAL-001-01"
+              autoCapitalize="characters"
+              autoCorrect="off"
+              spellCheck={false}
+              className="w-full h-14 px-4 text-xl font-mono tracking-[0.3em] uppercase text-center border-2 rounded-2xl outline-none transition-all"
+              style={{
+                borderColor: error ? '#EF4444' : code ? '#014421' : '#E5E7EB',
+                color: '#014421',
+              }}
+            />
+            {error && (
+              <div className="mt-2 flex items-center gap-2 bg-red-50 border border-red-200 rounded-xl px-3 py-2">
+                <span className="text-red-500 text-sm">⚠</span>
+                <p className="text-red-600 text-xs font-semibold">{error}</p>
+              </div>
+            )}
+          </div>
+
+          <button
+            type="submit"
+            disabled={!code.trim()}
+            className="w-full h-14 rounded-2xl text-base font-bold text-white flex items-center justify-center gap-2 transition-all active:scale-95 disabled:opacity-40"
+            style={{ background: '#016030' }}
+          >
+            Accéder <ChevronRight size={18} />
+          </button>
+
+          <p className="text-[11px] text-gris-400 text-center">
+            Code perdu ? Contactez l'administrateur du comité.
+          </p>
+        </form>
+
+        {/* Exemples de codes pour la démo */}
+        <div className="mt-5 pt-5 border-t border-gris-100">
+          <p className="text-[10px] font-bold text-gris-400 uppercase tracking-widest mb-2">Codes de test</p>
+          <div className="flex flex-wrap gap-1.5">
+            {['EVAL-001-01', 'EVAL-002-02', 'EVAL-003-04'].map(c => (
+              <button
+                key={c}
+                type="button"
+                onClick={() => { setCode(c); setError('') }}
+                className="text-[11px] font-mono px-2.5 py-1 rounded-lg bg-vert-50 text-vert-800 border border-vert-200"
+              >
+                {c}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
+    </div>
     </div>
   )
 }
 
-// ─── PAGE PRINCIPALE ────────────────────────────────────────────────────────
+// ─── PAGE PRINCIPALE ──────────────────────────────────────────────────────────
+
 export default function EvaluationMembre() {
   const [searchParams] = useSearchParams()
   const codeParam = searchParams.get('code') || ''
 
-  const [etape, setEtape] = useState(codeParam ? 2 : 1)
-  const [code, setCode] = useState(codeParam)
-  const [codeError, setCodeError] = useState('')
   const [codeValide, setCodeValide] = useState(null)
-  const [validating, setValidating] = useState(!!codeParam)
+  const [etape, setEtape] = useState(1)
+  const [sectionIdx, setSectionIdx] = useState(0)
 
   const [evalData, setEvalData] = useState(() => {
     const notes = {}
     SECTIONS.forEach(s => { notes[s.id] = sectionVide() })
     return { notes, note_finale: null, commentaire: '', soumis: false }
   })
-  const [saving, setSaving] = useState(false)
-  const [progress, setProgress] = useState(0)
-  const [succes, setSucces] = useState(false)
 
-  // Valider le code synchrone à l'initialisation si présent dans l'URL
+  const [saving, setSaving] = useState(false)
+  const [soumis, setSoumis] = useState(false)
+  const [popup, setPopup] = useState(null) // { sectionLabel, manque[] }
+
+  // Validation automatique du code en URL
   useEffect(() => {
-    if (codeParam) {
-      const cUpper = codeParam.toUpperCase().trim()
-      const data = CODES[cUpper]
-      if (data) {
-        const evenement = EVENEMENTS.find(e => e.id === data.evenement_id)
-        const membre = MEMBRES.find(m => m.id === data.membre_id)
-        if (evenement && membre) {
-          setCodeValide({ code: cUpper, evenement, membre })
-          setValidating(false)
-          setEtape(2)
-          return
-        }
-      }
-      setCodeError('Code invalide ou expiré.')
-      setValidating(false)
+    if (!codeParam) return
+    const cUpper = codeParam.toUpperCase().trim()
+    const data = CODES[cUpper]
+    if (!data) return
+    const evenement = EVENEMENTS.find(e => e.id === data.evenement_id)
+    const membre = MEMBRES.find(m => m.id === data.membre_id)
+    if (evenement && membre) {
+      setCodeValide({ code: cUpper, evenement, membre })
+      setEtape(1)
     }
   }, [])
 
-  const validerCode = (c) => {
-    const cUpper = c.toUpperCase().trim()
-    const data = CODES[cUpper]
-    if (!data) {
-      setCodeError('Code invalide. Vérifiez votre code et réessayez.')
-      return
-    }
-    const evenement = EVENEMENTS.find(e => e.id === data.evenement_id)
-    if (!evenement) {
-      setCodeError('Événement introuvable pour ce code.')
-      return
-    }
-    const membre = MEMBRES.find(m => m.id === data.membre_id)
-    setCodeValide({ code: cUpper, evenement, membre })
-    setCodeError('')
-    setEtape(2)
-  }
-
-  const handleCodeSubmit = (e) => {
-    e.preventDefault()
-    if (!code.trim()) { setCodeError('Veuillez entrer un code'); return }
-    validerCode(code)
-  }
-
-  const updateSection = (sectionId, field, value) => {
+  const updateSection = (sectionId, changes) => {
     setEvalData(prev => ({
       ...prev,
-      notes: { ...prev.notes, [sectionId]: { ...prev.notes[sectionId], [field]: value } },
+      notes: { ...prev.notes, [sectionId]: { ...prev.notes[sectionId], ...changes } },
     }))
   }
 
@@ -212,319 +427,480 @@ export default function EvaluationMembre() {
     return (vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(1)
   }
 
-  const peutPasserEtape2 = () => {
-    return SECTIONS.every(s => evalData.notes[s.id]?.note != null)
+  const sectionComplete = (id) => {
+    const n = evalData.notes[id]
+    return n.appreciation && n.note != null
+  }
+
+  const sectionsCompletes = SECTIONS.filter(s => sectionComplete(s.id)).length
+
+  const validerEtAvancer = (cible) => {
+    const section = SECTIONS[sectionIdx]
+    const n = evalData.notes[section.id]
+    const manque = []
+    if (!n.appreciation) manque.push('appreciation')
+    if (n.note == null) manque.push('note')
+    if (manque.length > 0) {
+      setPopup({ sectionLabel: section.label, manque })
+      return
+    }
+    cible()
+  }
+
+  const validerEtFinaliser = () => {
+    const premiere = SECTIONS.find(s => !sectionComplete(s.id))
+    if (premiere) {
+      const n = evalData.notes[premiere.id]
+      const manque = []
+      if (!n.appreciation) manque.push('appreciation')
+      if (n.note == null) manque.push('note')
+      setSectionIdx(SECTIONS.indexOf(premiere))
+      setPopup({ sectionLabel: premiere.label, manque })
+      return
+    }
+    setEtape(3)
   }
 
   const soumettre = async () => {
     setSaving(true)
-    setProgress(0)
-    const timer = setInterval(() => {
-      setProgress(prev => {
-        if (prev >= 99) return 99
-        const inc = prev < 20 ? 5 : prev < 45 ? 2.5 : prev < 80 ? 0.8 : 0.15
-        return Math.min(99, Math.round((prev + inc) * 10) / 10)
-      })
-    }, 200)
     await new Promise(r => setTimeout(r, 1500))
-    clearInterval(timer)
-    setProgress(100)
-    setSucces(true)
-    const toSave = { ...evalData, soumis: true }
+    setSaving(false)
+    setSoumis(true)
     if (codeValide) {
-      localStorage.setItem(`eval_${codeValide.evenement.id}_${codeValide.membre.id}`, JSON.stringify(toSave))
+      localStorage.setItem(
+        `eval_${codeValide.evenement.id}_${codeValide.membre.id}`,
+        JSON.stringify({ ...evalData, soumis: true })
+      )
     }
-    setEvalData(toSave)
-    setTimeout(() => { setSaving(false); setSucces(false) }, 1500)
   }
 
-  // ── Écran de validation ─────────────────────────────────────────────────
-  if (validating) {
-    return (
-      <div className="min-h-screen bg-gris-clair flex items-center justify-center">
-        <Loader size={24} className="animate-spin text-vert-700" />
-      </div>
-    )
-  }
-
-  // ── Écran de saisie du code ─────────────────────────────────────────────
+  // ── Pas encore de code valide ───────────────────────────────────────────────
   if (!codeValide) {
-    return (
-      <div className="min-h-screen bg-gris-clair flex flex-col items-center justify-center px-4 py-4">
-        <div className="w-full max-w-md">
-          <div className="bg-vert-800 text-white px-5 py-4 rounded-t-2xl">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-lg bg-white flex items-center justify-center p-1 flex-shrink-0">
-                <img src="/images/logo-dmn.png" alt="DMN" className="w-full h-full object-contain" />
-              </div>
-              <div>
-                <p className="font-bold text-sm">DMN · Évaluation</p>
-                <p className="text-xs text-vert-200">Comité Suivi & Évaluation</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white shadow-xl rounded-b-2xl p-6">
-            <form onSubmit={handleCodeSubmit} className="space-y-4">
-              <div>
-                <p className="text-xs font-bold text-vert-800 uppercase tracking-wider mb-1">
-                  Code d'accès
-                </p>
-                <p className="text-xs text-gris-500 mb-4">
-                  Saisissez le code qui vous a été communiqué.
-                </p>
-                <label className="block text-xs font-semibold text-gris-500 mb-1.5 uppercase tracking-wide">
-                  Code
-                </label>
-                <Input
-                  value={code}
-                  onChange={e => { setCode(e.target.value.toUpperCase()); setCodeError('') }}
-                  placeholder="EX: EVAL-001-01"
-                  className="w-full h-11 text-lg font-mono tracking-[0.25em] uppercase text-center"
-                  autoFocus
-                />
-                {codeError && (
-                  <p className="text-xs text-rouge mt-2 flex items-center gap-1">
-                    <span>⚠</span> {codeError}
-                  </p>
-                )}
-              </div>
-              <button type="submit" disabled={!code.trim()}
-                className="w-full flex items-center justify-center gap-2 py-3 text-sm font-bold text-white rounded-xl bg-vert-700 hover:opacity-90 disabled:opacity-40 transition"
-              >
-                Accéder à l'évaluation <ChevronRight size={16} />
-              </button>
-              <p className="text-[10px] text-gris-400 text-center">
-                En cas de perte du code, contactez l'administrateur.
-              </p>
-            </form>
-          </div>
-        </div>
-      </div>
-    )
+    return <EcranCode onValide={cv => { setCodeValide(cv); setEtape(1) }} />
   }
 
   const { evenement, membre } = codeValide
 
-  // ── Conteneur principal avec stepper ────────────────────────────────────
-  return (
-    <div className="min-h-screen bg-gris-clair flex flex-col items-center px-2 sm:px-4 py-2 sm:py-4">
-      {saving && <LoadingModal progress={Math.round(progress)} succes={succes} />}
+  // ── Succès ──────────────────────────────────────────────────────────────────
+  if (soumis) {
+    return (
+      <div className="min-h-screen flex justify-center bg-white">
+      <div className="w-full max-w-md flex flex-col items-center justify-center px-6 min-h-screen">
+        <style>{`
+          @keyframes bgScale {
+            0%   { transform: scale(0); opacity: 0; }
+            65%  { transform: scale(1.1); opacity: 1; }
+            100% { transform: scale(1); opacity: 1; }
+          }
+          @keyframes drawCircle {
+            from { stroke-dashoffset: 290; }
+            to   { stroke-dashoffset: 0; }
+          }
+          @keyframes drawCheck {
+            from { stroke-dashoffset: 82; }
+            to   { stroke-dashoffset: 0; }
+          }
+          @keyframes burst {
+            0%   { opacity: 1; transform: translate(0,0) scale(1.2); }
+            100% { opacity: 0; transform: translate(var(--tx), var(--ty)) scale(0.2); }
+          }
+          @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(14px); }
+            to   { opacity: 1; transform: translateY(0); }
+          }
+          .anim-up-1  { animation: fadeUp 0.45s ease 0.7s both; }
+          .anim-up-2  { animation: fadeUp 0.45s ease 0.85s both; }
+          .anim-up-3  { animation: fadeUp 0.45s ease 1s both; }
+        `}</style>
 
-      <div className="w-full max-w-5xl flex flex-col rounded-2xl shadow-xl overflow-hidden"
-        style={{ maxHeight: 'calc(100vh - 1rem)' }}>
+        <div className="text-center w-full max-w-xs">
+          {/* Icône animée SVG */}
+          <div className="relative flex items-center justify-center mx-auto mb-8" style={{ width: 120, height: 120 }}>
+            {/* Particules burst */}
+            {[
+              { tx: '52px',  ty: '0px'   },
+              { tx: '37px',  ty: '37px'  },
+              { tx: '0px',   ty: '52px'  },
+              { tx: '-37px', ty: '37px'  },
+              { tx: '-52px', ty: '0px'   },
+              { tx: '-37px', ty: '-37px' },
+              { tx: '0px',   ty: '-52px' },
+              { tx: '37px',  ty: '-37px' },
+            ].map((p, i) => (
+              <div key={i}
+                className="absolute rounded-full"
+                style={{
+                  width: i % 2 === 0 ? 8 : 6,
+                  height: i % 2 === 0 ? 8 : 6,
+                  background: i % 3 === 0 ? '#016030' : i % 3 === 1 ? '#4ADE80' : '#BBF7D0',
+                  top: '50%', left: '50%',
+                  marginTop: i % 2 === 0 ? -4 : -3,
+                  marginLeft: i % 2 === 0 ? -4 : -3,
+                  '--tx': p.tx,
+                  '--ty': p.ty,
+                  animation: `burst 0.65s cubic-bezier(.2,.8,.4,1) ${0.45 + i * 0.03}s both`,
+                }}
+              />
+            ))}
+            {/* SVG animé */}
+            <svg viewBox="0 0 100 100" width="120" height="120" fill="none">
+              {/* Fond vert scale-in */}
+              <circle
+                cx="50" cy="50" r="46"
+                fill="#016030"
+                style={{ transformOrigin: '50px 50px', animation: 'bgScale 0.55s cubic-bezier(.34,1.56,.64,1) 0.05s both' }}
+              />
+              {/* Cercle outline qui se dessine */}
+              <circle
+                cx="50" cy="50" r="46"
+                stroke="#4ADE80" strokeWidth="2.5" fill="none"
+                strokeDasharray="290" strokeDashoffset="290"
+                style={{ animation: 'drawCircle 0.55s ease 0.05s both' }}
+              />
+              {/* Checkmark qui se dessine */}
+              <path
+                d="M 24 52 L 42 70 L 76 30"
+                stroke="white" strokeWidth="6.5"
+                strokeLinecap="round" strokeLinejoin="round"
+                strokeDasharray="82" strokeDashoffset="82"
+                style={{ animation: 'drawCheck 0.38s cubic-bezier(.4,0,.2,1) 0.55s both' }}
+              />
+            </svg>
+          </div>
 
-        {/* Stepper */}
-        <div className="bg-white px-3 sm:px-4 md:px-6 pt-3 sm:pt-4 md:pt-5 pb-2 sm:pb-3 flex-shrink-0 border-b border-gray-100">
-          <Stepper etape={etape} />
-        </div>
+          {/* Titre */}
+          <h2 className="text-3xl font-black text-gris-950 mb-1 anim-up-1" style={{ letterSpacing: '-0.02em' }}>
+            Dieureudieuf Dieuwrinn
+          </h2>
+          <p className="text-sm text-gris-500 anim-up-2">
+            {membre.prenom}, votre évaluation a bien été enregistrée.
+          </p>
 
-        {/* Contenu */}
-        <div className="flex-1 overflow-y-auto bg-gray-50 px-3 sm:px-4 md:px-5 py-2 sm:py-3 md:py-4">
-          {/* ── ÉTAPE 1 : Identification ── */}
-          {etape === 1 && (
-            <div className="bg-white rounded-xl p-5 shadow-sm">
-              <div className="flex items-center gap-3 mb-4 pb-3 border-b border-gris-100">
-                <div className="w-12 h-12 rounded-xl bg-vert-50 flex items-center justify-center flex-shrink-0">
-                  <Calendar size={20} className="text-vert-700" />
-                </div>
-                <div>
-                  <p className="text-sm font-bold text-gris-950">{getTypeName(evenement.type_id)}</p>
-                  <p className="text-xs text-gris-500">{evenement.kourel}</p>
-                </div>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-gris-400 mb-1 uppercase tracking-wide">Date</label>
-                  <input type="text" value={formatDate(evenement.date)} disabled
-                    className="w-full px-3 py-2 text-sm bg-gris-50 border border-gris-200 rounded-lg text-gris-700" />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-gris-400 mb-1 uppercase tracking-wide">Lieu</label>
-                  <input type="text" value={evenement.lieu} disabled
-                    className="w-full px-3 py-2 text-sm bg-gris-50 border border-gris-200 rounded-lg text-gris-700" />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-gris-400 mb-1 uppercase tracking-wide">Koureul</label>
-                  <input type="text" value={evenement.kourel} disabled
-                    className="w-full px-3 py-2 text-sm bg-gris-50 border border-gris-200 rounded-lg text-gris-700" />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-gris-400 mb-1 uppercase tracking-wide">Évaluateur</label>
-                  <input type="text" value={`${membre.prenom} ${membre.nom}`} disabled
-                    className="w-full px-3 py-2 text-sm bg-gris-50 border border-gris-200 rounded-lg text-gris-700" />
-                </div>
-              </div>
-              <div className="mt-3 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-xs text-amber-800">
-                Code : <strong className="font-mono">{codeValide.code}</strong>
-              </div>
+          {/* Infos événement */}
+          <div className="mt-6 flex flex-wrap justify-center gap-2 anim-up-2">
+            <span className="flex items-center gap-1.5 bg-gris-50 text-gris-600 text-xs font-semibold px-3 py-1.5 rounded-full border border-gris-100">
+              <Calendar size={12} />{getTypeName(evenement.type_id)}
+            </span>
+            <span className="flex items-center gap-1.5 bg-gris-50 text-gris-600 text-xs font-semibold px-3 py-1.5 rounded-full border border-gris-100">
+              <Clock size={12} />{formatDate(evenement.date)}
+            </span>
+          </div>
+
+          {/* Moyenne */}
+          {getMoyenne() && (
+            <div className="mt-6 rounded-2xl px-8 py-5 anim-up-3" style={{ background: '#F0FDF4', border: '1.5px solid #BBF7D0' }}>
+              <p className="text-xs font-bold text-vert-600 uppercase tracking-widest mb-1">Votre moyenne</p>
+              <p className="text-5xl font-black" style={{ color: '#016030' }}>
+                {getMoyenne()}<span className="text-xl text-vert-400">/10</span>
+              </p>
             </div>
-          )}
-
-          {/* ── ÉTAPE 2 : Évaluation par sections ── */}
-          {etape === 2 && (
-            <div className="space-y-4">
-              {SECTIONS.map(section => {
-                const s = evalData.notes[section.id]
-                const Icon = section.icon
-                return (
-                  <div key={section.id} className="bg-white rounded-xl p-5 shadow-sm border border-gris-100">
-                    <div className="flex items-center gap-2 mb-4">
-                      <Icon size={15} className="text-vert-700" />
-                      <p className="text-sm font-bold text-gris-950">{section.label}</p>
-                    </div>
-                    <div className="space-y-3">
-                      <div>
-                        <label className="block text-xs font-semibold text-gris-500 mb-1.5 uppercase tracking-wide">
-                          Appréciation
-                        </label>
-                        <ToggleGroup
-                          type="single"
-                          value={s.appreciation}
-                          onValueChange={v => { if (v) updateSection(section.id, 'appreciation', v) }}
-                          variant="outline" size="sm"
-                          className="flex-wrap gap-1 sm:gap-0"
-                        >
-                          {APPRECIATIONS.map((a, i) => (
-                            <ToggleGroupItem key={a} value={a}
-                              className={cn(
-                                "data-[state=on]:bg-vert-700 data-[state=on]:text-white data-[state=on]:border-vert-700 data-[state=on]:hover:bg-vert-700",
-                                "rounded-full",
-                                "sm:rounded-none sm:first:rounded-l-full sm:last:rounded-r-full",
-                                i !== APPRECIATIONS.length - 1 && "sm:[&:not(:last-child)]:border-r-0",
-                              )}
-                            >
-                              {a}
-                            </ToggleGroupItem>
-                          ))}
-                        </ToggleGroup>
-                      </div>
-                      <div>
-                        <label className="block text-xs font-semibold text-gris-500 mb-1.5 uppercase tracking-wide">
-                          Note /10
-                        </label>
-                        <input type="number" min="1" max="10" step="0.5"
-                          value={s.note ?? ''}
-                          onChange={e => updateSection(section.id, 'note', e.target.value === '' ? null : Math.min(10, Math.max(1, parseFloat(e.target.value))))}
-                          className="w-24 px-3 py-2 text-sm border border-gris-200 rounded-lg focus:border-vert-700 focus:outline-none"
-                          placeholder="1-10" />
-                      </div>
-                    </div>
-                    <div className="mt-3">
-                      <label className="block text-xs font-semibold text-gris-500 mb-1.5 uppercase tracking-wide">
-                        Remarques <span className="font-normal normal-case">(optionnel)</span>
-                      </label>
-                      <textarea value={s.remarques}
-                        onChange={e => updateSection(section.id, 'remarques', e.target.value)}
-                        rows={2}
-                        className="w-full px-3 py-2 text-sm border border-gris-200 rounded-lg focus:border-vert-700 focus:outline-none resize-none"
-                        placeholder="Observations..." />
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          )}
-
-          {/* ── ÉTAPE 3 : Finalisation ── */}
-          {etape === 3 && (
-            <div className="space-y-4">
-              <div className="bg-white rounded-xl p-5 shadow-sm">
-                <p className="text-sm font-bold text-gris-950 mb-4">Appréciation générale</p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-                  <div>
-                    <label className="block text-xs font-semibold text-gris-500 mb-1.5 uppercase tracking-wide">
-                      Note finale /10
-                    </label>
-                    <input type="number" min="1" max="10" step="0.5"
-                      value={evalData.note_finale ?? ''}
-                      onChange={e => setEvalData(prev => ({ ...prev, note_finale: e.target.value === '' ? null : Math.min(10, Math.max(1, parseFloat(e.target.value))) }))}
-                      className="w-full px-3 py-2 text-sm border border-gris-200 rounded-lg focus:border-vert-700 focus:outline-none"
-                      placeholder="Note globale sur 10" />
-                  </div>
-                  <div className="flex items-end">
-                    <div className="text-xs text-gris-600 bg-gris-50 rounded-lg px-3 py-2 border border-gris-200 w-full">
-                      <span className="font-semibold text-gris-700">Moyenne des sections : </span>
-                      {getMoyenne() != null ? (
-                        <span className="font-bold text-vert-700">{getMoyenne()}/10</span>
-                      ) : (
-                        <span className="text-gris-400 italic">—</span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-gris-500 mb-1.5 uppercase tracking-wide">
-                    Commentaire général
-                  </label>
-                  <textarea value={evalData.commentaire}
-                    onChange={e => setEvalData(prev => ({ ...prev, commentaire: e.target.value }))}
-                    rows={3}
-                    className="w-full px-3 py-2 text-sm border border-gris-200 rounded-lg focus:border-vert-700 focus:outline-none resize-none"
-                    placeholder="Votre appréciation globale..." />
-                </div>
-              </div>
-
-              {/* Récapitulatif */}
-              <div className="bg-vert-50 border border-vert-200 rounded-xl p-5">
-                <p className="text-xs font-bold text-vert-800 uppercase tracking-wider mb-3">Récapitulatif</p>
-                <div className="space-y-2">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 text-xs text-gris-700">
-                    <div><span className="font-semibold text-vert-700">Événement :</span> {getTypeName(evenement.type_id)}</div>
-                    <div><span className="font-semibold text-vert-700">Date :</span> {formatDate(evenement.date)}</div>
-                    <div><span className="font-semibold text-vert-700">Lieu :</span> {evenement.lieu}</div>
-                    <div><span className="font-semibold text-vert-700">Koureul :</span> {evenement.kourel}</div>
-                  </div>
-                  <div className="pt-2 border-t border-vert-200">
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="font-semibold text-vert-700">Évaluateur :</span>
-                      <span>{membre.prenom} {membre.nom}</span>
-                    </div>
-                    {getMoyenne() != null && (
-                      <div className="flex items-center justify-between text-xs mt-1">
-                        <span className="font-semibold text-vert-700">Moyenne sections :</span>
-                        <span className="font-bold">{getMoyenne()}/10</span>
-                      </div>
-                    )}
-                    {evalData.note_finale != null && (
-                      <div className="flex items-center justify-between text-xs mt-1">
-                        <span className="font-semibold text-vert-700">Note finale :</span>
-                        <span className="font-bold text-vert-800">{evalData.note_finale}/10</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Navigation */}
-        <div className="bg-white px-3 sm:px-4 md:px-6 py-2 sm:py-3 md:py-4 flex-shrink-0 border-t border-gray-100 flex flex-col sm:flex-row justify-between items-center gap-2">
-          <button onClick={() => setEtape(etape - 1)}
-            className="w-full sm:w-auto flex items-center justify-center gap-2 py-2.5 px-5 rounded-xl text-sm font-semibold text-white bg-gris-500 hover:opacity-90 transition"
-          >
-            <ChevronLeft size={16} />
-            {etape === 2 ? 'Retour au code' : 'Précédent'}
-          </button>
-
-          {etape === 3 ? (
-            <button onClick={soumettre} disabled={saving}
-              className="w-full sm:w-auto flex items-center justify-center gap-2 py-2.5 px-6 rounded-xl text-sm font-bold text-white bg-vert-700 hover:opacity-90 disabled:opacity-40 transition"
-            >
-              {saving ? <Loader size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
-              {saving ? 'Soumission...' : 'Soumettre l\'évaluation'}
-            </button>
-          ) : (
-            <button onClick={() => setEtape(etape + 1)}
-              disabled={etape === 2 && !peutPasserEtape2()}
-              className="w-full sm:w-auto flex items-center justify-center gap-2 py-2.5 px-6 rounded-xl text-sm font-bold text-white bg-vert-700 hover:opacity-90 disabled:opacity-40 transition"
-            >
-              Suivant <ChevronRight size={16} />
-            </button>
           )}
         </div>
       </div>
+      </div>
+    )
+  }
+
+  // ── Loading modal ───────────────────────────────────────────────────────────
+  if (saving) {
+    return (
+      <div className="min-h-screen flex justify-center bg-gris-50">
+        <div className="w-full max-w-md flex flex-col items-center justify-center px-5 min-h-screen">
+          <div className="bg-white rounded-3xl p-8 max-w-xs w-full text-center shadow-xl">
+            <div className="w-16 h-16 rounded-full animate-spin border-4 mx-auto mb-5"
+              style={{ borderColor: '#E8F5E9', borderTopColor: '#16824E' }} />
+            <p className="text-gris-950 font-bold text-lg">Soumission en cours…</p>
+            <p className="text-gris-500 text-sm mt-1">Veuillez patienter</p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // ── Layout principal ────────────────────────────────────────────────────────
+  return (
+    <div className="min-h-screen flex justify-center bg-gris-50">
+    <div className="w-full max-w-md flex flex-col min-h-screen bg-gris-50">
+      {popup && (
+        <Toast manque={popup.manque} onClose={() => setPopup(null)} />
+      )}
+      {/* ── STEPPER FIXE ── */}
+      <div className="flex-shrink-0 bg-white border-b border-gris-100 sticky top-0 z-10">
+        <div className="px-4">
+          <DotsStep etape={etape} />
+        </div>
+      </div>
+
+      {/* ── CONTENU ── */}
+      <div className="flex-1 overflow-y-auto">
+
+        {/* ÉTAPE 1 — Identification */}
+        {etape === 1 && (
+          <div className="flex flex-col">
+            {/* Hero événement */}
+            <div className="px-4 pt-6 pb-5" style={{ background: '#016030' }}>
+              <p className="text-white/50 text-xs font-semibold uppercase tracking-widest mb-1">Événement à évaluer</p>
+              <p className="text-white text-2xl font-black mb-3">{getTypeName(evenement.type_id)}</p>
+              <div className="flex flex-wrap gap-2">
+                <span className="flex items-center gap-1.5 bg-white/10 text-white text-xs font-semibold px-3 py-1.5 rounded-full">
+                  <Calendar size={12} />{formatDate(evenement.date)}
+                </span>
+                <span className="flex items-center gap-1.5 bg-white/10 text-white text-xs font-semibold px-3 py-1.5 rounded-full">
+                  <MapPin size={12} />{evenement.lieu}
+                </span>
+              </div>
+            </div>
+
+            {/* Kourel — chevauche le hero */}
+            <div className="mx-4 -mt-3 bg-white rounded-2xl shadow-md px-4 py-3 flex items-center gap-3 mb-4">
+              <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: '#EDF7F1' }}>
+                <Users size={16} style={{ color: '#3D8B5E' }} />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[10px] font-bold text-gris-400 uppercase tracking-wider">Kourel évalué</p>
+                <p className="text-sm font-bold text-gris-950 truncate">{evenement.kourel}</p>
+              </div>
+            </div>
+
+            {/* Évaluateur */}
+            <div className="mx-4 space-y-3">
+              <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+                <div className="px-4 py-3 flex items-center gap-3 border-b border-gris-50">
+                  <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 text-sm font-black"
+                    style={{ background: '#3D8B5E', color: 'white' }}>
+                    {membre.prenom[0]}{membre.nom[0]}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-bold text-gris-400 uppercase tracking-wider">Évaluateur</p>
+                    <p className="text-sm font-bold text-gris-950">{membre.prenom} {membre.nom}</p>
+                  </div>
+                </div>
+                <div className="px-4 py-3">
+                  <p className="text-xs text-gris-500 leading-relaxed">
+                    Évaluez chaque section en choisissant une <span className="font-semibold text-gris-700">appréciation</span> et une <span className="font-semibold text-gris-700">note sur 10</span>. Les remarques sont facultatives.
+                  </p>
+                </div>
+              </div>
+
+              {/* Sections — format compact */}
+              <div className="flex flex-wrap gap-2 pb-4">
+                {SECTIONS.map(s => {
+                  const Icon = s.icon
+                  return (
+                    <div key={s.id}
+                      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-gris-100 bg-white"
+                    >
+                      <Icon size={11} style={{ color: s.color }} />
+                      <span className="text-[11px] font-semibold text-gris-600">{s.label}</span>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ÉTAPE 2 — Évaluation section par section */}
+        {etape === 2 && (
+          <div className="px-4 py-5">
+            {/* Progression globale */}
+            <div className="mb-5">
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-xs font-bold text-gris-600">
+                  Section {sectionIdx + 1} sur {SECTIONS.length}
+                </span>
+                <span className="text-xs font-semibold text-vert-700">
+                  {sectionsCompletes}/{SECTIONS.length} complètes
+                </span>
+              </div>
+              <div className="flex gap-1">
+                {SECTIONS.map((s, i) => (
+                  <button
+                    key={s.id}
+                    onClick={() => setSectionIdx(i)}
+                    className="flex-1 h-1.5 rounded-full transition-all duration-300"
+                    style={{
+                      background: sectionComplete(s.id)
+                        ? '#16824E'
+                        : i === sectionIdx
+                        ? '#014421'
+                        : '#E5E7EB',
+                    }}
+                  />
+                ))}
+              </div>
+            </div>
+
+            <SectionCard
+              section={SECTIONS[sectionIdx]}
+              data={evalData.notes[SECTIONS[sectionIdx].id]}
+              onChange={(changes) => updateSection(SECTIONS[sectionIdx].id, changes)}
+              index={sectionIdx + 1}
+              total={SECTIONS.length}
+            />
+
+            {/* Navigation entre sections */}
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => sectionIdx === 0 ? setEtape(1) : setSectionIdx(i => i - 1)}
+                className="flex-1 h-12 rounded-2xl border-2 border-gris-200 flex items-center justify-center gap-2 text-sm font-bold text-gris-700 transition-all active:scale-95"
+              >
+                <ArrowLeft size={16} /> Préc.
+              </button>
+              {sectionIdx < SECTIONS.length - 1 ? (
+                <button
+                  onClick={() => validerEtAvancer(() => setSectionIdx(i => i + 1))}
+                  className="flex-1 h-12 rounded-2xl flex items-center justify-center gap-2 text-sm font-bold text-white transition-all active:scale-95"
+                  style={{ background: '#016030' }}
+                >
+                  Suiv. <ArrowRight size={16} />
+                </button>
+              ) : (
+                <button
+                  onClick={validerEtFinaliser}
+                  className="flex-1 h-12 rounded-2xl flex items-center justify-center gap-2 text-sm font-bold text-white transition-all active:scale-95"
+                  style={{ background: '#016030' }}
+                >
+                  Finaliser <ChevronRight size={16} />
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ÉTAPE 3 — Finalisation */}
+        {etape === 3 && (
+          <div className="px-4 py-5 space-y-4">
+            {/* Récap sections */}
+            <div className="bg-white rounded-2xl p-5 shadow-sm">
+              <p className="text-xs font-bold text-gris-400 uppercase tracking-widest mb-4">Récapitulatif</p>
+              <div className="space-y-3">
+                {SECTIONS.map(s => {
+                  const n = evalData.notes[s.id]
+                  const Icon = s.icon
+                  return (
+                    <div key={s.id} className="flex items-center gap-3 py-2 border-b border-gris-50 last:border-0">
+                      <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
+                        style={{ background: s.bg }}>
+                        <Icon size={14} style={{ color: s.color }} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-semibold text-gris-700 truncate">{s.label}</p>
+                        {n.appreciation && (
+                          <p className="text-[11px] text-gris-500">{n.appreciation}</p>
+                        )}
+                      </div>
+                      <div className="flex-shrink-0">
+                        {n.note != null ? (
+                          <span className="text-sm font-black text-vert-700">{n.note}/10</span>
+                        ) : (
+                          <span className="text-xs text-gris-400">—</span>
+                        )}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+
+              {getMoyenne() && (
+                <div className="mt-4 pt-3 border-t border-gris-100 flex items-center justify-between">
+                  <span className="text-sm font-bold text-gris-700">Moyenne des sections</span>
+                  <span className="text-xl font-black text-vert-700">{getMoyenne()}/10</span>
+                </div>
+              )}
+            </div>
+
+            {/* Appréciation & note générale — non modifiables */}
+            {getMoyenne() && (() => {
+              const moy = parseFloat(getMoyenne())
+              const apprecGen = getAppreciationFromNote(moy)
+              const apprecObj = APPRECIATIONS.find(a => a.value === apprecGen)
+              return (
+                <div className="bg-white rounded-2xl p-5 shadow-sm">
+                  <p className="text-xs font-bold text-gris-400 uppercase tracking-widest mb-4">
+                    Bilan général
+                    <span className="ml-2 font-normal normal-case text-gris-400"></span>
+                  </p>
+                  <div className="flex items-center gap-4">
+                    {/* Note circulaire */}
+                    <div
+                      className="w-20 h-20 rounded-full flex-shrink-0 flex flex-col items-center justify-center border-4"
+                      style={{ borderColor: apprecObj?.active ?? '#9CA3AF', background: (apprecObj?.active ?? '#9CA3AF') + '18' }}
+                    >
+                      <span className="text-2xl font-black leading-none" style={{ color: apprecObj?.active ?? '#9CA3AF' }}>
+                        {getMoyenne()}
+                      </span>
+                      <span className="text-[10px] text-gris-400">/10</span>
+                    </div>
+                    {/* Appréciation */}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[10px] font-bold text-gris-400 uppercase tracking-widest mb-1">Appréciation</p>
+                      <span
+                        className="inline-block px-3 py-1.5 rounded-xl text-sm font-bold"
+                        style={{ background: apprecObj?.bg ?? '#F3F4F6', color: apprecObj?.active ?? '#6B7280' }}
+                      >
+                        {apprecGen || '—'}
+                      </span>
+                      <p className="text-[11px] text-gris-400 mt-2 leading-relaxed">
+                        Moyenne des {SECTIONS.length} sections évaluées.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )
+            })()}
+
+            {/* Commentaire */}
+            <div className="bg-white rounded-2xl p-5 shadow-sm">
+              <p className="text-xs font-bold text-gris-400 uppercase tracking-widest mb-3">
+                Commentaire général <span className="font-normal normal-case text-gris-400">(optionnel)</span>
+              </p>
+              <textarea
+                value={evalData.commentaire}
+                onChange={e => setEvalData(prev => ({ ...prev, commentaire: e.target.value }))}
+                rows={4}
+                placeholder="Votre appréciation globale de l'événement…"
+                className="w-full px-4 py-3 text-sm border border-gris-200 rounded-xl focus:border-vert-700 focus:outline-none resize-none placeholder:text-gris-400"
+              />
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ── NAVIGATION FIXE EN BAS ── */}
+      <div className="flex-shrink-0 bg-white border-t border-gris-100 px-4 py-3 sticky bottom-0 shadow-[0_-4px_12px_rgba(0,0,0,0.06)]">
+        {etape === 1 && (
+          <button
+            onClick={() => setEtape(2)}
+            className="w-full h-13 py-3.5 rounded-2xl font-bold text-white flex items-center justify-center gap-2 text-sm transition-all active:scale-95"
+            style={{ background: '#016030' }}
+          >
+            Commencer l'évaluation <ChevronRight size={16} />
+          </button>
+        )}
+
+
+        {etape === 3 && (
+          <div className="flex gap-3">
+            <button
+              onClick={() => setEtape(2)}
+              className="flex-none h-13 py-3.5 px-5 rounded-2xl font-bold text-gris-700 border-2 border-gris-200 flex items-center justify-center gap-1 text-sm transition-all active:scale-95"
+            >
+              <ChevronLeft size={16} />
+            </button>
+            <button
+              onClick={soumettre}
+              disabled={saving}
+              className="flex-1 h-13 py-3.5 rounded-2xl font-bold text-white flex items-center justify-center gap-2 text-sm disabled:opacity-40 transition-all active:scale-95"
+              style={{ background: '#016030' }}
+            >
+              <CheckCircle2 size={16} />
+              Soumettre l'évaluation
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
     </div>
   )
 }
