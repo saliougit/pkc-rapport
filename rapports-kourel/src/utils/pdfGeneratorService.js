@@ -19,66 +19,42 @@ function createTarGz(filePath) {
   // Nom du fichier (100 bytes)
   nameBuf.copy(header, 0, 0, Math.min(nameBuf.length, 100))
 
-  // Mode (8 bytes) - 0644 en octal
-  header.write('000644 ', 100, 8, 'ascii')
+  // Mode (8 bytes) — "0000644\0"
+  header.write('0000644\0', 100, 8, 'ascii')
 
-  // UID (8 bytes)
-  header.write('000000 ', 108, 8, 'ascii')
+  // UID / GID (8 bytes chacun)
+  header.write('0000000\0', 108, 8, 'ascii')
+  header.write('0000000\0', 116, 8, 'ascii')
 
-  // GID (8 bytes)
-  header.write('000000 ', 116, 8, 'ascii')
-
-  // Taille du fichier (12 bytes, octal)
+  // Taille du fichier (12 bytes, octal + espace)
   header.write(contentSize.toString(8).padStart(11, '0') + ' ', 124, 12, 'ascii')
 
-  // MTime (12 bytes, octal)
+  // MTime (12 bytes, octal + espace)
   const now = Math.floor(Date.now() / 1000)
   header.write(now.toString(8).padStart(11, '0') + ' ', 136, 12, 'ascii')
 
-  // Checksum (8 bytes) - on calcule après avoir rempli
-  const typeflag = '0' // fichier normal
-  header[156] = typeflag.charCodeAt(0)
+  // Type : fichier normal
+  header[156] = '0'.charCodeAt(0)
 
-  // Magic "ustar"
-  header.write('ustar', 257, 5, 'ascii')
-  header[262] = 0 // null terminator
+  // Magic ustar
+  header.write('ustar  \0', 257, 8, 'ascii')
 
-  // Version "00"
-  header.write('00', 263, 2, 'ascii')
-
-  // Calcul du checksum
+  // Checksum : somme de tous les bytes du header en traitant les 8 bytes checksum (148-155) comme des espaces (32)
+  // Le buffer est initialisé à 0, donc on ajoute 32*8 pour compenser
   let checksum = 0
-  for (let i = 0; i < headerSize; i++) {
-    checksum += header[i]
-  }
-  // Les 8 bytes de checksum sont traités comme des espaces pour le calcul
-  checksum += 32 * 8 // 8 bytes d'espaces
+  for (let i = 0; i < headerSize; i++) checksum += header[i]
+  checksum += 32 * 8  // les 8 bytes checksum comptent comme des espaces
+  header.write(checksum.toString(8).padStart(6, '0') + '\0 ', 148, 8, 'ascii')
 
-  header.write(checksum.toString(8).padStart(6, '0') + ' \0', 148, 8, 'ascii')
-
-  // Assemblage : header + contenu (pad à 512) + 2 blocs nuls de fin
   const padding = Buffer.alloc(paddedContentSize - contentSize, 0)
   const endBlocks = Buffer.alloc(1024, 0)
 
   const tarBuffer = Buffer.concat([header, content, padding, endBlocks])
-
   return zlib.gzipSync(tarBuffer)
 }
 
-function uploadPost(url, buffer, contentType) {
+function uploadRawBinary(url, buffer) {
   return new Promise((resolve, reject) => {
-    const boundary = '----FormBoundary' + Math.random().toString(36).substring(2)
-    const fileName = 'archive.tar.gz'
-
-    const header = `--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="${fileName}"\r\nContent-Type: ${contentType}\r\n\r\n`
-    const footer = `\r\n--${boundary}--\r\n`
-
-    const bodyBuffer = Buffer.concat([
-      Buffer.from(header, 'utf8'),
-      buffer,
-      Buffer.from(footer, 'utf8')
-    ])
-
     const parsed = new URL(url)
     const options = {
       hostname: parsed.hostname,
@@ -86,26 +62,27 @@ function uploadPost(url, buffer, contentType) {
       path: parsed.pathname + parsed.search,
       method: 'POST',
       headers: {
-        'Content-Type': `multipart/form-data; boundary=${boundary}`,
-        'Content-Length': bodyBuffer.length
+        'Content-Type': 'application/x-gzip',
+        'Content-Length': buffer.length
       }
     }
 
     const req = httpsRequest(options, (res) => {
       const chunks = []
-      res.on('data', (chunk) => chunks.push(chunk))
+      res.on('data', chunk => chunks.push(chunk))
       res.on('end', () => {
         const result = Buffer.concat(chunks)
         if (res.statusCode >= 200 && res.statusCode < 300) {
           resolve(result)
         } else {
-          reject(new Error(`LaTeX.Online a répondu ${res.statusCode}`))
+          const msg = result.toString('utf8').substring(0, 300)
+          reject(new Error(`LaTeX.Online a répondu ${res.statusCode}: ${msg}`))
         }
       })
     })
 
-    req.on('error', (err) => reject(new Error(`Erreur réseau: ${err.message}`)))
-    req.write(bodyBuffer)
+    req.on('error', err => reject(new Error(`Erreur réseau: ${err.message}`)))
+    req.write(buffer)
     req.end()
   })
 }
@@ -122,9 +99,10 @@ export async function genererPDFDirectement(rapport, kourel, programmeAnnuel = [
     console.log('📦 Création de l\'archive tar.gz...')
     const tarGzBuffer = createTarGz(texFile)
 
+    // Endpoint correct : /compile/tgz (pas /data), envoi binaire brut (pas multipart)
     console.log('🚀 Envoi vers LaTeX.Online API...')
-    const url = 'https://latexonline.cc/data?target=rapport.tex&command=pdflatex'
-    const pdfBuffer = await uploadPost(url, tarGzBuffer, 'application/gzip')
+    const url = 'https://latexonline.cc/compile/tgz?target=rapport.tex&command=pdflatex'
+    const pdfBuffer = await uploadRawBinary(url, tarGzBuffer)
 
     if (!pdfBuffer || pdfBuffer.length === 0) {
       throw new Error('PDF vide reçu de LaTeX.Online')
@@ -139,6 +117,4 @@ export async function genererPDFDirectement(rapport, kourel, programmeAnnuel = [
   } finally {
     try { fs.rmSync(tempDir, { recursive: true, force: true }) } catch (e) {}
   }
-
-  throw new Error('Erreur inattendue dans la génération PDF')
 }
