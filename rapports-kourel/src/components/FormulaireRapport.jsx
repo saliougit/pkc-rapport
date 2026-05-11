@@ -184,7 +184,7 @@ function Step1Identification({ kourel, rapport, setRapport }) {
 const MEL_VIDE = {
   source: 'programme', khassida_id: null, nom: '', melodie: '',
   type: 'nouvelle', mode: 'pages', pages_faites: 0, pages_total: 1,
-  dadj_completes: [0], dadj_total: 1
+  dadj_completes: [0], dadj_total: 1, taux_maitrise: 0
 }
 
 function FormMelodie({ mel, setMel, programmeAnnuel, onConfirm, onCancel, titre, labelConfirm }) {
@@ -335,6 +335,14 @@ function FormMelodie({ mel, setMel, programmeAnnuel, onConfirm, onCancel, titre,
         </div>
       )}
 
+      <div className="mb-4">
+        <label className="block text-xs font-semibold text-gray-400 mb-2 uppercase tracking-wide">Taux de maîtrise</label>
+        <input type="number" min="0" max="100" value={mel.taux_maitrise}
+          onChange={(e) => setMel({ ...mel, taux_maitrise: parseInt(e.target.value) || 0 })}
+          className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:border-vert-principal focus:outline-none" />
+        <p className="text-xs text-gray-400 mt-1">Indiquer le pourcentage de maîtrise de cette mélodie (0-100%)</p>
+      </div>
+
       <div className="flex gap-3">
         <button onClick={onCancel}
           className="flex-1 py-2 text-sm font-semibold bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition">
@@ -406,14 +414,16 @@ function Step2Melodies({ rapport, setRapport, programmeAnnuel, calculTaux, calcu
       )}
 
       {enAjout && (
-        <FormMelodie
-          mel={mel} setMel={setMel}
-          programmeAnnuel={programmeAnnuel}
-          onConfirm={ajouter}
-          onCancel={() => { setEnAjout(false); resetMel() }}
-          titre="Nouvelle mélodie"
-          labelConfirm="Ajouter"
-        />
+        <div className="max-h-96 overflow-y-auto mb-4 pr-2">
+          <FormMelodie
+            mel={mel} setMel={setMel}
+            programmeAnnuel={programmeAnnuel}
+            onConfirm={ajouter}
+            onCancel={() => { setEnAjout(false); resetMel() }}
+            titre="Nouvelle mélodie"
+            labelConfirm="Ajouter"
+          />
+        </div>
       )}
 
       <div className="bg-white rounded-xl p-5 shadow-sm">
@@ -441,38 +451,43 @@ function Step2Melodies({ rapport, setRapport, programmeAnnuel, calculTaux, calcu
                   </div>
                 )
               }
-              const c = m.statut.color
-              const bg = c === 'vert' ? 'bg-vert-pastel' : c === 'orange' ? 'bg-orange-pastel' : 'bg-rouge-pastel'
-              const brd = c === 'vert' ? 'border-vert-principal' : c === 'orange' ? 'border-orange-strat' : 'border-rouge-alerte'
-              const bar = c === 'vert' ? 'bg-vert-principal' : c === 'orange' ? 'bg-orange-strat' : 'bg-rouge-alerte'
               return (
-                <div key={m.id} className={`${bg} border ${brd} rounded-xl p-3 flex items-start gap-2`}>
+                <div key={m.id} className="bg-gradient-to-br from-gray-50 to-gray-100 border border-gray-200 rounded-xl p-4 flex items-start gap-3 shadow-sm hover:shadow-md transition">
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-0.5">
-                      <span className="text-sm font-bold truncate" style={{ color: '#014421' }}>{m.nom}</span>
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-sm font-bold text-gray-900 truncate">{m.nom}</span>
                       {m.type === 'revision' && (
-                        <span className="text-xs bg-bleu-info text-white px-1.5 py-0.5 rounded flex-shrink-0">Révision</span>
+                        <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full flex-shrink-0 font-semibold">Révision</span>
                       )}
                     </div>
-                    <p className="text-xs text-gray-500 mb-1">{m.melodie}</p>
-                    <p className="text-xs text-gray-600 mb-1.5">
-                      {m.mode === 'pages' ? `${m.pages_faites} / ${m.pages_total} pages` : `${m.dadj_completes.length} Dadj sur ${m.dadj_total}`}
-                    </p>
-                    <div className="flex items-center gap-2">
-                      <div className="flex-1 bg-white bg-opacity-60 rounded-full h-1.5">
-                        <div className={`h-1.5 rounded-full ${bar}`} style={{ width: `${m.taux}%` }} />
+                    <p className="text-xs text-gray-500 mb-3 pb-2 border-b border-gray-200">{m.melodie}</p>
+                    
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-xs font-semibold text-gray-600">Réalisation</span>
+                          <span className="text-xs font-bold text-gray-700">{m.taux}%</span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-2">
+                          <div className="h-2 rounded-full bg-gradient-to-r from-rouge-alerte to-orange-strat transition-all duration-300" style={{ width: `${m.taux}%` }} />
+                        </div>
+                        <p className="text-xs text-gray-500 mt-0.5">{m.mode === 'pages' ? `${m.pages_faites}/${m.pages_total} pages` : `${m.dadj_completes.length}/${m.dadj_total} Dadj`}</p>
                       </div>
-                      <span className="text-xs font-bold flex-shrink-0">{m.taux}%</span>
+                      
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-semibold text-gray-600">Maîtrise:</span>
+                        <span className="text-base font-bold text-vert-principal">{m.taux_maitrise || 0}%</span>
+                      </div>
                     </div>
                   </div>
                   <div className="flex flex-col gap-1 flex-shrink-0">
                     <button onClick={() => ouvrirEdition(m)}
-                      className="p-1.5 rounded-lg hover:bg-white hover:bg-opacity-60 transition" style={{ color: '#014421' }}>
-                      <Pencil size={14} />
+                      className="p-2 rounded-lg hover:bg-white transition text-gray-400 hover:text-gray-600 border border-transparent hover:border-gray-300">
+                      <Pencil size={16} />
                     </button>
                     <button onClick={() => supprimer(m.id)}
-                      className="p-1.5 rounded-lg hover:bg-red-50 transition" style={{ color: '#C0392B' }}>
-                      <Trash2 size={14} />
+                      className="p-2 rounded-lg hover:bg-white transition text-gray-400 hover:text-red-500 border border-transparent hover:border-red-200">
+                      <Trash2 size={16} />
                     </button>
                   </div>
                 </div>

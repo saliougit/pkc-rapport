@@ -29,6 +29,7 @@ export function genererLatex(rapport, kourel, programmeAnnuel) {
 
   const getMelodyBar = (melodie, index) => {
     const taux = melodie.taux || 0
+    const taux_maitrise = melodie.taux_maitrise || 0
     const bgColor = taux >= 80 ? 'VertPastel' : taux >= 50 ? 'white' : 'RougePastel!60'
     const borderColor = taux >= 80 ? 'VertClair!50' : taux >= 50 ? 'GrisTexte!30' : 'RougeAlerte!40'
     const bColor = getBarColor(taux)
@@ -47,15 +48,17 @@ export function genererLatex(rapport, kourel, programmeAnnuel) {
 
     const typeText = melodie.type === 'revision' ? ' (Révision)' : ''
 
-    return `${index > 0 ? '\\vspace{0.15cm}\n' : ''}\\begin{tikzpicture}
+    return `${index > 0 ? '\\vspace{0.20cm}\n' : ''}\\begin{tikzpicture}
     \\fill[${bgColor}] (0,0) rectangle (16.2,1);
     \\draw[${borderColor}, line width=0.3mm] (0,0) rectangle (16.2,1);
-    \\node[anchor=west, font=\\small\\bfseries] at (0.25,0.5) {${escape(melodie.nom)}${typeText}};
-    \\node[anchor=west, font=\\tiny\\color{GrisTexte}] at (0.25,0.18) {${escape(detailsText)}};
-    \\fill[GrisClair] (5.5,0.28) rectangle (11.5,0.72);
-    \\fill[${bColor}] (5.5,0.28) rectangle (${barEnd},0.72);
+    \\node[anchor=west, font=\\small\\bfseries] at (0.25,0.65) {${escape(melodie.nom)}${typeText}};
+    \\node[anchor=west, font=\\tiny\\color{GrisTexte}] at (0.25,0.30) {${escape(detailsText)}};
+    \\fill[GrisClair] (5.5,0.40) rectangle (11.5,0.60);
+    \\fill[${bColor}] (5.5,0.40) rectangle (${barEnd},0.60);
     \\node[font=${textFont}] at (${textX},0.5) {${taux}\\%};
-    \\node[anchor=west, font=\\small\\bfseries\\color{${bColor}}] at (12,0.5) {${statusText}};
+    \\node[anchor=west, font=\\tiny\\bfseries\\color{${bColor}}] at (12,0.5) {Réalis.};
+    \\node[anchor=west, font=\\small\\bfseries\\color{GrisTexte}] at (13.5,0.65) {Maîtrise:};
+    \\node[anchor=west, font=\\small\\bfseries\\color{VertPrincipal}] at (14.9,0.65) {${taux_maitrise}\\%};
 \\end{tikzpicture}`
   }
 
