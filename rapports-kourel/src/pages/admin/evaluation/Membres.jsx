@@ -1,9 +1,7 @@
-import { useState } from 'react'
-import { Plus, Search, Edit2, Trash2, Save, X, Loader, Users } from 'lucide-react'
-import { Card, CardContent } from '@/components/ui/card'
+import { useState, useMemo } from 'react'
+import { Plus, Edit2, Trash2, Save, X, Loader, Search, Users, Shield, UserCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
   Table, TableBody, TableCell, TableHead,
@@ -17,80 +15,169 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
 import { PageHeader } from '@/components/layout/PageHeader'
+import {
+  flexRender, getCoreRowModel, getSortedRowModel,
+  getPaginationRowModel, getFilteredRowModel, useReactTable,
+} from '@tanstack/react-table'
 
-const KOURELS_MOCK = [
+const KOURELS = [
   'Kourel Serigne Babacar Sy',
   'Kourel Serigne Moussa Ka',
   'Kourel El Hadj Malick Sy',
   'Kourel Mame Thierno',
 ]
 
-const FORM_VIDE = { prenom: '', nom: '', kourel: '', telephone: '', statut: 'actif' }
+const ROLES = ['membre', 'evaluateur', 'paginateur', 'admin']
+const ROLE_BADGES = {
+  evaluateur: 'text-blue-700 bg-blue-50',
+  paginateur: 'text-purple-700 bg-purple-50',
+  admin: 'text-vert-700 bg-vert-50',
+  membre: 'text-gris-600 bg-gris-100',
+}
+const ROLE_ICONS = {
+  evaluateur: Shield,
+  paginateur: Users,
+  admin: Shield,
+  membre: UserCircle,
+}
 
 export function MembresPage() {
-  const [membres, setMembres] = useState([
-    { id: 1, prenom: 'Ibrahima', nom: 'Fall', kourel: 'Kourel Serigne Babacar Sy', telephone: '+221 77 000 00 01', statut: 'actif' },
-    { id: 2, prenom: 'Moussa', nom: 'Diop', kourel: 'Kourel El Hadj Malick Sy', telephone: '+221 77 000 00 02', statut: 'actif' },
-    { id: 3, prenom: 'Abdoulaye', nom: 'Niang', kourel: 'Kourel Serigne Moussa Ka', telephone: '', statut: 'inactif' },
+  const [data, setData] = useState([
+    { id: 1, prenom: 'Ibrahima', nom: 'Fall', kourel: 'Kourel Serigne Babacar Sy', telephone: '+221 77 000 00 01', statut: 'actif', role: 'evaluateur' },
+    { id: 2, prenom: 'Moussa', nom: 'Diop', kourel: 'Kourel El Hadj Malick Sy', telephone: '+221 77 000 00 02', statut: 'actif', role: 'evaluateur' },
+    { id: 3, prenom: 'Abdoulaye', nom: 'Niang', kourel: 'Kourel Serigne Moussa Ka', telephone: '', statut: 'inactif', role: 'membre' },
+    { id: 4, prenom: 'Cheikh', nom: 'Mbaye', kourel: 'Kourel Mame Thierno', telephone: '+221 77 000 00 04', statut: 'actif', role: 'paginateur' },
+    { id: 5, prenom: 'Fatou', nom: 'Sow', kourel: 'Kourel Serigne Babacar Sy', telephone: '+221 77 000 00 05', statut: 'actif', role: 'evaluateur' },
   ])
-  const [search, setSearch] = useState('')
+  const [rowSelection, setRowSelection] = useState({})
+  const [sorting, setSorting] = useState([])
+  const [globalFilter, setGlobalFilter] = useState('')
   const [filterKourel, setFilterKourel] = useState('tous')
-  const [selected, setSelected] = useState(new Set())
   const [sheetOpen, setSheetOpen] = useState(false)
-  const [form, setForm] = useState(FORM_VIDE)
+  const [form, setForm] = useState({ prenom: '', nom: '', kourel: '', telephone: '', statut: 'actif', role: 'membre' })
   const [editingId, setEditingId] = useState(null)
   const [saving, setSaving] = useState(false)
 
-  const filtered = membres.filter(m => {
-    const matchSearch = `${m.prenom} ${m.nom}`.toLowerCase().includes(search.toLowerCase())
-    const matchKourel = filterKourel === 'tous' || m.kourel === filterKourel
-    return matchSearch && matchKourel
+  const filteredData = useMemo(() =>
+    data.filter(m => {
+      const q = `${m.prenom} ${m.nom}`.toLowerCase().includes(globalFilter.toLowerCase())
+      const k = filterKourel === 'tous' || m.kourel === filterKourel
+      return q && k
+    }), [data, globalFilter, filterKourel])
+
+  const columns = useMemo(() => [
+    {
+      id: 'select',
+      header: ({ table }) => (
+        <Checkbox checked={table.getIsAllPageRowsSelected()} onCheckedChange={v => table.toggleAllPageRowsSelected(!!v)} />
+      ),
+      cell: ({ row }) => (
+        <Checkbox checked={row.getIsSelected()} onCheckedChange={v => row.toggleSelected(!!v)} />
+      ),
+      enableSorting: false,
+    },
+    {
+      header: 'Nom complet',
+      accessorFn: r => `${r.prenom} ${r.nom}`,
+      cell: ({ row }) => (
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-full bg-vert-100 flex items-center justify-center flex-shrink-0">
+            <span className="text-xs font-bold text-vert-800">
+              {row.original.prenom[0]}{row.original.nom[0]}
+            </span>
+          </div>
+          <p className="text-sm font-semibold text-gris-950">{row.original.prenom} {row.original.nom}</p>
+        </div>
+      ),
+    },
+    {
+      header: 'Kourel',
+      accessorKey: 'kourel',
+      cell: ({ row }) => <p className="text-sm text-gris-700">{row.original.kourel}</p>,
+    },
+    {
+      header: 'Téléphone',
+      accessorKey: 'telephone',
+      cell: ({ row }) => (
+        <span className="text-sm text-gris-700">{row.original.telephone || <span className="text-gris-400">—</span>}</span>
+      ),
+    },
+    {
+      header: 'Rôle',
+      accessorKey: 'role',
+      cell: ({ row }) => {
+        const role = row.original.role || 'membre'
+        const Icon = ROLE_ICONS[role] || UserCircle
+        return (
+          <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full ${ROLE_BADGES[role] || 'text-gris-600 bg-gris-100'}`}>
+            <Icon size={11} />
+            {role}
+          </span>
+        )
+      },
+    },
+    {
+      header: 'Statut',
+      accessorKey: 'statut',
+      cell: ({ row }) => {
+        const s = row.original.statut
+        return (
+          <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full ${
+            s === 'actif' ? 'text-vert-700 bg-vert-50' : 'text-gris-500 bg-gris-100'
+          }`}>
+            {s}
+          </span>
+        )
+      },
+    },
+    {
+      id: 'actions',
+      header: '',
+      cell: ({ row }) => {
+        const m = row.original
+        return (
+          <div className="flex items-center justify-end gap-1">
+            <Button size="icon" variant="ghost" onClick={() => ouvrirEdition(m)}
+              className="h-8 w-8 text-gris-400 hover:text-vert-700 hover:bg-vert-50">
+              <Edit2 size={14} />
+            </Button>
+            <Button size="icon" variant="ghost" onClick={() => supprimer(m)}
+              className="h-8 w-8 text-gris-400 hover:text-rouge hover:bg-rouge-bg">
+              <Trash2 size={14} />
+            </Button>
+          </div>
+        )
+      },
+    },
+  ], [])
+
+  const table = useReactTable({
+    data: filteredData,
+    columns,
+    state: { sorting, rowSelection, globalFilter },
+    onSortingChange: setSorting,
+    onRowSelectionChange: setRowSelection,
+    onGlobalFilterChange: setGlobalFilter,
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+    initialState: { pagination: { pageSize: 8 } },
   })
 
-  const allSelected = filtered.length > 0 && filtered.every(m => selected.has(m.id))
-  const someSelected = filtered.some(m => selected.has(m.id))
-
-  const toggleAll = () => {
-    setSelected(s => {
-      const next = new Set(s)
-      if (allSelected) filtered.forEach(m => next.delete(m.id))
-      else filtered.forEach(m => next.add(m.id))
-      return next
-    })
-  }
-
-  const toggleOne = (id) => {
-    setSelected(s => {
-      const next = new Set(s)
-      next.has(id) ? next.delete(id) : next.add(id)
-      return next
-    })
-  }
-
-  const ouvrirAjout = () => { setForm(FORM_VIDE); setEditingId(null); setSheetOpen(true) }
-  const ouvrirEdition = (m) => {
-    setForm({ prenom: m.prenom, nom: m.nom, kourel: m.kourel, telephone: m.telephone, statut: m.statut })
-    setEditingId(m.id)
-    setSheetOpen(true)
-  }
-
+  const ouvrirAjout = () => { setForm({ prenom: '', nom: '', kourel: '', telephone: '', statut: 'actif', role: 'membre' }); setEditingId(null); setSheetOpen(true) }
+  const ouvrirEdition = (m) => { setForm({ prenom: m.prenom, nom: m.nom, kourel: m.kourel, telephone: m.telephone, statut: m.statut, role: m.role || 'membre' }); setEditingId(m.id); setSheetOpen(true) }
   const sauvegarder = async () => {
     if (!form.prenom || !form.nom || !form.kourel) return
     setSaving(true)
     await new Promise(r => setTimeout(r, 300))
-    if (editingId) {
-      setMembres(list => list.map(m => m.id === editingId ? { ...m, ...form } : m))
-    } else {
-      setMembres(list => [...list, { id: Date.now(), ...form }])
-    }
-    setSaving(false)
-    setSheetOpen(false)
+    if (editingId) setData(list => list.map(m => m.id === editingId ? { ...m, ...form } : m))
+    else setData(list => [...list, { id: Date.now(), ...form }])
+    setSaving(false); setSheetOpen(false)
   }
-
   const supprimer = (m) => {
     if (!confirm(`Supprimer ${m.prenom} ${m.nom} ?`)) return
-    setMembres(list => list.filter(x => x.id !== m.id))
-    setSelected(s => { const next = new Set(s); next.delete(m.id); return next })
+    setData(list => list.filter(x => x.id !== m.id))
   }
 
   return (
@@ -98,144 +185,172 @@ export function MembresPage() {
       <PageHeader
         breadcrumb={['Comité & Évaluation', 'Membres']}
         title="Membres du comité"
-        subtitle={`${membres.length} membre${membres.length > 1 ? 's' : ''}`}
+        subtitle={`${data.length} membre${data.length > 1 ? 's' : ''}`}
         action={
-          <div className="flex items-center gap-2">
-            {someSelected && (
-              <span className="text-xs text-vert-700 font-semibold px-2.5 py-1 bg-vert-50 rounded-full border border-vert-200">
-                {selected.size} sélectionné{selected.size > 1 ? 's' : ''}
-              </span>
-            )}
-            <Button size="sm" onClick={ouvrirAjout} className="gap-1.5 bg-vert-700 hover:bg-vert-800 text-white">
-              <Plus size={15} /> Ajouter
-            </Button>
-          </div>
+          <Button onClick={ouvrirAjout} className="gap-1.5">
+            <Plus size={15} /> Ajouter un membre
+          </Button>
         }
       />
 
-      {/* Filtres */}
       <div className="flex flex-col sm:flex-row gap-3 mb-4">
         <div className="relative flex-1 max-w-xs">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gris-400" />
           <Input
             placeholder="Rechercher un membre…"
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="pl-9 h-9 text-sm border-gris-300"
+            value={globalFilter}
+            onChange={e => setGlobalFilter(e.target.value)}
+            className="pl-9 h-9 text-sm"
           />
         </div>
         <Select value={filterKourel} onValueChange={setFilterKourel}>
-          <SelectTrigger className="h-9 text-sm border-gris-300 w-full sm:w-64">
+          <SelectTrigger className="h-9 text-sm w-full sm:w-56">
             <SelectValue placeholder="Tous les kourels" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="tous">Tous les kourels</SelectItem>
-            {KOURELS_MOCK.map(k => <SelectItem key={k} value={k}>{k}</SelectItem>)}
+            {KOURELS.map(k => <SelectItem key={k} value={k}>{k}</SelectItem>)}
           </SelectContent>
         </Select>
       </div>
 
-      <Card className="border-gris-200 shadow-sm">
-        <CardContent className="p-0">
-          {filtered.length === 0 ? (
-            <div className="text-center py-16">
-              <Users size={36} className="mx-auto mb-3 text-gris-300" />
-              <p className="text-sm font-semibold text-gris-700">Aucun membre trouvé</p>
-              <p className="text-xs text-gris-500 mt-1">Modifiez vos filtres ou ajoutez un membre.</p>
-            </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-gris-50 hover:bg-gris-50 border-b border-gris-200">
-                  <TableHead className="w-10 pl-4">
-                    <Checkbox checked={allSelected} onCheckedChange={toggleAll} className="border-gris-300" />
-                  </TableHead>
-                  <TableHead className="text-[11px] font-semibold text-gris-500 uppercase tracking-wide">Nom complet</TableHead>
-                  <TableHead className="text-[11px] font-semibold text-gris-500 uppercase tracking-wide hidden md:table-cell">Kourel d'origine</TableHead>
-                  <TableHead className="text-[11px] font-semibold text-gris-500 uppercase tracking-wide hidden sm:table-cell">Téléphone</TableHead>
-                  <TableHead className="text-[11px] font-semibold text-gris-500 uppercase tracking-wide">Statut</TableHead>
-                  <TableHead className="text-[11px] font-semibold text-gris-500 uppercase tracking-wide text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filtered.map(m => (
-                  <TableRow key={m.id} className={`border-b border-gris-100 hover:bg-gris-50 ${selected.has(m.id) ? 'bg-vert-50/50' : ''}`}>
-                    <TableCell className="pl-4 w-10">
-                      <Checkbox checked={selected.has(m.id)} onCheckedChange={() => toggleOne(m.id)} className="border-gris-300" />
-                    </TableCell>
-                    <TableCell>
-                      <p className="text-sm font-semibold text-gris-950">{m.prenom} {m.nom}</p>
-                      <p className="text-xs text-gris-500 md:hidden truncate">{m.kourel}</p>
-                    </TableCell>
-                    <TableCell className="text-sm text-gris-700 hidden md:table-cell max-w-[200px] truncate">{m.kourel}</TableCell>
-                    <TableCell className="text-sm text-gris-700 hidden sm:table-cell">
-                      {m.telephone || <span className="text-gris-400">—</span>}
-                    </TableCell>
-                    <TableCell>
-                      <Badge className={m.statut === 'actif'
-                        ? 'bg-vert-100 text-vert-800 border-0 text-[11px]'
-                        : 'bg-gris-100 text-gris-500 border-0 text-[11px]'}>
-                        {m.statut}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center justify-end gap-1">
-                        <Button size="icon" variant="ghost" onClick={() => ouvrirEdition(m)}
-                          className="h-7 w-7 text-gris-400 hover:text-vert-700 hover:bg-vert-50">
-                          <Edit2 size={13} />
-                        </Button>
-                        <Button size="icon" variant="ghost" onClick={() => supprimer(m)}
-                          className="h-7 w-7 text-gris-400 hover:text-rouge hover:bg-rouge-bg">
-                          <Trash2 size={13} />
-                        </Button>
+      <div className="rounded-lg border border-gris-200 overflow-hidden bg-white">
+        {filteredData.length === 0 ? (
+          <div className="text-center py-16">
+            <Users size={36} className="mx-auto mb-3 text-gris-300" />
+            <p className="text-sm font-semibold text-gris-700">Aucun membre trouvé</p>
+            <p className="text-xs text-gris-500 mt-1">Modifiez vos filtres ou ajoutez un membre.</p>
+          </div>
+        ) : (
+          <Table>
+            <TableHeader>
+              {table.getHeaderGroups().map(headerGroup => (
+                <TableRow key={headerGroup.id} className="bg-gris-100 border-b-2 border-gris-200">
+                  {headerGroup.headers.map(header => (
+                    <TableHead key={header.id}
+                      className="text-[11px] font-semibold text-gris-700 uppercase tracking-wider"
+                      onClick={header.column.getToggleSortingHandler()}
+                    >
+                      <div className="flex items-center gap-1.5 cursor-pointer select-none">
+                        {flexRender(header.column.columnDef.header, header.getContext())}
+                        {header.column.getIsSorted() && (
+                          <span className="text-gris-400 text-[10px]">{header.column.getIsSorted() === 'asc' ? '↑' : '↓'}</span>
+                        )}
                       </div>
+                    </TableHead>
+                  ))}
+                </TableRow>
+              ))}
+            </TableHeader>
+            <TableBody>
+              {table.getRowModel().rows.map(row => (
+                <TableRow key={row.id}
+                  className={`border-b border-gris-100 transition-colors ${row.getIsSelected() ? 'bg-vert-50/50' : ''}`}
+                >
+                  {row.getVisibleCells().map(cell => (
+                    <TableCell key={cell.id}>
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
+                  ))}
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+      </div>
+
+      <div className="flex items-center justify-between mt-4">
+        <p className="text-sm text-gris-500">
+          {Object.keys(rowSelection).length} sur {filteredData.length} sélectionné(s)
+        </p>
+        <div className="flex items-center gap-3">
+          <Button variant="outline" size="sm"
+            onClick={() => table.previousPage()}
+            disabled={!table.getCanPreviousPage()}
+            className="h-8 text-xs"
+          >
+            Précédent
+          </Button>
+          <span className="text-xs text-gris-500">
+            Page {table.getState().pagination.pageIndex + 1} / {table.getPageCount()}
+          </span>
+          <Button variant="outline" size="sm"
+            onClick={() => table.nextPage()}
+            disabled={!table.getCanNextPage()}
+            className="h-8 text-xs"
+          >
+            Suivant
+          </Button>
+        </div>
+      </div>
 
       <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
-        <SheetContent className="w-full sm:max-w-md">
-          <SheetHeader>
-            <SheetTitle className="text-gris-950">{editingId ? 'Modifier le membre' : 'Nouveau membre'}</SheetTitle>
+        <SheetContent className="w-full sm:max-w-md bg-white p-0 flex flex-col h-full">
+          <SheetHeader className="px-6 pt-6 pb-4 border-b border-gris-100 flex-shrink-0">
+            <SheetTitle className="text-lg font-bold text-gris-950">
+              {editingId ? 'Modifier le membre' : 'Nouveau membre du comité'}
+            </SheetTitle>
+            <p className="text-sm text-gris-500">
+              {editingId ? 'Modifiez les informations du membre' : 'Ajoutez un nouveau membre au comité d\'évaluation'}
+            </p>
           </SheetHeader>
-          <div className="space-y-4 py-4 px-1">
-            <div className="grid grid-cols-2 gap-3">
+
+          <div className="flex-1 overflow-y-auto space-y-5 px-6 py-5">
+            <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-gris-500 uppercase tracking-wide">Prénom</label>
-                <Input value={form.prenom} onChange={e => setForm(f => ({ ...f, prenom: e.target.value }))}
-                  placeholder="Prénom" className="border-gris-300" />
+                <label className="text-xs font-semibold text-gris-500 uppercase tracking-wider">Prénom</label>
+                <Input
+                  value={form.prenom}
+                  onChange={e => setForm(f => ({ ...f, prenom: e.target.value }))}
+                  placeholder="Prénom"
+                />
               </div>
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-gris-500 uppercase tracking-wide">Nom</label>
-                <Input value={form.nom} onChange={e => setForm(f => ({ ...f, nom: e.target.value }))}
-                  placeholder="Nom de famille" className="border-gris-300" />
+                <label className="text-xs font-semibold text-gris-500 uppercase tracking-wider">Nom</label>
+                <Input
+                  value={form.nom}
+                  onChange={e => setForm(f => ({ ...f, nom: e.target.value }))}
+                  placeholder="Nom"
+                />
               </div>
             </div>
+
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-gris-500 uppercase tracking-wide">Kourel d'origine</label>
+              <label className="text-xs font-semibold text-gris-500 uppercase tracking-wider">Kourel d'origine</label>
               <Select value={form.kourel} onValueChange={v => setForm(f => ({ ...f, kourel: v }))}>
-                <SelectTrigger className="border-gris-300">
+                <SelectTrigger>
                   <SelectValue placeholder="Sélectionner un kourel" />
                 </SelectTrigger>
                 <SelectContent>
-                  {KOURELS_MOCK.map(k => <SelectItem key={k} value={k}>{k}</SelectItem>)}
+                  {KOURELS.map(k => <SelectItem key={k} value={k}>{k}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-gris-500 uppercase tracking-wider">Téléphone</label>
+              <Input
+                value={form.telephone}
+                onChange={e => setForm(f => ({ ...f, telephone: e.target.value }))}
+                placeholder="+221 77 000 00 00"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-gris-500 uppercase tracking-wider">Rôle</label>
+              <Select value={form.role} onValueChange={v => setForm(f => ({ ...f, role: v }))}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {ROLES.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-gris-500 uppercase tracking-wide">Téléphone</label>
-              <Input value={form.telephone} onChange={e => setForm(f => ({ ...f, telephone: e.target.value }))}
-                placeholder="+221 77 000 00 00" className="border-gris-300" />
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-gris-500 uppercase tracking-wide">Statut</label>
+              <label className="text-xs font-semibold text-gris-500 uppercase tracking-wider">Statut</label>
               <Select value={form.statut} onValueChange={v => setForm(f => ({ ...f, statut: v }))}>
-                <SelectTrigger className="border-gris-300">
+                <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -245,16 +360,20 @@ export function MembresPage() {
               </Select>
             </div>
           </div>
-          <SheetFooter className="gap-2 pt-2 border-t border-gris-200">
+
+          <SheetFooter className="flex-row gap-3 px-6 py-4 border-t border-gris-100 flex-shrink-0">
             <SheetClose asChild>
-              <Button variant="outline" className="border-gris-300 text-gris-700">
-                <X size={14} className="mr-1.5" /> Annuler
+              <Button variant="outline" className="flex-1 gap-1.5 rounded-lg">
+                <X size={14} /> Annuler
               </Button>
             </SheetClose>
-            <Button onClick={sauvegarder} disabled={!form.prenom || !form.nom || !form.kourel || saving}
-              className="bg-vert-700 hover:bg-vert-800 text-white">
-              {saving ? <Loader size={14} className="animate-spin mr-1.5" /> : <Save size={14} className="mr-1.5" />}
-              {editingId ? 'Sauvegarder' : 'Créer'}
+            <Button
+              onClick={sauvegarder}
+              disabled={!form.prenom || !form.nom || !form.kourel || saving}
+              className="flex-1 gap-1.5 rounded-lg"
+            >
+              {saving ? <Loader size={14} className="animate-spin" /> : <Save size={14} />}
+              {editingId ? 'Sauvegarder' : 'Créer le membre'}
             </Button>
           </SheetFooter>
         </SheetContent>

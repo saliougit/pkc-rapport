@@ -10,47 +10,54 @@ import {
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { Separator } from '@/components/ui/separator'
 import {
-  LayoutDashboard, FileText, BookOpen, BarChart2,
-  ClipboardList, Users, FileCheck, Settings, Bell,
-  LogOut, ChevronRight, UserCheck, Calendar, Star, ListChecks,
+  LayoutDashboard, FileText, BookOpen,
+  ClipboardList, Users, Settings, Bell,
+  LogOut, ChevronRight, Calendar, Star, ListChecks, Scale,
+  ClipboardCheck, FileSpreadsheet, ExternalLink,
 } from 'lucide-react'
 import { logoutAdmin } from '@/lib/supabase'
-
-// ─── Structure de navigation ──────────────────────────────────────────────────
 
 const NAV = [
   { title: 'Tableau de bord', icon: LayoutDashboard, href: '/admin' },
   {
-    title: 'Rapports',
+    title: 'Rapports & Synthèse',
     icon: FileText,
     children: [
-      { title: 'Rapports PKC',    href: '/admin/rapports',  soon: true },
-      { title: 'Programme Annuel', href: '/admin/programme', soon: true },
-      { title: 'Synthèse',        href: '/admin/synthese',   soon: true },
+      { icon: FileText, title: 'Rapports PKC',      href: '/admin/rapports',  soon: true },
+      { icon: BookOpen,  title: 'Programme Annuel',  href: '/admin/programme', soon: true },
+      { icon: FileSpreadsheet, title: 'Synthèse',    href: '/admin/synthese',  soon: true },
+      { icon: ClipboardCheck, title: 'Comptes rendus', href: '/admin/comptes-rendus', soon: true },
     ],
   },
   {
     title: 'Comité & Évaluation',
     icon: ClipboardList,
     children: [
-      { title: 'Membres',             icon: Users,       href: '/admin/evaluation/membres' },
-      { title: 'Types d\'événements', icon: ListChecks,  href: '/admin/evaluation/types' },
-      { title: 'Événements',          icon: Calendar,    href: '/admin/evaluation/evenements' },
-      { title: 'Évaluations',         icon: Star,        href: '/admin/evaluation/evaluations' },
-      { title: 'Critères',            icon: UserCheck,   href: '/admin/evaluation/criteres' },
+      { icon: Users,     title: 'Membres',             href: '/admin/evaluation/membres' },
+      { icon: ListChecks,title: 'Types d\'événements', href: '/admin/evaluation/types' },
+      { icon: Calendar,  title: 'Événements',          href: '/admin/evaluation/evenements' },
+      { icon: Star,      title: 'Évaluations',         href: '/admin/evaluation/evaluations' },
+      { icon: Scale,     title: 'Critères',            href: '/admin/evaluation/criteres' },
+      { icon: ExternalLink, title: 'Page publique éval', href: '/evaluer', target: '_blank' },
+    ],
+  },
+  {
+    title: 'Pôle Administration (PAD)',
+    icon: ClipboardCheck,
+    children: [
+      { icon: Calendar, title: 'Sessions',    href: '/admin/pad/sessions', soon: true },
+      { icon: FileText, title: 'Rapports PAD', href: '/admin/pad/rapports', soon: true },
     ],
   },
   {
     title: 'Paramètres',
     icon: Settings,
     children: [
-      { title: 'Kourels',       href: '/admin/kourels' },
-      { title: 'Notifications', href: '/admin/notifications', soon: true },
+      { icon: Users,     title: 'Kourels',       href: '/admin/kourels' },
+      { icon: Bell,      title: 'Notifications', href: '/admin/notifications', soon: true },
     ],
   },
 ]
-
-// ─── Sidebar component ────────────────────────────────────────────────────────
 
 function AppSidebar({ user, onLogout }) {
   const location = useLocation()
@@ -74,7 +81,6 @@ function AppSidebar({ user, onLogout }) {
 
   return (
     <Sidebar collapsible="icon">
-      {/* Header */}
       <SidebarHeader className="border-b border-sidebar-border px-3 py-4">
         <div className="flex items-center gap-3 overflow-hidden">
           <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center overflow-hidden flex-shrink-0">
@@ -89,20 +95,17 @@ function AppSidebar({ user, onLogout }) {
         </div>
       </SidebarHeader>
 
-      {/* Navigation */}
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu>
               {NAV.map((item) => {
-                // ── Item simple ──
                 if (!item.children) {
                   return (
                     <SidebarMenuItem key={item.href}>
                       <SidebarMenuButton
                         asChild
                         isActive={isActive(item.href)}
-                        tooltip={item.title}
                         className="text-sidebar-foreground data-[active=true]:text-white data-[active=true]:bg-sidebar-primary"
                       >
                         <Link to={item.href}>
@@ -114,7 +117,6 @@ function AppSidebar({ user, onLogout }) {
                   )
                 }
 
-                // ── Groupe dépliant ──
                 const isOpen = openGroups.includes(item.title)
                 const active = isGroupActive(item)
 
@@ -123,7 +125,6 @@ function AppSidebar({ user, onLogout }) {
                     <SidebarMenuItem>
                       <CollapsibleTrigger asChild>
                         <SidebarMenuButton
-                          tooltip={item.title}
                           isActive={active && isCollapsed}
                           className={`text-sidebar-foreground w-full ${active && !isCollapsed ? 'text-white' : ''}`}
                         >
@@ -143,12 +144,23 @@ function AppSidebar({ user, onLogout }) {
                           <SidebarMenuSubItem key={child.href}>
                             {child.soon ? (
                               <SidebarMenuSubButton disabled className="opacity-35 cursor-not-allowed">
+                                {child.icon && <child.icon size={14} className="opacity-40 flex-shrink-0" />}
                                 <span>{child.title}</span>
                                 <span className="ml-auto text-[9px] font-semibold bg-vert-900/60 text-vert-400 px-1.5 py-0.5 rounded">soon</span>
                               </SidebarMenuSubButton>
                             ) : (
-                              <SidebarMenuSubButton asChild isActive={isActive(child.href)}>
-                                <Link to={child.href}>{child.title}</Link>
+                              <SidebarMenuSubButton asChild isActive={!child.target && isActive(child.href)}>
+                                {child.target ? (
+                                  <a href={child.href} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2">
+                                    {child.icon && <child.icon size={14} className="opacity-60 flex-shrink-0" />}
+                                    <span>{child.title}</span>
+                                  </a>
+                                ) : (
+                                  <Link to={child.href} className="flex items-center gap-2">
+                                    {child.icon && <child.icon size={14} className="opacity-60 flex-shrink-0" />}
+                                    <span>{child.title}</span>
+                                  </Link>
+                                )}
                               </SidebarMenuSubButton>
                             )}
                           </SidebarMenuSubItem>
@@ -163,7 +175,6 @@ function AppSidebar({ user, onLogout }) {
         </SidebarGroup>
       </SidebarContent>
 
-      {/* Footer */}
       <SidebarFooter className="border-t border-sidebar-border px-2 py-3">
         <div className="flex items-center gap-2.5 overflow-hidden">
           <div className="w-7 h-7 rounded-full bg-vert-600 flex items-center justify-center flex-shrink-0">
@@ -192,8 +203,6 @@ function AppSidebar({ user, onLogout }) {
   )
 }
 
-// ─── Topbar ───────────────────────────────────────────────────────────────────
-
 function TopBar({ user, onLogout }) {
   const initiale = (user?.email?.[0] || 'A').toUpperCase()
   return (
@@ -203,7 +212,6 @@ function TopBar({ user, onLogout }) {
       <span className="text-sm font-medium text-gris-400 hidden sm:block">Espace Admin</span>
 
       <div className="flex items-center gap-2 ml-auto">
-        {/* Statut connecté */}
         <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-vert-50 border border-vert-200">
           <span className="relative flex h-2 w-2">
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-vert-400 opacity-75" />
@@ -239,8 +247,6 @@ function TopBar({ user, onLogout }) {
   )
 }
 
-// ─── Layout principal ─────────────────────────────────────────────────────────
-
 export function AdminLayout({ user }) {
   const navigate = useNavigate()
 
@@ -254,7 +260,7 @@ export function AdminLayout({ user }) {
       <AppSidebar user={user} onLogout={handleLogout} />
       <div className="flex-1 flex flex-col min-h-screen overflow-hidden">
         <TopBar user={user} onLogout={handleLogout} />
-        <div className="flex-1 overflow-y-auto bg-white p-6">
+        <div className="flex-1 overflow-y-auto bg-white p-4 md:p-6">
           <Outlet />
         </div>
       </div>

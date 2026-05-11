@@ -12,6 +12,8 @@ import { EvenementsPage } from './pages/admin/evaluation/Evenements'
 import { EvaluationsPage } from './pages/admin/evaluation/Evaluations'
 import { CriteresPage } from './pages/admin/evaluation/Criteres'
 import MembreView from './views/MembreView'
+import EvaluationMembre from './views/EvaluationMembre'
+import PublicAccueil from './views/PublicAccueil'
 
 function ComingSoon({ title }) {
   return (
@@ -70,8 +72,13 @@ function App() {
           <Route path="*"          element={<Navigate to="/admin" replace />} />
         </Route>
 
-        {/* Vue membre — publique */}
-        <Route path="/*" element={<MembreView />} />
+        {/* Pages publiques */}
+        <Route path="/"          element={<PublicAccueil />} />
+        <Route path="/rapport"   element={<MembreView />} />
+        <Route path="/evaluer"   element={<EvaluationMembre />} />
+
+        {/* Redirection par défaut */}
+        <Route path="/*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
   )
