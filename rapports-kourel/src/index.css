@@ -1,15 +1,62 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+@layer base {
+  :root {
+    /* === Couleurs shadcn (HSL sans hsl()) ===
+       Mappées sur notre palette de marque DMN PKC */
+
+    --background:    43 22% 95%;    /* surface #F5F3EE */
+    --foreground:   150 15%  8%;    /* gris-950 #111714 */
+
+    --card:           0  0% 100%;   /* blanc */
+    --card-foreground: 150 15% 8%;
+
+    --popover:        0  0% 100%;
+    --popover-foreground: 150 15% 8%;
+
+    --primary:      153 98% 21%;    /* vert-700 #016A3B — boutons principaux */
+    --primary-foreground: 0 0% 100%;
+
+    --secondary:    120  4% 95%;    /* gris-100 #F0F2F0 */
+    --secondary-foreground: 150 15% 8%;
+
+    --muted:        120  4% 95%;
+    --muted-foreground: 135 5% 45%; /* gris-500 #6B7A71 */
+
+    --accent:       150 42% 95%;    /* vert-50 #EEF8F3 */
+    --accent-foreground: 149 97% 14%; /* vert-800 */
+
+    --destructive:    0 84% 40%;    /* rouge #B91C1C */
+    --destructive-foreground: 0 0% 100%;
+
+    --border:       140 10% 88%;    /* gris-200 #DDE3DF */
+    --input:        140 10% 88%;
+    --ring:         153 98% 21%;    /* vert-700 */
+    --radius:       0.5rem;
+
+    /* === Sidebar — fond vert-800 (#014421) ===  */
+    --sidebar-background:          149 97% 14%;  /* vert-800 */
+    --sidebar-foreground:          150 38% 75%;  /* vert-200 */
+    --sidebar-primary:             149 97%  9%;  /* vert-900 — item actif fond */
+    --sidebar-primary-foreground:    0  0% 100%; /* blanc */
+    --sidebar-accent:              149 97%  9%;  /* vert-900 — hover */
+    --sidebar-accent-foreground:     0  0% 100%;
+    --sidebar-border:              149 97%  9%;  /* vert-900 — séparateurs */
+    --sidebar-ring:                153 98% 21%;  /* vert-700 */
+  }
+}
+
 body {
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background-color: #F5F5F5;
+  background-color: #F5F3EE;
+  color: #111714;
 }
 
 * {
