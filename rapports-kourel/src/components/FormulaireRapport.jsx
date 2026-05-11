@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { ChevronRight, ChevronLeft, Plus, Trash2, Pencil, Download, User, Music, CalendarDays, Star } from 'lucide-react'
+import { ChevronRight, ChevronLeft, Plus, Trash2, Pencil, Download, User, Music, CalendarDays, Star, CheckCircle2, Clock, AlertCircle } from 'lucide-react'
 import { genererPDF } from '../utils/pdfService'
 
 const MOIS = [
@@ -47,20 +47,20 @@ export function FormulaireRapport({
   const peutSuivre = sousEtape === 1 ? !!rapport.mois : true
 
   return (
-    <div className="min-h-screen bg-gris-clair flex flex-col items-center justify-center px-4 py-4">
+    <div className="min-h-screen bg-gris-clair flex flex-col items-center justify-center px-2 sm:px-4 py-2 sm:py-4">
       {loading && <LoadingModal progress={Math.round(progress)} succes={succes} />}
 
       <div
-        className="w-full max-w-3xl flex flex-col rounded-2xl shadow-xl overflow-hidden"
-        style={{ maxHeight: 'calc(100vh - 2rem)' }}
+        className="w-full max-w-5xl flex flex-col rounded-2xl shadow-xl overflow-hidden"
+        style={{ maxHeight: 'calc(100vh - 1rem)' }}
       >
         {/* ── STEPPER — toujours au même endroit ── */}
-        <div className="bg-white px-6 pt-5 pb-3 flex-shrink-0 border-b border-gray-100">
+        <div className="bg-white px-3 sm:px-4 md:px-6 pt-3 sm:pt-4 md:pt-5 pb-2 sm:pb-3 flex-shrink-0 border-b border-gray-100">
           <Stepper etape={sousEtape} />
         </div>
 
         {/* ── CONTENU — seule zone qui change ── */}
-        <div className="flex-1 overflow-y-auto bg-gray-50 px-5 py-4">
+        <div className="flex-1 overflow-y-auto bg-gray-50 px-3 sm:px-4 md:px-5 py-2 sm:py-3 md:py-4">
           {sousEtape === 1 && (
             <Step1Identification kourel={kourel} rapport={rapport} setRapport={setRapport} />
           )}
@@ -92,32 +92,35 @@ export function FormulaireRapport({
         </div>
 
         {/* ── NAVIGATION — toujours au même endroit ── */}
-        <div className="bg-white px-6 py-4 flex-shrink-0 border-t border-gray-100 flex justify-between items-center">
+        <div className="bg-white px-3 sm:px-4 md:px-6 py-2 sm:py-3 md:py-4 flex-shrink-0 border-t border-gray-100 flex flex-col sm:flex-row justify-between items-center gap-2 sm:gap-0">
           <button
             onClick={sousEtape === 1 ? retour : () => setSousEtape(sousEtape - 1)}
-            className="flex items-center gap-2 py-2.5 px-5 rounded-xl text-sm font-semibold text-white bg-gray-500 hover:opacity-90 transition"
+            className="w-full sm:w-auto flex items-center justify-center sm:justify-start gap-1 sm:gap-2 py-2 sm:py-2.5 px-3 sm:px-5 rounded-xl text-xs sm:text-sm font-semibold text-white bg-gray-500 hover:opacity-90 transition"
           >
-            <ChevronLeft size={16} />
-            {sousEtape === 1 ? 'Retour' : 'Précédent'}
+            <ChevronLeft size={14} className="sm:hidden" />
+            <ChevronLeft size={16} className="hidden sm:block" />
+            <span>{sousEtape === 1 ? 'Retour' : 'Précédent'}</span>
           </button>
 
           {sousEtape === 4 ? (
             <button
               onClick={genererPDFClick}
               disabled={loading}
-              className="flex items-center gap-2 py-2.5 px-5 rounded-xl text-sm font-semibold text-white bg-vert-principal hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition"
+              className="w-full sm:w-auto flex items-center justify-center gap-1 sm:gap-2 py-2 sm:py-2.5 px-3 sm:px-5 rounded-xl text-xs sm:text-sm font-semibold text-white bg-vert-principal hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition"
             >
-              <Download size={16} />
-              Télécharger le PDF
+              <Download size={14} className="sm:hidden" />
+              <Download size={16} className="hidden sm:block" />
+              <span>Télécharger le PDF</span>
             </button>
           ) : (
             <button
               onClick={() => setSousEtape(sousEtape + 1)}
               disabled={!peutSuivre}
-              className="flex items-center gap-2 py-2.5 px-5 rounded-xl text-sm font-semibold text-white bg-vert-principal hover:opacity-90 disabled:opacity-40 transition"
+              className="w-full sm:w-auto flex items-center justify-center gap-1 sm:gap-2 py-2 sm:py-2.5 px-3 sm:px-5 rounded-xl text-xs sm:text-sm font-semibold text-white bg-vert-principal hover:opacity-90 disabled:opacity-40 transition"
             >
-              Suivant
-              <ChevronRight size={16} />
+              <span>Suivant</span>
+              <ChevronRight size={14} className="sm:hidden" />
+              <ChevronRight size={16} className="hidden sm:block" />
             </button>
           )}
         </div>
@@ -129,20 +132,20 @@ export function FormulaireRapport({
 // ─── STEP 1 : Identification ──────────────────────────────────────────────────
 function Step1Identification({ kourel, rapport, setRapport }) {
   return (
-    <div className="bg-white rounded-xl p-5 shadow-sm">
-      <div className="grid grid-cols-2 gap-4 mb-4">
+    <div className="bg-white rounded-xl p-3 sm:p-4 md:p-5 shadow-sm">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3 md:gap-4 mb-3 sm:mb-4">
         <div>
-          <label className="block text-xs font-semibold text-gray-400 mb-1.5 uppercase tracking-wide">Kourel</label>
+          <label className="block text-xs font-semibold text-gray-400 mb-1 sm:mb-1.5 uppercase tracking-wide">Kourel</label>
           <input type="text" value={kourel.nom} disabled
-            className="w-full px-3 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg text-gray-500" />
+            className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm bg-gray-50 border border-gray-200 rounded-lg text-gray-500" />
         </div>
         <div>
-          <label className="block text-xs font-semibold text-gray-400 mb-1.5 uppercase tracking-wide">Responsable</label>
+          <label className="block text-xs font-semibold text-gray-400 mb-1 sm:mb-1.5 uppercase tracking-wide">Responsable</label>
           <input type="text" value={kourel.responsable} disabled
-            className="w-full px-3 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg text-gray-500" />
+            className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm bg-gray-50 border border-gray-200 rounded-lg text-gray-500" />
         </div>
       </div>
-      <div className="grid grid-cols-3 gap-4 mb-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3 md:gap-4 mb-3 sm:mb-4">
         <div>
           <label className="block text-xs font-semibold text-gray-400 mb-1.5 uppercase tracking-wide">Mois</label>
           <select value={rapport.mois} onChange={(e) => setRapport({ ...rapport, mois: e.target.value })}
@@ -197,28 +200,39 @@ function FormMelodie({ mel, setMel, programmeAnnuel, onConfirm, onCancel, titre,
     <div className="bg-white rounded-xl p-5 mb-4 shadow-sm" style={{ border: '1.5px solid #16824E' }}>
       <p className="text-sm font-bold mb-4" style={{ color: '#014421' }}>{titre}</p>
 
-      <div className="grid grid-cols-2 gap-4 mb-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mb-3 sm:mb-4">
         <div>
-          <label className="block text-xs font-semibold text-gray-400 mb-1.5 uppercase tracking-wide">Source</label>
-          <div className="flex flex-col gap-1.5 text-sm">
-            {['programme', 'autre'].map(v => (
-              <label key={v} className="flex items-center gap-2 cursor-pointer">
-                <input type="radio" value={v} checked={mel.source === v}
-                  onChange={() => setMel({ ...mel, source: v, nom: '', melodie: '', khassida_id: null })} />
-                {v === 'programme' ? 'Khassida du programme' : 'Autre khassida'}
-              </label>
-            ))}
+          <label className="block text-xs font-semibold text-gray-400 mb-2 uppercase tracking-wide">Source</label>
+          <div className="flex gap-1 bg-gray-100 p-1 rounded-lg w-fit">
+            <button onClick={() => setMel({ ...mel, source: 'programme', nom: '', melodie: '', khassida_id: null })}
+              className={`py-1.5 px-2.5 rounded text-xs font-semibold transition-all duration-200 ${
+                mel.source === 'programme' ? 'bg-bleu-info text-white shadow-md' : 'bg-transparent text-gray-600 hover:bg-gray-200'
+              }`}>
+              Programme
+            </button>
+            <button onClick={() => setMel({ ...mel, source: 'autre', nom: '', melodie: '', khassida_id: null })}
+              className={`py-1.5 px-2.5 rounded text-xs font-semibold transition-all duration-200 ${
+                mel.source === 'autre' ? 'bg-bleu-info text-white shadow-md' : 'bg-transparent text-gray-600 hover:bg-gray-200'
+              }`}>
+              Autre
+            </button>
           </div>
         </div>
         <div>
-          <label className="block text-xs font-semibold text-gray-400 mb-1.5 uppercase tracking-wide">Type</label>
-          <div className="flex flex-col gap-1.5 text-sm">
-            {['nouvelle', 'revision'].map(v => (
-              <label key={v} className="flex items-center gap-2 cursor-pointer">
-                <input type="radio" value={v} checked={mel.type === v} onChange={() => setMel({ ...mel, type: v })} />
-                {v === 'nouvelle' ? 'Nouvelle' : 'Révision'}
-              </label>
-            ))}
+          <label className="block text-xs font-semibold text-gray-400 mb-2 uppercase tracking-wide">Type</label>
+          <div className="flex gap-1 bg-gray-100 p-1 rounded-lg w-fit">
+            <button onClick={() => setMel({ ...mel, type: 'nouvelle' })}
+              className={`py-1.5 px-2.5 rounded text-xs font-semibold transition-all duration-200 ${
+                mel.type === 'nouvelle' ? 'bg-vert-principal text-white shadow-md' : 'bg-transparent text-gray-600 hover:bg-gray-200'
+              }`}>
+              Nouvelle
+            </button>
+            <button onClick={() => setMel({ ...mel, type: 'revision' })}
+              className={`py-1.5 px-2.5 rounded text-xs font-semibold transition-all duration-200 ${
+                mel.type === 'revision' ? 'bg-vert-principal text-white shadow-md' : 'bg-transparent text-gray-600 hover:bg-gray-200'
+              }`}>
+              Révision
+            </button>
           </div>
         </div>
       </div>
@@ -251,33 +265,39 @@ function FormMelodie({ mel, setMel, programmeAnnuel, onConfirm, onCancel, titre,
       )}
 
       <div className="mb-3">
-        <label className="block text-xs font-semibold text-gray-400 mb-1.5 uppercase tracking-wide">Évaluation</label>
-        <div className="flex gap-6 text-sm">
-          {['pages', 'dadj'].map(v => (
-            <label key={v} className="flex items-center gap-2 cursor-pointer">
-              <input type="radio" value={v} checked={mel.mode === v} onChange={() => setMel({ ...mel, mode: v })} />
-              {v === 'pages' ? 'Par pages' : 'Par Dadj'}
-            </label>
-          ))}
+        <label className="block text-xs font-semibold text-gray-400 mb-2 uppercase tracking-wide">Évaluation</label>
+        <div className="flex gap-1 bg-gray-100 p-1 rounded-lg w-fit">
+          <button onClick={() => setMel({ ...mel, mode: 'pages' })}
+            className={`py-1.5 px-2.5 rounded text-xs font-semibold transition-all duration-200 ${
+              mel.mode === 'pages' ? 'bg-orange-strat text-white shadow-md' : 'bg-transparent text-gray-600 hover:bg-gray-200'
+            }`}>
+            Par pages
+          </button>
+          <button onClick={() => setMel({ ...mel, mode: 'dadj' })}
+            className={`py-1.5 px-2.5 rounded text-xs font-semibold transition-all duration-200 ${
+              mel.mode === 'dadj' ? 'bg-orange-strat text-white shadow-md' : 'bg-transparent text-gray-600 hover:bg-gray-200'
+            }`}>
+            Par Dadj
+          </button>
         </div>
       </div>
 
       {mel.mode === 'pages' && (
-        <div className="bg-vert-pastel rounded-lg p-3 mb-3">
-          <div className="grid grid-cols-3 gap-3 items-end">
+        <div className="bg-vert-pastel rounded-lg p-2 sm:p-3 mb-3 sm:mb-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3 items-end">
             <div>
               <label className="block text-xs font-semibold text-vert-fonce mb-1">Pages faites</label>
               <input type="number" min="0" value={mel.pages_faites}
                 onChange={(e) => setMel({ ...mel, pages_faites: parseInt(e.target.value) || 0 })}
-                className="w-full px-3 py-2 text-sm border border-vert-principal rounded-lg" />
+                className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm border border-vert-principal rounded-lg" />
             </div>
             <div>
               <label className="block text-xs font-semibold text-vert-fonce mb-1">Total pages</label>
               <input type="number" min="1" value={mel.pages_total}
                 onChange={(e) => setMel({ ...mel, pages_total: parseInt(e.target.value) || 1 })}
-                className="w-full px-3 py-2 text-sm border border-vert-principal rounded-lg" />
+                className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm border border-vert-principal rounded-lg" />
             </div>
-            <div className="text-center text-2xl font-bold text-vert-principal">
+            <div className="text-center text-xl sm:text-2xl font-bold text-vert-principal">
               {Math.round((mel.pages_faites / mel.pages_total) * 100)}%
             </div>
           </div>
@@ -287,12 +307,19 @@ function FormMelodie({ mel, setMel, programmeAnnuel, onConfirm, onCancel, titre,
       {mel.mode === 'dadj' && (
         <div className="bg-vert-pastel rounded-lg p-3 mb-3">
           <label className="block text-xs font-semibold text-vert-fonce mb-2">Dadj complétés</label>
-          <div className="space-y-1.5 mb-3">
+          <div className="flex flex-wrap gap-1.5 mb-3">
             {Array.from({ length: mel.dadj_total }, (_, i) => (
-              <label key={i} className="flex items-center gap-2 cursor-pointer text-sm">
-                <input type="checkbox" checked={mel.dadj_completes.includes(i)} onChange={() => toggleDadj(i)} className="w-4 h-4" />
-                <span className="font-semibold text-vert-fonce">{i + 1}{i === 0 ? 'er' : 'ème'} Dadj</span>
-              </label>
+              <button
+                key={i}
+                onClick={() => toggleDadj(i)}
+                className={`py-1 px-2.5 rounded text-xs font-semibold transition-all duration-200 ${
+                  mel.dadj_completes.includes(i)
+                    ? 'bg-vert-principal text-white shadow-sm'
+                    : 'bg-white border border-gray-300 text-gray-600 hover:border-vert-principal'
+                }`}
+              >
+                {i + 1}{i === 0 ? 'er' : 'ème'}
+              </button>
             ))}
           </div>
           <div className="flex items-center justify-between">
@@ -565,19 +592,42 @@ function Step3Programme({ rapport, setRapport, programmeAnnuel, calculStatsProga
                   </div>
                 </div>
 
-                <div className="flex flex-wrap gap-4 pl-5 text-xs mb-2">
-                  <label className="flex items-center gap-1.5 cursor-pointer">
-                    <input type="radio" name={`k_${k.id}`} checked={e.statut === 'termine'} onChange={() => updateEtat(k.id, 'termine', 100)} className="accent-vert-principal" />
-                    <span className="font-semibold text-vert-principal">Terminé</span>
-                  </label>
-                  <label className="flex items-center gap-1.5 cursor-pointer">
-                    <input type="radio" name={`k_${k.id}`} checked={e.statut === 'en_cours'} onChange={() => selectionnerEnCours(k.id, e.pourcentage)} className="accent-orange-strat" />
-                    <span className="font-semibold text-orange-strat">En cours</span>
-                  </label>
-                  <label className="flex items-center gap-1.5 cursor-pointer">
-                    <input type="radio" name={`k_${k.id}`} checked={e.statut === 'pas_commence'} onChange={() => updateEtat(k.id, 'pas_commence', 0)} />
-                    <span className="text-gray-500">Pas commencé</span>
-                  </label>
+                <div className="flex gap-1 mb-2 bg-gray-100 p-1 rounded-lg w-fit">
+                  {/* Terminé */}
+                  <button
+                    onClick={() => updateEtat(k.id, 'termine', 100)}
+                    className={`py-1.5 px-3 rounded text-xs font-semibold transition-all duration-200 ${
+                      e.statut === 'termine'
+                        ? 'bg-vert-principal text-white shadow-md scale-105'
+                        : 'bg-transparent text-gray-600 hover:text-gray-900 hover:bg-gray-200'
+                    }`}
+                  >
+                    Terminé
+                  </button>
+
+                  {/* En cours */}
+                  <button
+                    onClick={() => selectionnerEnCours(k.id, e.pourcentage)}
+                    className={`py-1.5 px-3 rounded text-xs font-semibold transition-all duration-200 ${
+                      e.statut === 'en_cours'
+                        ? 'bg-orange-strat text-white shadow-md scale-105'
+                        : 'bg-transparent text-gray-600 hover:text-gray-900 hover:bg-gray-200'
+                    }`}
+                  >
+                    En cours
+                  </button>
+
+                  {/* Pas commencé */}
+                  <button
+                    onClick={() => updateEtat(k.id, 'pas_commence', 0)}
+                    className={`py-1.5 px-3 rounded text-xs font-semibold transition-all duration-200 ${
+                      e.statut === 'pas_commence'
+                        ? 'bg-rouge-alerte text-white shadow-md scale-105'
+                        : 'bg-transparent text-gray-600 hover:text-gray-900 hover:bg-gray-200'
+                    }`}
+                  >
+                    Pas commencé
+                  </button>
                 </div>
 
                 {e.statut === 'en_cours' && (
@@ -643,7 +693,7 @@ function Step4Appreciation({ rapport, setRapport, kourel, programmeAnnuel }) {
           placeholder="Bilan global du mois, contexte, dynamique d'équipe..." />
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {[
           { key: 'points_positifs', label: 'Points positifs',      color: '#16824E', ph: 'Mélodies terminées, bons rattrapages...' },
           { key: 'a_surveiller',   label: 'À surveiller',          color: '#E67E22', ph: 'Points nécessitant attention...' },
@@ -665,7 +715,7 @@ function Step4Appreciation({ rapport, setRapport, kourel, programmeAnnuel }) {
 
       <div className="bg-vert-pastel border border-vert-principal rounded-xl p-4">
         <p className="text-xs font-bold mb-2 uppercase tracking-wide" style={{ color: '#014421' }}>Résumé</p>
-        <div className="grid grid-cols-2 gap-1.5 text-xs text-gray-600">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 text-xs text-gray-600">
           <div><span className="font-semibold">Kourel :</span> {kourel.nom}</div>
           <div><span className="font-semibold">Période :</span> {rapport.mois} {rapport.annee}</div>
           <div><span className="font-semibold">Mélodies :</span> {rapport.melodies.length} ajoutées</div>
@@ -685,39 +735,40 @@ function Stepper({ etape }) {
     { label: 'Appréciation',   Icon: Star },
   ]
   return (
-    <div className="flex items-start justify-center">
+    <div className="flex items-center justify-center px-1 sm:px-2">
       {steps.map((s, i) => {
         const num = i + 1
         const done = num < etape
         const actif = num === etape
         return (
-          <div key={i} className="flex items-start">
-            <div className="flex flex-col items-center" style={{ minWidth: 68 }}>
+          <div key={i} className="flex items-center flex-shrink-0">
+            <div className="flex flex-col items-center" style={{ minWidth: '45px', minWidth: 'clamp(45px, 12vw, 70px)' }}>
               <div className="flex items-center justify-center rounded-full transition-all duration-300"
                 style={{
-                  width: 38, height: 38,
+                  width: 'clamp(24px, 7vw, 38px)', 
+                  height: 'clamp(24px, 7vw, 38px)',
                   background: done ? '#16824E' : actif ? '#014421' : '#F3F4F6',
-                  boxShadow: actif ? '0 0 0 4px #E8F5E9' : 'none',
+                  boxShadow: actif ? '0 0 0 2px #E8F5E9' : 'none',
                 }}>
                 {done ? (
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={3}>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={3} style={{ width: 'clamp(10px, 3vw, 16px)', height: 'clamp(10px, 3vw, 16px)' }}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                   </svg>
                 ) : (
-                  <s.Icon size={16} color={actif ? '#fff' : '#9CA3AF'} strokeWidth={2} />
+                  <s.Icon size={12} color={actif ? '#fff' : '#9CA3AF'} strokeWidth={2} style={{ width: 'clamp(10px, 3vw, 16px)', height: 'clamp(10px, 3vw, 16px)' }} />
                 )}
               </div>
-              <span className="mt-2 text-center leading-tight" style={{
-                fontSize: 11, fontWeight: actif ? 700 : 500,
+              <span className="mt-0.5 text-center leading-tight" style={{
+                fontSize: 'clamp(7px, 2.5vw, 11px)', fontWeight: actif ? 700 : 500,
                 color: done ? '#16824E' : actif ? '#014421' : '#9CA3AF',
-                maxWidth: 62,
+                maxWidth: 'clamp(40px, 10vw, 62px)',
               }}>
                 {s.label}
               </span>
             </div>
             {i < steps.length - 1 && (
-              <div className="flex-shrink-0" style={{
-                height: 2, width: 44, marginTop: 18, marginLeft: 2, marginRight: 2,
+              <div style={{
+                height: 2, width: 'clamp(12px, 4vw, 44px)', marginTop: '10px', marginLeft: '1px', marginRight: '1px',
                 borderRadius: 2, background: done ? '#16824E' : '#E5E7EB',
                 transition: 'background 0.3s',
               }} />

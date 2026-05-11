@@ -131,22 +131,23 @@ function GestionProgramme({ kourel, onRetour }) {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
         {/* Ajouter */}
-        <div className="bg-white rounded-xl p-5 shadow-sm self-start">
-          <h3 className="text-sm font-bold mb-4 flex items-center gap-2" style={{ color: '#014421' }}>
-            <Plus size={15} /> Nouveau khassida
+        <div className="bg-white rounded-xl p-3 sm:p-4 md:p-5 shadow-sm self-start w-full">
+          <h3 className="text-xs sm:text-sm font-bold mb-3 sm:mb-4 flex items-center gap-2" style={{ color: '#014421' }}>
+            <Plus size={13} className="sm:hidden" />
+            <Plus size={15} className="hidden sm:block" /> Nouveau khassida
           </h3>
-          <div className="space-y-3 mb-4">
+          <div className="space-y-2 sm:space-y-3 mb-3 sm:mb-4">
             <input type="text" placeholder="Nom du khassida" value={nouveau.nom}
               onChange={e => setNouveau({ ...nouveau, nom: e.target.value })}
-              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:border-vert-principal focus:outline-none" />
+              className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm border border-gray-200 rounded-lg focus:border-vert-principal focus:outline-none" />
             <input type="text" placeholder="Mélodie (ex: Serigne Abdou Diop)" value={nouveau.melodie}
               onChange={e => setNouveau({ ...nouveau, melodie: e.target.value })}
-              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:border-vert-principal focus:outline-none" />
+              className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm border border-gray-200 rounded-lg focus:border-vert-principal focus:outline-none" />
           </div>
           <button onClick={ajouter} disabled={!nouveau.nom || !nouveau.melodie || saving}
-            className="w-full flex items-center justify-center gap-2 py-2.5 text-sm font-semibold text-white rounded-lg disabled:opacity-40 hover:opacity-90 transition"
+            className="w-full flex items-center justify-center gap-1 sm:gap-2 py-2 sm:py-2.5 text-xs sm:text-sm font-semibold text-white rounded-lg disabled:opacity-40 hover:opacity-90 transition"
             style={{ background: '#16824E' }}>
             {saving ? <Loader size={14} className="animate-spin" /> : <Plus size={14} />}
             Ajouter
@@ -163,7 +164,7 @@ function GestionProgramme({ kourel, onRetour }) {
           ) : programme.length === 0 ? (
             <p className="text-sm text-gray-400 text-center py-8">Aucun khassida.</p>
           ) : (
-            <div className="space-y-2 overflow-y-auto pr-1" style={{ maxHeight: 340 }}>
+            <div className="space-y-2 overflow-y-auto pr-1" style={{ maxHeight: 420 }}>
               {programme.map((k, idx) => (
                 <div key={k.id} className="border border-gray-100 rounded-lg p-3 hover:border-vert-principal transition">
                   {enEdition?.id === k.id ? (
@@ -320,12 +321,12 @@ export function AdminPanel({ onRetour, onKourelsChange }) {
   }
 
   return (
-    <div className="min-h-screen bg-gris-clair flex flex-col items-center justify-center px-4 py-4">
+    <div className="min-h-screen bg-gris-clair flex flex-col items-center justify-center px-2 sm:px-4 py-2 sm:py-4">
       {showLogin && <LoginModal onLogin={handleLogin} onClose={() => setShowLogin(false)} />}
 
-      <div className="w-full max-w-3xl">
+      <div className="w-full max-w-5xl">
         {/* Header */}
-        <div className="flex items-center gap-3 bg-white rounded-xl shadow-sm px-5 py-3 mb-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3 bg-white rounded-xl shadow-sm px-3 sm:px-4 md:px-5 py-2 sm:py-3 mb-2 sm:mb-4">
           <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0"
             style={{ background: '#014421' }}>
             <ShieldCheck size={15} color="white" />
@@ -370,9 +371,9 @@ export function AdminPanel({ onRetour, onKourelsChange }) {
         ) : vue === 'programme' && kourelActif ? (
           <GestionProgramme kourel={kourelActif} onRetour={() => { setVue('kourels'); setKourelActif(null) }} />
         ) : (
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3 md:gap-4">
             {/* Ajouter Kourel */}
-            <div className="bg-white rounded-xl p-5 shadow-sm self-start">
+            <div className="bg-white rounded-xl p-3 sm:p-4 md:p-5 shadow-sm self-start w-full">
               <h3 className="text-sm font-bold mb-4 flex items-center gap-2" style={{ color: '#014421' }}>
                 <Plus size={15} /> Nouveau kourel
               </h3>
@@ -394,15 +395,17 @@ export function AdminPanel({ onRetour, onKourelsChange }) {
 
             {/* Liste Kourels */}
             <div className="bg-white rounded-xl p-5 shadow-sm">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-sm font-bold flex items-center gap-2" style={{ color: '#014421' }}>
-                  <Users size={15} /> Kourels ({kourels.length})
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 mb-3 sm:mb-4">
+                <h3 className="text-xs sm:text-sm font-bold flex items-center gap-1 sm:gap-2" style={{ color: '#014421' }}>
+                  <Users size={13} className="sm:hidden" />
+                  <Users size={15} className="hidden sm:block" /> Kourels ({kourels.length})
                 </h3>
                 <button onClick={() => envoyerRappel(null)}
                   disabled={saving}
-                  className="flex items-center gap-1.5 text-xs font-semibold text-white px-3 py-1.5 rounded-lg disabled:opacity-40 transition"
+                  className="w-full sm:w-auto flex items-center justify-center gap-1 text-xs font-semibold text-white px-2 sm:px-3 py-1.5 rounded-lg disabled:opacity-40 transition whitespace-nowrap"
                   style={{ background: '#25D366' }} title="Envoyer rappel à tous">
-                  <Send size={12} /> Rappel global
+                  <Send size={11} className="sm:hidden" />
+                  <Send size={12} className="hidden sm:block" /> <span className="hidden sm:inline">Rappel global</span>
                 </button>
               </div>
               {loading ? (
@@ -410,7 +413,7 @@ export function AdminPanel({ onRetour, onKourelsChange }) {
               ) : kourels.length === 0 ? (
                 <p className="text-sm text-gray-400 text-center py-8">Aucun kourel.</p>
               ) : (
-                <div className="space-y-2 overflow-y-auto pr-1" style={{ maxHeight: 360 }}>
+                <div className="space-y-2 overflow-y-auto pr-1" style={{ maxHeight: 450 }}>
                   {kourels.map(k => (
                     <div key={k.id} className="border border-gray-100 rounded-lg p-3 hover:border-vert-principal transition">
                       {enEdition?.id === k.id ? (
