@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { Loader } from 'lucide-react'
-import { supabase } from './lib/supabase'
+import { supabase, fetchProfile } from './lib/supabase'
 import { AdminLayout } from './components/layout/AdminLayout'
 import { PWANotification } from './components/PWANotification'
 import { LoginPage } from './pages/LoginPage'
@@ -30,10 +30,27 @@ function ComingSoon({ title }) {
 
 function App() {
   const [session, setSession] = useState(undefined)
+  const [profile, setProfile] = useState(null)
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => setSession(session))
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_, s) => setSession(s))
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      setSession(session)
+      if (session?.user) {
+        try {
+          const p = await fetchProfile(session.user.id)
+          setProfile(p)
+        } catch { setProfile(null) }
+      }
+    })
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_, s) => {
+      setSession(s)
+      if (s?.user) {
+        try {
+          const p = await fetchProfile(s.user.id)
+          setProfile(p)
+        } catch { setProfile(null) }
+      } else setProfile(null)
+    })
     return () => subscription.unsubscribe()
   }, [])
 
@@ -49,37 +66,36 @@ function App() {
     <BrowserRouter>
       <PWANotification />
       <Routes>
-        {/* Login */}
         <Route
           path="/login"
           element={session ? <Navigate to="/admin" replace /> : <LoginPage />}
         />
 
-        {/* Admin — layout avec sidebar, routes imbriquées */}
         <Route
           path="/admin"
-          element={session ? <AdminLayout user={session.user} /> : <Navigate to="/login" replace />}
+          element={session ? <AdminLayout user={session.user} profile={profile} /> : <Navigate to="/login" replace />}
         >
           <Route index element={<Dashboard />} />
           <Route path="kourels"    element={<KourelsPage />} />
           <Route path="rapports"   element={<ComingSoon title="Rapports PKC" />} />
           <Route path="programme"  element={<ComingSoon title="Programme Annuel" />} />
           <Route path="synthese"   element={<ComingSoon title="Synthèse" />} />
+          <Route path="comptes-rendus" element={<ComingSoon title="Comptes rendus" />} />
           <Route path="evaluation/membres"    element={<MembresPage />} />
           <Route path="evaluation/types"      element={<TypesEvenementsPage />} />
           <Route path="evaluation/evenements" element={<EvenementsPage />} />
           <Route path="evaluation/evaluations" element={<EvaluationsPage />} />
           <Route path="evaluation/criteres"   element={<CriteresPage />} />
+          <Route path="pad/sessions" element={<ComingSoon title="Sessions PAD" />} />
+          <Route path="pad/rapports" element={<ComingSoon title="Rapports PAD" />} />
           <Route path="notifications" element={<ComingSoon title="Notifications" />} />
           <Route path="*"          element={<Navigate to="/admin" replace />} />
         </Route>
 
-        {/* Pages publiques */}
         <Route path="/"          element={<PublicAccueil />} />
         <Route path="/rapport"   element={<MembreView />} />
         <Route path="/evaluer"   element={<EvaluationMembre />} />
 
-        {/* Redirection par défaut */}
         <Route path="/*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>

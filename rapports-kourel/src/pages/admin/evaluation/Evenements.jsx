@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { Plus, Edit2, Trash2, Save, X, Loader, Calendar, MapPin, Users, ChevronRight, ChevronDown, Eye, CheckCircle2, Clock, AlertCircle, ToggleLeft, Copy, KeyRound } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -23,29 +23,12 @@ import {
   flexRender, getCoreRowModel, getSortedRowModel,
   getPaginationRowModel, useReactTable,
 } from '@tanstack/react-table'
-
-const TYPES_MOCK = [
-  { id: 1, nom: 'Goudj' },
-  { id: 2, nom: 'Aldiouma' },
-  { id: 3, nom: 'Ziar' },
-  { id: 4, nom: 'Magal' },
-]
-const LIEUX_MOCK = ['CAMPUS', 'ESP']
-const MEMBRES_MOCK = [
-  { id: 1, prenom: 'Ibrahima', nom: 'Fall', kourel: 'Kourel Serigne Babacar Sy' },
-  { id: 2, prenom: 'Moussa', nom: 'Diop', kourel: 'Kourel El Hadj Malick Sy' },
-  { id: 3, prenom: 'Abdoulaye', nom: 'Niang', kourel: 'Kourel Serigne Moussa Ka' },
-  { id: 4, prenom: 'Cheikh', nom: 'Mbaye', kourel: 'Kourel Mame Thierno' },
-  { id: 5, prenom: 'Fatou', nom: 'Sow', kourel: 'Kourel Serigne Babacar Sy' },
-]
-const KOURELS_MOCK = [
-  'Kourel Serigne Babacar Sy',
-  'Kourel Serigne Moussa Ka',
-  'Kourel El Hadj Malick Sy',
-  'Kourel Mame Thierno',
-  'Kourel 1',
-  'Kourel 2',
-]
+import {
+  fetchEvenements, ajouterEvenement, modifierEvenement, supprimerEvenement,
+  fetchTypesEvenements, fetchLieux, fetchMembres, fetchKourels,
+  fetchEvalMembres, assignerEvalMembre, supprimerEvalMembre,
+  fetchEvaluations,
+} from '@/lib/supabase'
 
 function getEvaluateurStatus(note) {
   if (!note) return { label: 'Non assigné', class: 'bg-gris-100 text-gris-600', icon: AlertCircle }
@@ -201,81 +184,38 @@ function genCode() {
 }
 
 export function EvenementsPage() {
-  const [data, setData] = useState([
-    {
-      id: 1, type_id: 1, date: '2026-04-15', lieu: 'CAMPUS',
-      kourel: 'Kourel Serigne Babacar Sy',
-      evaluateurs: [1, 2],
-      paginateurs: [],
-      statut: 'terminé',
-      codes: { 1: 'AX7K2M9P', 2: 'BN3P5QR7' },
-      notes: {
-        1: {
-          notes: {
-            melodie: { appreciation: 'Très bien', note: 8, remarques: 'Bonne maitrise' },
-            hourouf: { appreciation: 'Bien', note: 7, remarques: 'Quelques fautes' },
-            timing: { appreciation: 'Excellent', note: 9, remarques: '' },
-            discipline: { appreciation: 'Très bien', note: 8, remarques: '' },
-            ponctualite: { appreciation: 'Bien', note: 7, remarques: '2 retardataires' },
-            generale: { appreciation: 'Très bien', note: 8, remarques: 'Bonne prestation globale' },
-          },
-          note_finale: 8,
-          commentaire: 'Très bon travail',
-        },
-        2: {
-          notes: {
-            melodie: { appreciation: 'Bien', note: 7, remarques: '' },
-            hourouf: { appreciation: 'Passable', note: 6, remarques: 'Quelques yakh' },
-            timing: { appreciation: 'Bien', note: 7, remarques: '' },
-            discipline: { appreciation: 'Excellent', note: 9, remarques: 'Discipline exemplaire' },
-            ponctualite: { appreciation: 'Bien', note: 7, remarques: '' },
-            generale: { appreciation: 'Bien', note: 7, remarques: 'À améliorer sur les hourouf' },
-          },
-          note_finale: 7,
-          commentaire: 'Bon dans l\'ensemble',
-        },
-      },
-    },
-    {
-      id: 2, type_id: 2, date: '2026-05-02', lieu: 'ESP',
-      kourel: 'Kourel El Hadj Malick Sy',
-      evaluateurs: [2, 3, 5],
-      paginateurs: [1],
-      statut: 'à venir',
-      codes: { 2: 'CQ8RS4TY', 3: 'DV6WX2NB', 5: 'FZ1PA7KL' },
-      notes: {},
-    },
-    {
-      id: 3, type_id: 4, date: '2026-05-20', lieu: 'CAMPUS',
-      kourel: 'Kourel Serigne Moussa Ka',
-      evaluateurs: [1, 3, 4],
-      paginateurs: [2, 5],
-      statut: 'en cours',
-      codes: { 1: 'GH5MC3YR', 3: 'JT9QD6PK', 4: 'LN2VB8XS' },
-      notes: {
-        1: {
-          notes: {
-            melodie: { appreciation: 'Bien', note: 7, remarques: '' },
-            hourouf: { appreciation: 'Bien', note: 7, remarques: '' },
-          },
-          note_finale: null,
-          commentaire: '',
-        },
-      },
-    },
-  ])
+  const [data, setData] = useState([])
+  const [types, setTypes] = useState([])
+  const [lieux, setLieux] = useState([])
+  const [membresData, setMembresData] = useState([])
+  const [kourelsData, setKourelsData] = useState([])
+  const [loading, setLoading] = useState(true)
   const [rowSelection, setRowSelection] = useState({})
   const [sorting, setSorting] = useState([])
   const [sheetOpen, setSheetOpen] = useState(false)
   const [detailEvent, setDetailEvent] = useState(null)
   const [form, setForm] = useState({
-    type_id: '', date: '', lieu: '', kourel: '',
-    evaluateurs: [], paginateurs: [], codes: {},
+    type_id: '', date_evenement: '', lieu: '',
+    kourels: [], // { kourel_id, evaluateurs: [], paginateurs: [], codes: {} }
   })
   const [editingId, setEditingId] = useState(null)
   const [saving, setSaving] = useState(false)
 
-  const getTypeName = (id) => TYPES_MOCK.find(t => t.id === id)?.nom || '—'
+  useEffect(() => { loadData() }, [])
+
+  async function loadData() {
+    try {
+      const [evts, tps, lxs, mbrs, kls] = await Promise.all([
+        fetchEvenements(), fetchTypesEvenements(), fetchLieux(), fetchMembres(), fetchKourels()
+      ])
+      setData(evts || [])
+      setTypes(tps || [])
+      setLieux(lxs || [])
+      setMembresData(mbrs || [])
+      setKourelsData(kls || [])
+    } catch (e) { console.error(e) }
+    finally { setLoading(false) }
+  }
 
   const getEvaluateurNote = (eventId, evaluateurId) => {
     const ev = data.find(e => e.id === eventId)
@@ -298,18 +238,18 @@ export function EvenementsPage() {
       accessorKey: 'type_id',
       cell: ({ row }) => (
         <div>
-          <p className="text-sm font-semibold text-gris-950">{getTypeName(row.original.type_id)}</p>
-          <p className="text-xs text-gris-500">{row.original.kourel}</p>
+          <p className="text-sm font-semibold text-gris-950">{types.find(t => t.id === row.original.type_id)?.nom || '—'}</p>
+          <p className="text-xs text-gris-500">{(row.original.kourels || []).map(ek => ek.kourel?.nom).filter(Boolean).join(', ') || '—'}</p>
         </div>
       ),
     },
     {
       header: 'Date',
-      accessorKey: 'date',
+      accessorKey: 'date_evenement',
       cell: ({ row }) => (
         <div className="flex items-center gap-1.5 text-sm text-gris-700">
           <Calendar size={13} className="text-vert-600 flex-shrink-0" />
-          {formatDate(row.original.date)}
+          {formatDate(row.original.date_evenement)}
         </div>
       ),
     },
@@ -319,7 +259,7 @@ export function EvenementsPage() {
       cell: ({ row }) => (
         <div className="flex items-center gap-1.5 text-sm text-gris-700">
           <MapPin size={13} className="text-vert-600 flex-shrink-0" />
-          {row.original.lieu}
+          {row.original.lieu?.nom || row.original.lieu}
         </div>
       ),
     },
@@ -328,11 +268,11 @@ export function EvenementsPage() {
       id: 'evaluateurs',
       cell: ({ row }) => {
         const ev = row.original
-        const soumis = Object.keys(ev.notes).length
+        const soumis = Object.keys(ev.notes || {}).length
         return (
           <div className="flex items-center gap-1.5 text-sm">
             <Users size={13} className="text-gris-400 flex-shrink-0" />
-            <span className="text-gris-700">{ev.evaluateurs.length}</span>
+            <span className="text-gris-700">{(ev.evaluateurs || []).length}</span>
             {soumis > 0 && (
               <span className="text-xs text-vert-600 font-medium">({soumis} soumis)</span>
             )}
@@ -380,7 +320,7 @@ export function EvenementsPage() {
         )
       },
     },
-  ], [data])
+  ], [data, types])
 
   const table = useReactTable({
     data,
@@ -395,15 +335,21 @@ export function EvenementsPage() {
   })
 
   const ouvrirAjout = () => {
-    setForm({ type_id: '', date: '', lieu: '', kourel: '', evaluateurs: [], paginateurs: [], codes: {} })
+    setForm({ type_id: '', date_evenement: '', lieu: '', kourels: [] })
     setEditingId(null)
     setSheetOpen(true)
   }
   const ouvrirEdition = (e) => {
+    const kourels = (e.kourels || []).map(ek => ({
+      kourel_id: String(ek.kourel_id || ek.kourel?.id || ''),
+      evaluateurs: [...(ek.evaluateurs || [])],
+      paginateurs: [...(ek.paginateurs || [])],
+      codes: { ...(ek.codes || {}) },
+    }))
     setForm({
-      type_id: String(e.type_id), date: e.date, lieu: e.lieu, kourel: e.kourel,
-      evaluateurs: [...e.evaluateurs], paginateurs: [...(e.paginateurs || [])],
-      codes: { ...(e.codes || {}) },
+      type_id: String(e.type_id), date_evenement: e.date_evenement,
+      lieu: String(e.lieu_id || e.lieu?.id || ''),
+      kourels,
     })
     setEditingId(e.id)
     setSheetOpen(true)
@@ -422,34 +368,58 @@ export function EvenementsPage() {
   }
 
   const sauvegarder = async () => {
-    if (!form.type_id || !form.date || !form.lieu || !form.kourel) return
+    if (!form.type_id || !form.date_evenement || !form.lieu || !form.kourels.length) return
     setSaving(true)
-    await new Promise(r => setTimeout(r, 300))
-    const now = new Date()
-    const eventDate = new Date(form.date + 'T23:59:59')
-    let statut = 'à venir'
-    if (eventDate < now) statut = 'terminé'
-    const newId = editingId || Date.now()
-    const payload = {
-      ...form,
-      type_id: Number(form.type_id),
-      evaluateurs: form.evaluateurs,
-      paginateurs: form.paginateurs || [],
-      statut,
-      notes: editingId ? data.find(e => e.id === editingId)?.notes || {} : {},
-      codes: genererCodes(form.evaluateurs, form.codes),
-    }
-    if (editingId) {
-      setData(list => list.map(e => e.id === editingId ? { ...e, ...payload } : e))
-    } else {
-      setData(list => [...list, { id: newId, ...payload }])
-    }
-    setSaving(false)
-    setSheetOpen(false)
+    try {
+      const now = new Date()
+      const eventDate = new Date(form.date_evenement + 'T23:59:59')
+      let statut = 'à venir'
+      if (eventDate < now) statut = 'terminé'
+      const payload = {
+        type_id: Number(form.type_id),
+        date_evenement: form.date_evenement,
+        lieu_id: Number(form.lieu),
+        statut,
+      }
+      if (editingId) {
+        await modifierEvenement(editingId, payload)
+        // Ré-associer les kourels
+        await fetch('/api/evenements/' + editingId + '/kourels', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ kourels: form.kourels }),
+        })
+        loadData()
+      } else {
+        const newEvt = await ajouterEvenement(payload)
+        for (const k of form.kourels) {
+          const evalIds = k.evaluateurs || []
+          const pagIds = k.paginateurs || []
+          if (!evalIds.length && !pagIds.length) continue
+          await fetch('/api/generer-codes-evenement', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              evenement_id: newEvt.id,
+              kourel_id: Number(k.kourel_id),
+              evaluateurs: evalIds,
+              paginateurs: pagIds,
+            }),
+          })
+        }
+        loadData()
+      }
+      setSheetOpen(false)
+    } catch (e) { console.error(e) }
+    finally { setSaving(false) }
   }
-  const supprimer = (e) => {
-    if (!confirm(`Supprimer l'événement « ${getTypeName(e.type_id)} » du ${formatDate(e.date)} ?`)) return
-    setData(list => list.filter(x => x.id !== e.id))
+  const supprimer = async (e) => {
+    const typeName = types.find(t => t.id === e.type_id)?.nom || 'Événement'
+    if (!confirm(`Supprimer l'événement « ${typeName} » du ${formatDate(e.date_evenement)} ?`)) return
+    try {
+      await supprimerEvenement(e.id)
+      setData(list => list.filter(x => x.id !== e.id))
+    } catch (err) { console.error(err) }
   }
 
   return (
@@ -466,7 +436,12 @@ export function EvenementsPage() {
       />
 
       <div className="rounded-lg border border-gris-200 overflow-hidden bg-white">
-        {data.length === 0 ? (
+        {loading ? (
+          <div className="text-center py-16">
+            <Loader size={36} className="mx-auto mb-3 text-gris-300 animate-spin" />
+            <p className="text-sm font-semibold text-gris-700">Chargement…</p>
+          </div>
+        ) : data.length === 0 ? (
           <div className="text-center py-16">
             <Calendar size={36} className="mx-auto mb-3 text-gris-300" />
             <p className="text-sm font-semibold text-gris-700">Aucun événement</p>
@@ -544,12 +519,12 @@ export function EvenementsPage() {
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <SheetTitle className="text-lg font-bold text-gris-950">
-                      {getTypeName(detailEvent.type_id)}
+                      {types.find(t => t.id === detailEvent.type_id)?.nom || '—'}
                     </SheetTitle>
                     <div className="text-sm text-gris-500 mt-2 flex flex-wrap items-center gap-x-4 gap-y-1">
-                      <span className="flex items-center gap-1.5"><Calendar size={13} />{formatDate(detailEvent.date)}</span>
-                      <span className="flex items-center gap-1.5"><MapPin size={13} />{detailEvent.lieu}</span>
-                      <span className="flex items-center gap-1.5 font-medium text-gris-700"><Users size={13} />{detailEvent.kourel}</span>
+                      <span className="flex items-center gap-1.5"><Calendar size={13} />{formatDate(detailEvent.date_evenement)}</span>
+                      <span className="flex items-center gap-1.5"><MapPin size={13} />{detailEvent.lieu?.nom || detailEvent.lieu}</span>
+                      <span className="flex items-center gap-1.5 font-medium text-gris-700"><Users size={13} />{(detailEvent.kourels || []).map(ek => ek.kourel?.nom).filter(Boolean).join(', ')}</span>
                     </div>
                   </div>
                   <Select value={detailEvent.statut} onValueChange={s => changerStatutEvent(detailEvent.id, s)}>
@@ -570,36 +545,61 @@ export function EvenementsPage() {
               </SheetHeader>
 
               <div className="flex-1 overflow-y-auto px-6 py-5 space-y-6">
-                {detailEvent.paginateurs?.length > 0 && (
-                  <div className="flex items-center gap-2 text-xs text-gris-600 bg-gris-50 rounded-lg px-3 py-2">
-                    <Users size={13} className="text-gris-400" />
-                    <span className="font-medium text-gris-700">Paginateurs :</span>
-                    {detailEvent.paginateurs.map(id => {
-                      const m = MEMBRES_MOCK.find(x => x.id === id)
-                      return m ? `${m.prenom} ${m.nom}` : id
-                    }).join(', ')}
+                {(detailEvent.kourels || []).length === 0 ? (
+                  <div className="text-center py-10 border border-dashed border-gris-200 rounded-lg bg-gris-50/50">
+                    <Users size={28} className="mx-auto mb-2 text-gris-300" />
+                    <p className="text-sm text-gris-500">Aucun kourel assigné</p>
                   </div>
+                ) : (
+                  (detailEvent.kourels || []).map(ek => (
+                    <div key={ek.id} className="border border-gris-200 rounded-xl overflow-hidden">
+                      <div className="bg-gris-50 px-4 py-3 border-b border-gris-100 flex items-center gap-2">
+                        <Users size={14} className="text-vert-600" />
+                        <span className="text-sm font-bold text-gris-950">{ek.kourel?.nom || 'Kourel'}</span>
+                      </div>
+                      <div className="p-4 space-y-3">
+                        {ek.evaluateurs?.length > 0 && (
+                          <div>
+                            <p className="text-[10px] font-semibold text-gris-500 uppercase tracking-wider mb-2">
+                              Évaluateurs ({ek.evaluateurs.length})
+                            </p>
+                            <div className="space-y-2">
+                              {ek.evaluateurs.map(id => {
+                                const m = membresData.find(x => x.id === id)
+                                if (!m) return null
+                                return (
+                                  <EvaluateurDetail
+                                    key={id}
+                                    evaluateur={m}
+                                    note={getEvaluateurNote(detailEvent.id, id)}
+                                    code={ek.codes?.[id]}
+                                  />
+                                )
+                              })}
+                            </div>
+                          </div>
+                        )}
+                        {ek.paginateurs?.length > 0 && (
+                          <div>
+                            <p className="text-[10px] font-semibold text-gris-500 uppercase tracking-wider mb-2">
+                              Paginateurs ({ek.paginateurs.length})
+                            </p>
+                            <div className="flex flex-wrap gap-2">
+                              {ek.paginateurs.map(id => {
+                                const m = membresData.find(x => x.id === id)
+                                return m ? (
+                                  <Badge key={id} className="text-xs bg-gris-100 text-gris-700 border-gris-200">
+                                    {m.prenom} {m.nom}
+                                  </Badge>
+                                ) : null
+                              })}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))
                 )}
-
-                <div>
-                  <p className="text-xs font-semibold text-gris-500 uppercase tracking-wider mb-3">
-                    Évaluateurs ({detailEvent.evaluateurs.length})
-                  </p>
-                  <div className="space-y-2">
-                    {detailEvent.evaluateurs.map(id => {
-                      const m = MEMBRES_MOCK.find(x => x.id === id)
-                      if (!m) return null
-                      return (
-                        <EvaluateurDetail
-                          key={id}
-                          evaluateur={m}
-                          note={getEvaluateurNote(detailEvent.id, id)}
-                          code={detailEvent.codes?.[id]}
-                        />
-                      )
-                    })}
-                  </div>
-                </div>
               </div>
 
               <SheetFooter className="px-6 py-4 border-t border-gris-100 flex-shrink-0">
@@ -636,14 +636,14 @@ export function EvenementsPage() {
                   <SelectValue placeholder="Choisir un type…" />
                 </SelectTrigger>
                 <SelectContent>
-                  {TYPES_MOCK.map(t => <SelectItem key={t.id} value={String(t.id)}>{t.nom}</SelectItem>)}
+                  {types.map(t => <SelectItem key={t.id} value={String(t.id)}>{t.nom}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
 
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold text-gris-500 uppercase tracking-wider">Date</Label>
-              <Input type="date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} />
+              <Input type="date" value={form.date_evenement} onChange={e => setForm(f => ({ ...f, date_evenement: e.target.value }))} />
             </div>
 
             <div className="space-y-1.5">
@@ -653,7 +653,7 @@ export function EvenementsPage() {
                   <SelectValue placeholder="Choisir un lieu…" />
                 </SelectTrigger>
                 <SelectContent>
-                  {LIEUX_MOCK.map(l => <SelectItem key={l} value={l}>{l}</SelectItem>)}
+                  {lieux.map(l => <SelectItem key={l.id} value={String(l.id)}>{l.nom}</SelectItem>)}
                   <SelectItem value="__custom__">Autre (saisir libre)</SelectItem>
                 </SelectContent>
               </Select>
@@ -667,67 +667,104 @@ export function EvenementsPage() {
               )}
             </div>
 
-            <div className="space-y-1.5">
-              <Label className="text-xs font-semibold text-gris-500 uppercase tracking-wider">Koureul</Label>
-              <Select value={form.kourel} onValueChange={v => setForm(f => ({ ...f, kourel: v }))}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Sélectionner un koureul" />
-                </SelectTrigger>
-                <SelectContent>
-                  {KOURELS_MOCK.map(k => <SelectItem key={k} value={k}>{k}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label className="text-xs font-semibold text-gris-500 uppercase tracking-wider">
-                Évaluateurs assignés
-              </Label>
-              <ComboboxMulti
-                options={MEMBRES_MOCK.map(m => ({
-                  value: m.id,
-                  label: `${m.prenom} ${m.nom}`,
-                  subtitle: m.kourel,
-                }))}
-                selected={form.evaluateurs}
-                onChange={v => setForm(f => {
-                  const newCodes = { ...f.codes }
-                  v.forEach(id => { if (!newCodes[id]) newCodes[id] = genCode() })
-                  return { ...f, evaluateurs: v, codes: newCodes }
-                })}
-                placeholder="Rechercher un membre…"
-                emptyMessage="Aucun membre trouvé"
-              />
-            </div>
-
-            {form.evaluateurs.length > 0 && (
-              <div className="space-y-2">
-                <Label className="text-xs font-semibold text-gris-500 uppercase tracking-wider flex items-center gap-1.5">
-                  <KeyRound size={12} /> Codes d'accès générés
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs font-semibold text-gris-500 uppercase tracking-wider">
+                  Kourels ({form.kourels.length})
                 </Label>
-                <div className="space-y-1.5">
-                  {form.evaluateurs.map(id => (
-                    <CodeRow key={id} membre={MEMBRES_MOCK.find(x => x.id === id)} code={form.codes[id] || genCode()} />
-                  ))}
-                </div>
+                <Select value="" onValueChange={v => {
+                  if (!v) return
+                  if (form.kourels.some(k => k.kourel_id === v)) return
+                  setForm(f => ({ ...f, kourels: [...f.kourels, { kourel_id: v, evaluateurs: [], paginateurs: [], codes: {} }] }))
+                }}>
+                  <SelectTrigger className="h-8 text-xs w-44">
+                    <SelectValue placeholder="+ Ajouter un kourel" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {kourelsData.filter(k => !form.kourels.some(fk => fk.kourel_id === String(k.id))).map(k => (
+                      <SelectItem key={k.id} value={String(k.id)}>{k.nom}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
-            )}
 
-            <div className="space-y-2">
-              <Label className="text-xs font-semibold text-gris-500 uppercase tracking-wider">
-                Paginateurs (optionnel)
-              </Label>
-              <ComboboxMulti
-                options={MEMBRES_MOCK.map(m => ({
-                  value: m.id,
-                  label: `${m.prenom} ${m.nom}`,
-                  subtitle: m.kourel,
-                }))}
-                selected={form.paginateurs}
-                onChange={v => setForm(f => ({ ...f, paginateurs: v }))}
-                placeholder="Rechercher un membre…"
-                emptyMessage="Aucun membre trouvé"
-              />
+              {form.kourels.length === 0 && (
+                <p className="text-xs text-gris-400 italic">Ajoutez au moins un kourel à l'événement.</p>
+              )}
+
+              {form.kourels.map((k, ki) => (
+                <div key={ki} className="border border-gris-200 rounded-xl overflow-hidden">
+                  <div className="bg-gris-50 px-4 py-2.5 border-b border-gris-100 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Users size={14} className="text-vert-600" />
+                      <span className="text-sm font-bold text-gris-950">{kourelsData.find(kd => kd.id === Number(k.kourel_id))?.nom || 'Kourel'}</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setForm(f => ({ ...f, kourels: f.kourels.filter((_, i) => i !== ki) }))}
+                      className="text-[10px] text-rouge hover:text-rouge/80 font-semibold px-2 py-1 rounded hover:bg-rouge/5 transition"
+                    >
+                      <X size={13} /> Retirer
+                    </button>
+                  </div>
+                  <div className="p-4 space-y-3">
+                    <div className="space-y-1.5">
+                      <Label className="text-[10px] font-semibold text-gris-500 uppercase tracking-wider">Évaluateurs</Label>
+                      <ComboboxMulti
+                        options={membresData.map(m => ({
+                          value: m.id,
+                          label: `${m.prenom} ${m.nom}`,
+                          subtitle: m.kourel,
+                        }))}
+                        selected={k.evaluateurs}
+                        onChange={v => {
+                          const newCodes = { ...k.codes }
+                          v.forEach(id => { if (!newCodes[id]) newCodes[id] = genCode() })
+                          setForm(f => {
+                            const kourels = [...f.kourels]
+                            kourels[ki] = { ...kourels[ki], evaluateurs: v, codes: newCodes }
+                            return { ...f, kourels }
+                          })
+                        }}
+                        placeholder="Rechercher…"
+                        emptyMessage="Aucun membre"
+                      />
+                    </div>
+
+                    {k.evaluateurs.length > 0 && (
+                      <div className="space-y-1.5">
+                        <Label className="text-[10px] font-semibold text-gris-500 uppercase tracking-wider flex items-center gap-1">
+                          <KeyRound size={11} /> Codes d'accès
+                        </Label>
+                        <div className="space-y-1">
+                          {k.evaluateurs.map(id => (
+                            <CodeRow key={id} membre={membresData.find(x => x.id === id)} code={k.codes[id] || genCode()} />
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="space-y-1.5">
+                      <Label className="text-[10px] font-semibold text-gris-500 uppercase tracking-wider">Paginateurs (optionnel)</Label>
+                      <ComboboxMulti
+                        options={membresData.map(m => ({
+                          value: m.id,
+                          label: `${m.prenom} ${m.nom}`,
+                          subtitle: m.kourel,
+                        }))}
+                        selected={k.paginateurs}
+                        onChange={v => setForm(f => {
+                          const kourels = [...f.kourels]
+                          kourels[ki] = { ...kourels[ki], paginateurs: v }
+                          return { ...f, kourels }
+                        })}
+                        placeholder="Rechercher…"
+                        emptyMessage="Aucun membre"
+                      />
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
 
@@ -739,7 +776,7 @@ export function EvenementsPage() {
             </SheetClose>
             <Button
               onClick={sauvegarder}
-              disabled={!form.type_id || !form.date || !form.lieu || !form.kourel || saving}
+              disabled={!form.type_id || !form.date_evenement || !form.lieu || !form.kourels.length || saving}
               className="flex-1 gap-1.5 rounded-lg"
             >
               {saving ? <Loader size={14} className="animate-spin" /> : <Save size={14} />}

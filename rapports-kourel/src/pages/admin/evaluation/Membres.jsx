@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { Plus, Edit2, Trash2, Save, X, Loader, Search, Users } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -19,22 +19,12 @@ import {
   flexRender, getCoreRowModel, getSortedRowModel,
   getPaginationRowModel, getFilteredRowModel, useReactTable,
 } from '@tanstack/react-table'
-
-const KOURELS = [
-  'Kourel Serigne Babacar Sy',
-  'Kourel Serigne Moussa Ka',
-  'Kourel El Hadj Malick Sy',
-  'Kourel Mame Thierno',
-]
+import { fetchMembres, ajouterMembre, modifierMembre, supprimerMembre, fetchKourels } from '@/lib/supabase'
 
 export function MembresPage() {
-  const [data, setData] = useState([
-    { id: 1, prenom: 'Ibrahima',  nom: 'Fall',  kourel: 'Kourel Serigne Babacar Sy', telephone: '+221 77 000 00 01', statut: 'actif' },
-    { id: 2, prenom: 'Moussa',    nom: 'Diop',  kourel: 'Kourel El Hadj Malick Sy',  telephone: '+221 77 000 00 02', statut: 'actif' },
-    { id: 3, prenom: 'Abdoulaye', nom: 'Niang', kourel: 'Kourel Serigne Moussa Ka',  telephone: '',                  statut: 'inactif' },
-    { id: 4, prenom: 'Cheikh',    nom: 'Mbaye', kourel: 'Kourel Mame Thierno',       telephone: '+221 77 000 00 04', statut: 'actif' },
-    { id: 5, prenom: 'Fatou',     nom: 'Sow',   kourel: 'Kourel Serigne Babacar Sy', telephone: '+221 77 000 00 05', statut: 'actif' },
-  ])
+  const [data, setData] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [kourels, setKourels] = useState([])
   const [rowSelection, setRowSelection] = useState({})
   const [sorting, setSorting] = useState([])
   const [globalFilter, setGlobalFilter] = useState('')
@@ -43,6 +33,19 @@ export function MembresPage() {
   const [form, setForm] = useState({ prenom: '', nom: '', kourel: '', telephone: '', statut: 'actif' })
   const [editingId, setEditingId] = useState(null)
   const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    loadData()
+  }, [])
+
+  async function loadData() {
+    try {
+      const [membres, kourelData] = await Promise.all([fetchMembres(), fetchKourels()])
+      setData(membres)
+      setKourels(kourelData.map(k => k.nom))
+    } catch (e) { console.error(e) }
+    finally { setLoading(false) }
+  }
 
   const filteredData = useMemo(() =>
     data.filter(m => {
@@ -150,15 +153,32 @@ export function MembresPage() {
   const sauvegarder = async () => {
     if (!form.prenom || !form.nom || !form.kourel) return
     setSaving(true)
-    await new Promise(r => setTimeout(r, 300))
-    if (editingId) setData(list => list.map(m => m.id === editingId ? { ...m, ...form } : m))
-    else setData(list => [...list, { id: Date.now(), ...form }])
-    setSaving(false)
-    setSheetOpen(false)
+    try {
+      if (editingId) {
+        await modifierMembre(editingId, form)
+        setData(list => list.map(m => m.id === editingId ? { ...m, ...form } : m))
+      } else {
+        const newM = await ajouterMembre(form.prenom, form.nom, form.kourel, form.telephone, form.statut)
+        setData(list => [...list, newM])
+      }
+      setSheetOpen(false)
+    } catch (e) { console.error(e) }
+    finally { setSaving(false) }
   }
-  const supprimer = (m) => {
+  const supprimer = async (m) => {
     if (!confirm(`Supprimer ${m.prenom} ${m.nom} ?`)) return
-    setData(list => list.filter(x => x.id !== m.id))
+    try {
+      await supprimerMembre(m.id)
+      setData(list => list.filter(x => x.id !== m.id))
+    } catch (e) { console.error(e) }
+  }
+
+  if (loading) {
+    return (
+      <div className="h-full flex items-center justify-center">
+        <Loader size={24} className="animate-spin text-gris-400" />
+      </div>
+    )
   }
 
   return (
@@ -191,7 +211,7 @@ export function MembresPage() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="tous">Tous les kourels</SelectItem>
-            {KOURELS.map(k => <SelectItem key={k} value={k}>{k}</SelectItem>)}
+            {kourels.map(k => <SelectItem key={k} value={k}>{k}</SelectItem>)}
           </SelectContent>
         </Select>
       </div>
@@ -300,7 +320,7 @@ export function MembresPage() {
               <Select value={form.kourel} onValueChange={v => setForm(f => ({ ...f, kourel: v }))}>
                 <SelectTrigger><SelectValue placeholder="Sélectionner un kourel" /></SelectTrigger>
                 <SelectContent>
-                  {KOURELS.map(k => <SelectItem key={k} value={k}>{k}</SelectItem>)}
+                  {kourels.map(k => <SelectItem key={k} value={k}>{k}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>

@@ -1,0 +1,7 @@
+<svg viewBox="0 0 192 192" xmlns="http://www.w3.org/2000/svg">
+  <!-- Cercle principal vert -->
+  <circle cx="96" cy="96" r="90" fill="#16824E"/>
+  
+  <!-- Lettres DMN -->
+  <text x="96" y="110" font-family="Arial, sans-serif" font-size="48" font-weight="bold" fill="white" text-anchor="middle" dominant-baseline="middle">D</text>
+</svg>

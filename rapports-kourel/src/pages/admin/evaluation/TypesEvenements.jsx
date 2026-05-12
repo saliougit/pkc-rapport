@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { Plus, Edit2, Trash2, Save, X, Loader, ListChecks } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -16,20 +16,29 @@ import {
   flexRender, getCoreRowModel, getSortedRowModel,
   getPaginationRowModel, useReactTable,
 } from '@tanstack/react-table'
+import { fetchTypesEvenements, ajouterTypeEvenement, modifierTypeEvenement, supprimerTypeEvenement } from '@/lib/supabase'
 
 export function TypesEvenementsPage() {
-  const [data, setData] = useState([
-    { id: 1, nom: 'Goudj', description: 'Récitation collective de khassidas lors de rencontres spirituelles' },
-    { id: 2, nom: 'Aldiouma', description: 'Rassemblement du vendredi après la prière de Djumu\'a' },
-    { id: 3, nom: 'Ziar', description: 'Visite spirituelle chez un guide ou dans une famille Tidiane' },
-    { id: 4, nom: 'Magal', description: 'Célébration commémorative d\'un événement religieux majeur' },
-  ])
+  const [data, setData] = useState([])
+  const [loading, setLoading] = useState(true)
   const [rowSelection, setRowSelection] = useState({})
   const [sorting, setSorting] = useState([])
   const [sheetOpen, setSheetOpen] = useState(false)
   const [form, setForm] = useState({ nom: '', description: '' })
   const [editingId, setEditingId] = useState(null)
   const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    loadData()
+  }, [])
+
+  async function loadData() {
+    try {
+      const types = await fetchTypesEvenements()
+      setData(types)
+    } catch (e) { console.error(e) }
+    finally { setLoading(false) }
+  }
 
   const columns = useMemo(() => [
     {
@@ -92,14 +101,24 @@ export function TypesEvenementsPage() {
   const sauvegarder = async () => {
     if (!form.nom) return
     setSaving(true)
-    await new Promise(r => setTimeout(r, 300))
-    if (editingId) setData(list => list.map(t => t.id === editingId ? { ...t, ...form } : t))
-    else setData(list => [...list, { id: Date.now(), ...form }])
-    setSaving(false); setSheetOpen(false)
+    try {
+      if (editingId) {
+        await modifierTypeEvenement(editingId, form.nom, form.description)
+        setData(list => list.map(t => t.id === editingId ? { ...t, ...form } : t))
+      } else {
+        const newT = await ajouterTypeEvenement(form.nom, form.description)
+        setData(list => [...list, newT])
+      }
+      setSheetOpen(false)
+    } catch (e) { console.error(e) }
+    finally { setSaving(false) }
   }
-  const supprimer = (t) => {
+  const supprimer = async (t) => {
     if (!confirm(`Supprimer « ${t.nom} » ?`)) return
-    setData(list => list.filter(x => x.id !== t.id))
+    try {
+      await supprimerTypeEvenement(t.id)
+      setData(list => list.filter(x => x.id !== t.id))
+    } catch (e) { console.error(e) }
   }
 
   return (
@@ -116,7 +135,12 @@ export function TypesEvenementsPage() {
       />
 
       <div className="rounded-lg border border-gris-200 overflow-hidden bg-white">
-        {data.length === 0 ? (
+        {loading ? (
+          <div className="text-center py-16">
+            <Loader size={36} className="mx-auto mb-3 text-gris-300 animate-spin" />
+            <p className="text-sm text-gris-500">Chargement…</p>
+          </div>
+        ) : data.length === 0 ? (
           <div className="text-center py-16">
             <ListChecks size={36} className="mx-auto mb-3 text-gris-300" />
             <p className="text-sm font-semibold text-gris-700">Aucun type d'événement</p>
@@ -189,10 +213,10 @@ export function TypesEvenementsPage() {
         <SheetContent className="w-full sm:max-w-md bg-white p-0 flex flex-col h-full">
           <SheetHeader className="px-6 pt-6 pb-4 border-b border-gris-100 flex-shrink-0">
             <SheetTitle className="text-lg font-bold text-gris-950">
-              {editingId ? 'Modifier le type' : 'Nouveau type d\'événement'}
+              {editingId ? "Modifier le type" : "Nouveau type d'événement"}
             </SheetTitle>
             <p className="text-sm text-gris-500">
-              {editingId ? 'Modifiez le nom et la description du type' : 'Créez un nouveau type d\'événement réutilisable'}
+              {editingId ? 'Modifiez le nom et la description du type' : "Créez un nouveau type d'événement réutilisable"}
             </p>
           </SheetHeader>
 

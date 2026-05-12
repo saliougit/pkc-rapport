@@ -92,33 +92,33 @@ export function FormulaireRapport({
         </div>
 
         {/* ── NAVIGATION — toujours au même endroit ── */}
-        <div className="bg-white px-3 sm:px-4 md:px-6 py-2 sm:py-3 md:py-4 flex-shrink-0 border-t border-gray-100 flex flex-col sm:flex-row justify-between items-center gap-2 sm:gap-0">
+        <div className="bg-white px-2 sm:px-4 md:px-6 py-2 sm:py-3 md:py-4 flex-shrink-0 border-t border-gray-100 flex justify-between items-center gap-1.5 sm:gap-3">
           <button
             onClick={sousEtape === 1 ? retour : () => setSousEtape(sousEtape - 1)}
-            className="w-full sm:w-auto flex items-center justify-center sm:justify-start gap-1 sm:gap-2 py-2 sm:py-2.5 px-3 sm:px-5 rounded-xl text-xs sm:text-sm font-semibold text-white bg-gray-500 hover:opacity-90 transition"
+            className="flex-1 sm:flex-none flex items-center justify-center gap-1 py-2 px-2 sm:px-4 rounded-lg text-xs sm:text-sm font-semibold text-white bg-gray-500 hover:opacity-90 transition"
           >
             <ChevronLeft size={14} className="sm:hidden" />
             <ChevronLeft size={16} className="hidden sm:block" />
-            <span>{sousEtape === 1 ? 'Retour' : 'Précédent'}</span>
+            <span className="hidden sm:inline">{sousEtape === 1 ? 'Retour' : 'Précédent'}</span>
           </button>
 
           {sousEtape === 4 ? (
             <button
               onClick={genererPDFClick}
               disabled={loading}
-              className="w-full sm:w-auto flex items-center justify-center gap-1 sm:gap-2 py-2 sm:py-2.5 px-3 sm:px-5 rounded-xl text-xs sm:text-sm font-semibold text-white bg-vert-principal hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition"
+              className="flex-1 sm:flex-none flex items-center justify-center gap-1 py-2 px-2 sm:px-4 rounded-lg text-xs sm:text-sm font-semibold text-white bg-vert-principal hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition"
             >
               <Download size={14} className="sm:hidden" />
               <Download size={16} className="hidden sm:block" />
-              <span>Télécharger le PDF</span>
+              <span>Télécharger</span>
             </button>
           ) : (
             <button
               onClick={() => setSousEtape(sousEtape + 1)}
               disabled={!peutSuivre}
-              className="w-full sm:w-auto flex items-center justify-center gap-1 sm:gap-2 py-2 sm:py-2.5 px-3 sm:px-5 rounded-xl text-xs sm:text-sm font-semibold text-white bg-vert-principal hover:opacity-90 disabled:opacity-40 transition"
+              className="flex-1 sm:flex-none flex items-center justify-center gap-1 py-2 px-2 sm:px-4 rounded-lg text-xs sm:text-sm font-semibold text-white bg-vert-principal hover:opacity-90 disabled:opacity-40 transition"
             >
-              <span>Suivant</span>
+              <span className="hidden sm:inline">Suivant</span>
               <ChevronRight size={14} className="sm:hidden" />
               <ChevronRight size={16} className="hidden sm:block" />
             </button>

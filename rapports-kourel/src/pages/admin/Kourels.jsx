@@ -182,9 +182,13 @@ export function KourelsPage() {
   const [vueProgramme, setVueProgramme] = useState(null)
   const [rowSelection, setRowSelection] = useState({})
   const [sorting, setSorting] = useState([])
+  const [fetchError, setFetchError] = useState(null)
 
   useEffect(() => {
-    fetchKourels().then(setData).catch(() => setData([])).finally(() => setLoading(false))
+    fetchKourels()
+      .then(setData)
+      .catch((err) => { console.error('[Kourels] Erreur fetch:', err); setFetchError(err?.message || String(err)); setData([]) })
+      .finally(() => setLoading(false))
   }, [])
 
   const columns = useMemo(() => [
@@ -333,6 +337,11 @@ export function KourelsPage() {
       <div className="rounded-lg border border-gris-200 overflow-hidden bg-white">
         {loading ? (
           <div className="flex justify-center py-16"><Loader size={22} className="animate-spin text-gris-300" /></div>
+        ) : fetchError ? (
+          <div className="text-center py-16 px-6">
+            <p className="text-sm font-bold text-red-600 mb-1">Erreur Supabase</p>
+            <p className="text-xs font-mono text-red-500 bg-red-50 rounded p-2">{fetchError}</p>
+          </div>
         ) : data.length === 0 ? (
           <div className="text-center py-16">
             <Users size={36} className="mx-auto mb-3 text-gris-300" />

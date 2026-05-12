@@ -6,7 +6,7 @@ import {
 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { PageHeader } from '@/components/layout/PageHeader'
-import { fetchKourels } from '@/lib/supabase'
+import { fetchKourels, fetchMembres, fetchEvenements } from '@/lib/supabase'
 
 function StatCard({ label, value, subtitle, icon: Icon, color, bg }) {
   return (
@@ -66,18 +66,37 @@ function QuickLink({ href, icon: Icon, title, description, soon, external }) {
 
 export function Dashboard() {
   const [kourels, setKourels] = useState([])
+  const [membres, setMembres] = useState([])
+  const [evenements, setEvenements] = useState([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetchKourels()
-      .then(setKourels)
-      .catch(() => setKourels([]))
+    Promise.all([
+      fetchKourels(),
+      fetchMembres(),
+      fetchEvenements(),
+    ])
+      .then(([k, m, e]) => {
+        setKourels(k || [])
+        setMembres(m || [])
+        setEvenements(e || [])
+      })
+      .catch(() => {})
       .finally(() => setLoading(false))
   }, [])
 
   const today = new Date().toLocaleDateString('fr-FR', {
     weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
   })
+
+  const evenementsMois = evenements.filter(e => {
+    const d = new Date(e.date_evenement)
+    const now = new Date()
+    return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()
+  }).length
+
+  const totalEvals = evenements.reduce((sum, e) => sum + (e.evaluateurs_count || 0), 0)
+  const actifs = membres.filter(m => m.statut === 'actif').length
 
   return (
     <div className="max-w-4xl space-y-6">
@@ -97,8 +116,8 @@ export function Dashboard() {
           bg="bg-vert-50"
         />
         <StatCard
-          label="Évaluateurs"
-          value="3"
+          label="Membres"
+          value={loading ? '…' : `${actifs}/${membres.length}`}
           subtitle="Comité S&É"
           icon={Star}
           color="text-blue-700"
@@ -106,16 +125,16 @@ export function Dashboard() {
         />
         <StatCard
           label="Événements"
-          value="—"
+          value={loading ? '…' : evenementsMois}
           subtitle="Ce mois-ci"
           icon={Calendar}
           color="text-amber-700"
           bg="bg-amber-50"
         />
         <StatCard
-          label="Évaluations"
-          value="1"
-          subtitle="3 en attente"
+          label="Événements total"
+          value={loading ? '…' : evenements.length}
+          subtitle="Tous statuts"
           icon={ClipboardCheck}
           color="text-purple-700"
           bg="bg-purple-50"

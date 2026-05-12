@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate, useLocation, Link, Outlet } from 'react-router-dom'
+import { useLocation, Link, Outlet } from 'react-router-dom'
 import {
   Sidebar, SidebarContent, SidebarFooter, SidebarGroup,
   SidebarGroupContent, SidebarGroupLabel, SidebarHeader,
@@ -59,7 +59,9 @@ const NAV = [
   },
 ]
 
-function AppSidebar({ user, onLogout }) {
+const ROLE_LABELS = { admin: 'Administrateur', dieuwrigne: 'Comité Suivi & Évaluation', membre: 'Membre' }
+
+function AppSidebar({ user, profile, nav, onLogout }) {
   const location = useLocation()
   const { state } = useSidebar()
   const isCollapsed = state === 'collapsed'
@@ -68,7 +70,7 @@ function AppSidebar({ user, onLogout }) {
     group.children?.some(c => !c.soon && location.pathname.startsWith(c.href))
 
   const [openGroups, setOpenGroups] = useState(() =>
-    NAV.filter(n => n.children && n.children.some(c => location.pathname.startsWith(c.href)))
+    nav.filter(n => n.children && n.children.some(c => location.pathname.startsWith(c.href)))
       .map(n => n.title)
   )
 
@@ -82,8 +84,8 @@ function AppSidebar({ user, onLogout }) {
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader className="border-b border-sidebar-border px-3 py-4">
-        <div className="flex items-center gap-3 overflow-hidden">
-          <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center overflow-hidden flex-shrink-0">
+        <div className="flex items-center gap-3 group-data-[collapsible=icon]:gap-0 group-data-[collapsible=icon]:justify-center">
+          <div className="w-8 h-8 rounded-lg bg-white flex items-center justify-center overflow-visible flex-shrink-0">
             <img src="/images/logo-dmn.png" alt="DMN" className="w-full h-full object-contain" />
           </div>
           {!isCollapsed && (
@@ -99,7 +101,7 @@ function AppSidebar({ user, onLogout }) {
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu>
-              {NAV.map((item) => {
+              {nav.map((item) => {
                 if (!item.children) {
                   return (
                     <SidebarMenuItem key={item.href}>
@@ -186,7 +188,7 @@ function AppSidebar({ user, onLogout }) {
             <>
               <div className="flex-1 min-w-0">
                 <p className="text-xs font-semibold text-white truncate">{user?.email || 'Admin'}</p>
-                <p className="text-[10px] text-vert-200/60">Administrateur</p>
+                <p className="text-[10px] text-vert-200/60">{ROLE_LABELS[profile?.role] || 'Administrateur'}</p>
               </div>
               <button
                 onClick={onLogout}
@@ -203,7 +205,7 @@ function AppSidebar({ user, onLogout }) {
   )
 }
 
-function TopBar({ user, onLogout }) {
+function TopBar({ user, profile, onLogout }) {
   const initiale = (user?.email?.[0] || 'A').toUpperCase()
   return (
     <header className="flex items-center gap-3 border-b border-gris-200 bg-white px-4 md:px-6 h-14 flex-shrink-0">
@@ -238,7 +240,7 @@ function TopBar({ user, onLogout }) {
           </div>
           <div className="hidden lg:block text-left">
             <p className="text-xs font-semibold text-gris-950 truncate max-w-[120px]">{user?.email}</p>
-            <p className="text-[10px] text-gris-500">Admin · Déconnexion</p>
+              <p className="text-[10px] text-gris-500">{ROLE_LABELS[profile?.role] || 'Admin'} · Déconnexion</p>
           </div>
           <LogOut size={13} className="text-gris-400 group-hover:text-rouge hidden lg:block" />
         </button>
@@ -247,19 +249,32 @@ function TopBar({ user, onLogout }) {
   )
 }
 
-export function AdminLayout({ user }) {
-  const navigate = useNavigate()
+function filterNavByRole(nav, role) {
+  if (role === 'admin') return nav
+  if (role === 'dieuwrigne') {
+    return nav.filter(g => g.title === 'Comité & Évaluation')
+  }
+  if (role === 'membre') {
+    return nav.filter(g => g.title === 'Comité & Évaluation')
+  }
+  return nav
+}
+
+export function AdminLayout({ user, profile }) {
+  const role = profile?.role || 'admin'
 
   const handleLogout = async () => {
-    await logoutAdmin()
-    navigate('/login', { replace: true })
+    try { await logoutAdmin() } catch {}
+    window.location.replace('/login')
   }
+
+  const filteredNav = filterNavByRole(NAV, role)
 
   return (
     <SidebarProvider>
-      <AppSidebar user={user} onLogout={handleLogout} />
+      <AppSidebar user={user} profile={profile} nav={filteredNav} onLogout={handleLogout} />
       <div className="flex-1 flex flex-col min-h-screen overflow-hidden">
-        <TopBar user={user} onLogout={handleLogout} />
+        <TopBar user={user} profile={profile} onLogout={handleLogout} />
         <div className="flex-1 overflow-y-auto bg-white p-4 md:p-6">
           <Outlet />
         </div>

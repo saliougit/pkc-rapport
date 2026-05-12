@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { Calendar, MapPin, Star, ChevronRight, ChevronDown, Users, CheckCircle2, Clock, AlertCircle, Save, Loader, X, Search, SlidersHorizontal, ChevronLeft, ChevronFirst, ChevronLast } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -14,125 +14,19 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
 import { PageHeader } from '@/components/layout/PageHeader'
-
-const TYPES = ['Goudj', 'Aldiouma', 'Ziar', 'Magal']
-const LIEUX = ['CAMPUS', 'ESP']
-const MEMBRES = [
-  { id: 1, prenom: 'Ibrahima', nom: 'Fall', kourel: 'Kourel Serigne Babacar Sy' },
-  { id: 2, prenom: 'Moussa', nom: 'Diop', kourel: 'Kourel El Hadj Malick Sy' },
-  { id: 3, prenom: 'Abdoulaye', nom: 'Niang', kourel: 'Kourel Serigne Moussa Ka' },
-  { id: 4, prenom: 'Cheikh', nom: 'Mbaye', kourel: 'Kourel Mame Thierno' },
-  { id: 5, prenom: 'Fatou', nom: 'Sow', kourel: 'Kourel Serigne Babacar Sy' },
-]
-
-const SECTIONS = [
-  { id: 'melodie', label: 'Maitrise de la mélodie' },
-  { id: 'hourouf', label: 'Phonétique "Hourouf"' },
-  { id: 'timing', label: 'Temps de prestation' },
-  { id: 'discipline', label: 'Discipline' },
-  { id: 'ponctualite', label: 'Ponctualité / Présence' },
-  { id: 'generale', label: 'Appréciation générale' },
-]
-
-const DONNEES = [
-  {
-    id: 1, type_id: 1, date: '2026-04-15', lieu: 'CAMPUS',
-    kourel: 'Kourel Serigne Babacar Sy',
-    evaluateurs: [1, 2],
-    statut: 'terminé',
-    conclusion: 'Excellente prestation. Cohésion et discipline remarquables.',
-    notes: {
-      1: { notes: { melodie: { appreciation: 'Très bien', note: 8, remarques: 'Bonne maitrise' }, hourouf: { appreciation: 'Bien', note: 7, remarques: 'Quelques fautes' }, timing: { appreciation: 'Excellent', note: 9, remarques: '' }, discipline: { appreciation: 'Très bien', note: 8, remarques: '' }, ponctualite: { appreciation: 'Bien', note: 7, remarques: '2 retardataires' }, generale: { appreciation: 'Très bien', note: 8, remarques: '' } }, note_finale: 8, commentaire: 'Très bon travail' },
-      2: { notes: { melodie: { appreciation: 'Bien', note: 7, remarques: '' }, hourouf: { appreciation: 'Passable', note: 6, remarques: 'Quelques yakh' }, timing: { appreciation: 'Bien', note: 7, remarques: '' }, discipline: { appreciation: 'Excellent', note: 9, remarques: 'Exemplaire' }, ponctualite: { appreciation: 'Bien', note: 7, remarques: '' }, generale: { appreciation: 'Bien', note: 7, remarques: '' } }, note_finale: 7, commentaire: 'Bon dans l\'ensemble' },
-    },
-  },
-  {
-    id: 2, type_id: 2, date: '2026-05-02', lieu: 'ESP',
-    kourel: 'Kourel El Hadj Malick Sy',
-    evaluateurs: [2, 3, 5],
-    statut: 'à venir',
-    conclusion: '', notes: {},
-  },
-  {
-    id: 3, type_id: 4, date: '2026-05-20', lieu: 'CAMPUS',
-    kourel: 'Kourel Serigne Moussa Ka',
-    evaluateurs: [1, 3, 4],
-    statut: 'en cours',
-    conclusion: '',
-    notes: { 1: { notes: { melodie: { appreciation: 'Bien', note: 7, remarques: '' }, hourouf: { appreciation: 'Bien', note: 7, remarques: '' } }, note_finale: null, commentaire: '' } },
-  },
-  {
-    id: 4, type_id: 1, date: '2026-03-10', lieu: 'CAMPUS',
-    kourel: 'Kourel Mame Thierno',
-    evaluateurs: [3, 4],
-    statut: 'terminé',
-    conclusion: 'Bonne prestation générale. À améliorer sur la discipline.',
-    notes: {
-      3: { notes: { melodie: { appreciation: 'Bien', note: 7, remarques: '' }, hourouf: { appreciation: 'Bien', note: 7, remarques: '' }, timing: { appreciation: 'Bien', note: 7, remarques: '' }, discipline: { appreciation: 'Passable', note: 5, remarques: 'À améliorer' }, ponctualite: { appreciation: 'Bien', note: 7, remarques: '' }, generale: { appreciation: 'Bien', note: 7, remarques: '' } }, note_finale: 7, commentaire: '' },
-    },
-  },
-  {
-    id: 5, type_id: 3, date: '2026-06-15', lieu: 'ESP',
-    kourel: 'Kourel 1',
-    evaluateurs: [1, 5],
-    statut: 'à venir',
-    conclusion: '', notes: {},
-  },
-  {
-    id: 6, type_id: 2, date: '2026-06-01', lieu: 'CAMPUS',
-    kourel: 'Kourel Serigne Babacar Sy',
-    evaluateurs: [2, 4],
-    statut: 'à venir',
-    conclusion: '', notes: {},
-  },
-  {
-    id: 7, type_id: 4, date: '2026-05-25', lieu: 'ESP',
-    kourel: 'Kourel El Hadj Malick Sy',
-    evaluateurs: [1, 3],
-    statut: 'en cours',
-    conclusion: '',
-    notes: {},
-  },
-  {
-    id: 8, type_id: 1, date: '2026-04-28', lieu: 'CAMPUS',
-    kourel: 'Kourel Serigne Moussa Ka',
-    evaluateurs: [5, 2],
-    statut: 'terminé',
-    conclusion: 'Très bonne dynamique.',
-    notes: {
-      5: { notes: { melodie: { appreciation: 'Excellent', note: 9, remarques: '' }, hourouf: { appreciation: 'Très bien', note: 8, remarques: '' }, timing: { appreciation: 'Excellent', note: 9, remarques: '' }, discipline: { appreciation: 'Très bien', note: 8, remarques: '' }, ponctualite: { appreciation: 'Bien', note: 7, remarques: '' }, generale: { appreciation: 'Très bien', note: 8, remarques: '' } }, note_finale: 8, commentaire: 'Très bonne prestation' },
-    },
-  },
-]
+import {
+  fetchEvenements, fetchTypesEvenements, fetchLieux, fetchMembres,
+  fetchEvalMembres, fetchEvaluations, fetchCriteres, modifierEvenement,
+} from '@/lib/supabase'
 
 function formatDate(d) {
   return new Date(d).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
-}
-
-function getTypeName(id) {
-  return TYPES[id - 1] || '—'
 }
 
 const STATUS_STYLES = {
   'terminé': 'text-vert-700 bg-vert-50 border-vert-200',
   'en cours': 'text-blue-700 bg-blue-50 border-blue-200',
   'à venir': 'text-amber-700 bg-amber-50 border-amber-200',
-}
-
-function getMoyenneGlobale(notesObj) {
-  const allNotes = Object.values(notesObj || {}).flatMap(e =>
-    SECTIONS.map(s => e.notes?.[s.id]?.note).filter(v => v != null)
-  )
-  if (!allNotes.length) return null
-  return (allNotes.reduce((a, b) => a + b, 0) / allNotes.length).toFixed(1)
-}
-
-function getStatusEval(notes) {
-  if (!notes) return { label: 'En attente', class: 'bg-amber-50 text-amber-700' }
-  const filled = SECTIONS.filter(s => notes.notes?.[s.id]?.note != null).length
-  if (filled === 0) return { label: 'En attente', class: 'bg-amber-50 text-amber-700' }
-  if (filled < SECTIONS.length) return { label: 'En cours', class: 'bg-blue-50 text-blue-700' }
-  return { label: 'Soumis', class: 'bg-vert-50 text-vert-700' }
 }
 
 const APPREC_COLORS = {
@@ -144,9 +38,26 @@ const APPREC_COLORS = {
   'Excellent': { color: '#014421', bg: '#DCFCE7' },
 }
 
-function getModeAppreciation(notesObj, sectionId) {
+function getMoyenneGlobale(notesObj) {
+  const allNotes = Object.values(notesObj || {}).flatMap(e =>
+    Object.values(e.notes || {}).map(n => n.note).filter(v => v != null)
+  )
+  if (!allNotes.length) return null
+  return (allNotes.reduce((a, b) => a + b, 0) / allNotes.length).toFixed(1)
+}
+
+function getStatusEval(notes) {
+  if (!notes) return { label: 'En attente', class: 'bg-amber-50 text-amber-700' }
+  const filled = Object.values(notes.notes || {}).filter(n => n.note != null).length
+  const total = Object.keys(notes.notes || {}).length
+  if (filled === 0) return { label: 'En attente', class: 'bg-amber-50 text-amber-700' }
+  if (filled < total) return { label: 'En cours', class: 'bg-blue-50 text-blue-700' }
+  return { label: 'Soumis', class: 'bg-vert-50 text-vert-700' }
+}
+
+function getModeAppreciation(notesObj, sectionKey) {
   const apprs = Object.values(notesObj || {})
-    .map(n => n.notes?.[sectionId]?.appreciation)
+    .map(n => n.notes?.[sectionKey]?.appreciation)
     .filter(Boolean)
   if (!apprs.length) return null
   const counts = apprs.reduce((acc, a) => ({ ...acc, [a]: (acc[a] || 0) + 1 }), {})
@@ -159,7 +70,6 @@ function getNoteFinaleAvg(notesObj) {
   return (vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(1)
 }
 
-// ── Carte événement ──────────────────────────────────────────────────────────
 function EventCard({ event, onClick }) {
   const moy = getMoyenneGlobale(event.notes)
   const soumis = Object.keys(event.notes).length
@@ -171,7 +81,6 @@ function EventCard({ event, onClick }) {
       onClick={() => onClick(event)}
       className="group border-gris-200 shadow-sm hover:border-vert-400 hover:shadow-lg cursor-pointer transition-all duration-200 overflow-hidden"
     >
-      {/* Bande de couleur selon statut */}
       <div className={`h-1.5 w-full ${
         event.statut === 'terminé' ? 'bg-vert-500' :
         event.statut === 'en cours' ? 'bg-blue-500' :
@@ -179,7 +88,6 @@ function EventCard({ event, onClick }) {
       }`} />
 
       <CardContent className="p-0">
-        {/* Header */}
         <div className="p-4 pb-3">
           <div className="flex items-start justify-between gap-2 mb-2">
             <div className="flex items-center gap-2 min-w-0">
@@ -187,8 +95,8 @@ function EventCard({ event, onClick }) {
                 <Calendar size={16} className="text-gris-500 group-hover:text-vert-700 transition-colors" />
               </div>
               <div className="min-w-0">
-                <p className="text-sm font-bold text-gris-950 truncate">{getTypeName(event.type_id)}</p>
-                <p className="text-[11px] text-gris-500 truncate">{formatDate(event.date)}</p>
+                <p className="text-sm font-bold text-gris-950 truncate">{event.type_nom}</p>
+                <p className="text-[11px] text-gris-500 truncate">{formatDate(event.date_evenement)}</p>
               </div>
             </div>
             <Badge className={`text-[10px] font-semibold px-2 py-0.5 border ${STATUS_STYLES[event.statut] || ''}`}>
@@ -199,18 +107,17 @@ function EventCard({ event, onClick }) {
           <div className="space-y-1">
             <div className="flex items-center gap-1.5 text-xs text-gris-600">
               <MapPin size={11} className="text-gris-400 flex-shrink-0" />
-              <span>{event.lieu}</span>
+              <span>{event.lieu_nom}</span>
             </div>
             <div className="flex items-center gap-1.5 text-xs text-gris-700 font-medium">
               <Users size={11} className="text-gris-400 flex-shrink-0" />
-              <span className="truncate">{event.kourel}</span>
+              <span className="truncate">{event.kourel?.nom || '—'}</span>
             </div>
           </div>
         </div>
 
         <Separator />
 
-        {/* Notes & Progression */}
         <div className="p-4 pt-3">
           {moy != null ? (
             <div className="flex items-center justify-between mb-2">
@@ -228,7 +135,6 @@ function EventCard({ event, onClick }) {
             <p className="text-[11px] text-gris-400 italic mb-2">Pas encore noté</p>
           )}
 
-          {/* Barre de progression des évaluations */}
           <div className="flex items-center gap-2">
             <div className="flex-1 bg-gris-100 rounded-full h-1.5 overflow-hidden">
               <div
@@ -243,7 +149,6 @@ function EventCard({ event, onClick }) {
             </span>
           </div>
 
-          {/* Conclusion en badge si existe */}
           {event.conclusion && (
             <div className="mt-2 pt-2 border-t border-dashed border-gris-100">
               <p className="text-[10px] text-gris-500 line-clamp-1 leading-relaxed">
@@ -264,8 +169,7 @@ function EventCard({ event, onClick }) {
   )
 }
 
-// ── Panneau évaluateur ───────────────────────────────────────────────────────
-function EvaluateurPanel({ evaluateur, notes }) {
+function EvaluateurPanel({ evaluateur, notes, sections }) {
   const [open, setOpen] = useState(false)
   const status = getStatusEval(notes)
 
@@ -278,7 +182,7 @@ function EvaluateurPanel({ evaluateur, notes }) {
         <div className="flex items-center gap-3 min-w-0">
           <div className="w-8 h-8 rounded-full bg-vert-100 flex items-center justify-center flex-shrink-0">
             <span className="text-xs font-bold text-vert-800">
-              {evaluateur.prenom[0]}{evaluateur.nom[0]}
+              {evaluateur.prenom?.[0]}{evaluateur.nom?.[0]}
             </span>
           </div>
           <div className="min-w-0">
@@ -301,8 +205,8 @@ function EvaluateurPanel({ evaluateur, notes }) {
         <div className="px-4 pb-4 border-t border-gris-100 pt-3">
           {notes ? (
             <div className="space-y-2">
-              {SECTIONS.map(section => {
-                const s = notes.notes?.[section.id]
+              {sections.map(section => {
+                const s = notes.notes?.[section.key || section.id]
                 if (!s) return null
                 return (
                   <div key={section.id} className="bg-gris-50 rounded-lg p-3">
@@ -340,7 +244,6 @@ function EvaluateurPanel({ evaluateur, notes }) {
   )
 }
 
-// ── Pagination ───────────────────────────────────────────────────────────────
 function Pagination({ currentPage, totalPages, onPageChange }) {
   if (totalPages <= 1) return null
   return (
@@ -373,33 +276,87 @@ function Pagination({ currentPage, totalPages, onPageChange }) {
   )
 }
 
-// ── Page principale ──────────────────────────────────────────────────────────
 export function EvaluationsPage() {
-  const [evenements, setEvenements] = useState(DONNEES)
+  const [evenements, setEvenements] = useState([])
+  const [types, setTypes] = useState([])
+  const [membres, setMembres] = useState([])
+  const [criteres, setCriteres] = useState([])
+  const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState(null)
   const [conclusion, setConclusion] = useState('')
   const [saving, setSaving] = useState(false)
 
-  // Filtres
   const [search, setSearch] = useState('')
   const [filterStatut, setFilterStatut] = useState('tous')
   const [filterType, setFilterType] = useState('tous')
   const [filterLieu, setFilterLieu] = useState('tous')
 
-  // Pagination
   const [page, setPage] = useState(1)
   const perPage = 6
+
+  useEffect(() => { loadData() }, [])
+
+  async function loadData() {
+    try {
+      const [evts, tps, mbrs, crits] = await Promise.all([
+        fetchEvenements(), fetchTypesEvenements(), fetchMembres(), fetchCriteres()
+      ])
+
+      const enriched = await Promise.all((evts || []).map(async (e) => {
+        const allEvalMembres = await fetchEvalMembres(e.id)
+        const evals = await fetchEvaluations(e.id)
+        const evaluateurs = (allEvalMembres || []).filter(em => em.role === 'evaluateur').map(em => em.membre_id)
+        const notes = {}
+        ;(evals || []).forEach(ev => {
+          const sectionNotes = {}
+          ;(ev.notes || []).forEach(n => {
+            const key = String(n.critere_id)
+            sectionNotes[key] = {
+              appreciation: n.appreciation || '',
+              note: n.note,
+              remarques: n.remarques || '',
+            }
+          })
+          const vals = Object.values(sectionNotes).filter(v => v.note != null)
+          notes[ev.membre_id] = {
+            notes: sectionNotes,
+            note_finale: vals.length ? (vals.reduce((a, b) => a + b.note, 0) / vals.length) : null,
+            commentaire: ev.commentaire || '',
+            soumis: ev.soumis,
+          }
+        })
+        return {
+          ...e,
+          type_id: e.type?.id,
+          type_nom: e.type?.nom || '—',
+          lieu_nom: e.lieu?.nom || '—',
+          evaluateurs,
+          notes,
+        }
+      }))
+      setEvenements(enriched)
+      setTypes(tps || [])
+      setMembres(mbrs || [])
+      setCriteres(crits || [])
+    } catch (e) { console.error(e) }
+    finally { setLoading(false) }
+  }
+
+  const SECTIONS = (criteres || []).map(c => ({
+    id: c.id,
+    key: String(c.id),
+    label: c.section_nom,
+  }))
 
   const filtres = useMemo(() => {
     const q = search.toLowerCase().trim()
     return evenements.filter(e => {
-      if (q && !getTypeName(e.type_id).toLowerCase().includes(q) &&
-          !e.kourel.toLowerCase().includes(q) &&
-          !e.lieu.toLowerCase().includes(q) &&
-          !formatDate(e.date).toLowerCase().includes(q)) return false
+      if (q && !e.type_nom.toLowerCase().includes(q) &&
+          !(e.kourel?.nom || '').toLowerCase().includes(q) &&
+          !e.lieu_nom.toLowerCase().includes(q)) return false
       if (filterStatut !== 'tous' && e.statut !== filterStatut) return false
       if (filterType !== 'tous' && e.type_id !== parseInt(filterType)) return false
-      if (filterLieu !== 'tous' && e.lieu !== filterLieu) return false
+      if (filterLieu !== 'tous' && e.lieu_nom !== filterLieu) return false
       return true
     })
   }, [evenements, search, filterStatut, filterType, filterLieu])
@@ -416,13 +373,18 @@ export function EvaluationsPage() {
   const sauvegarderConclusion = async () => {
     if (!selected) return
     setSaving(true)
-    await new Promise(r => setTimeout(r, 300))
-    setEvenements(list => list.map(e =>
-      e.id === selected.id ? { ...e, conclusion } : e
-    ))
-    setSelected(s => ({ ...s, conclusion }))
-    setSaving(false)
+    try {
+      await modifierEvenement(selected.id, { conclusion })
+      setEvenements(list => list.map(e =>
+        e.id === selected.id ? { ...e, conclusion } : e
+      ))
+      setSelected(s => ({ ...s, conclusion }))
+    } catch (err) { console.error(err) }
+    finally { setSaving(false) }
   }
+
+  const typesList = types || []
+  const lieuxList = [...new Set(evenements.map(e => e.lieu_nom).filter(Boolean))]
 
   return (
     <div className="h-full flex flex-col">
@@ -432,7 +394,6 @@ export function EvaluationsPage() {
         subtitle={`${evenements.length} événement${evenements.length > 1 ? 's' : ''}`}
       />
 
-      {/* Barre de recherche et filtres */}
       <div className="flex flex-col sm:flex-row gap-3 mb-5 flex-shrink-0">
         <div className="relative flex-1 max-w-sm">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gris-400" />
@@ -462,7 +423,7 @@ export function EvaluationsPage() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="tous">Tous les types</SelectItem>
-              {TYPES.map((t, i) => <SelectItem key={i} value={String(i + 1)}>{t}</SelectItem>)}
+              {typesList.map(t => <SelectItem key={t.id} value={String(t.id)}>{t.nom}</SelectItem>)}
             </SelectContent>
           </Select>
           <Select value={filterLieu} onValueChange={v => { setFilterLieu(v); setPage(1) }}>
@@ -471,7 +432,7 @@ export function EvaluationsPage() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="tous">Tous les lieux</SelectItem>
-              {LIEUX.map(l => <SelectItem key={l} value={l}>{l}</SelectItem>)}
+              {lieuxList.map(l => <SelectItem key={l} value={l}>{l}</SelectItem>)}
             </SelectContent>
           </Select>
 
@@ -484,9 +445,12 @@ export function EvaluationsPage() {
         </div>
       </div>
 
-      {/* Grille des cartes + pagination dans zone scrollable */}
       <div className="flex-1 min-h-0 overflow-y-auto pr-1">
-        {pagines.length === 0 ? (
+        {loading ? (
+          <div className="text-center py-16">
+            <Loader size={24} className="animate-spin mx-auto text-vert-700" />
+          </div>
+        ) : pagines.length === 0 ? (
           <div className="text-center py-16 border border-dashed border-gris-200 rounded-lg bg-gris-50/50">
             <Search size={36} className="mx-auto mb-3 text-gris-300" />
             <p className="text-sm font-semibold text-gris-700">Aucun résultat</p>
@@ -513,7 +477,6 @@ export function EvaluationsPage() {
         )}
       </div>
 
-      {/* Detail Sheet */}
       <Sheet open={!!selected} onOpenChange={open => { if (!open) setSelected(null) }}>
         <SheetContent className="w-full sm:max-w-2xl bg-white p-0 flex flex-col h-full">
           {selected && (
@@ -522,12 +485,12 @@ export function EvaluationsPage() {
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <SheetTitle className="text-lg font-bold text-gris-950">
-                      {getTypeName(selected.type_id)}
+                      {selected.type_nom}
                     </SheetTitle>
                     <div className="text-sm text-gris-500 mt-2 flex flex-wrap items-center gap-x-4 gap-y-1">
-                      <span className="flex items-center gap-1.5"><Calendar size={13} />{formatDate(selected.date)}</span>
-                      <span className="flex items-center gap-1.5"><MapPin size={13} />{selected.lieu}</span>
-                      <span className="flex items-center gap-1.5 font-medium text-gris-700"><Users size={13} />{selected.kourel}</span>
+                      <span className="flex items-center gap-1.5"><Calendar size={13} />{formatDate(selected.date_evenement)}</span>
+                      <span className="flex items-center gap-1.5"><MapPin size={13} />{selected.lieu_nom}</span>
+                      <span className="flex items-center gap-1.5 font-medium text-gris-700"><Users size={13} />{selected.kourel?.nom || '—'}</span>
                     </div>
                   </div>
                   <Badge className={`text-xs font-semibold px-2.5 py-0.5 ${STATUS_STYLES[selected.statut] || ''}`}>
@@ -549,10 +512,10 @@ export function EvaluationsPage() {
                     </p>
                     <div className="space-y-2">
                       {selected.evaluateurs.map(id => {
-                        const m = MEMBRES.find(x => x.id === id)
+                        const m = membres.find(x => x.id === id)
                         if (!m) return null
                         return (
-                          <EvaluateurPanel key={id} evaluateur={m} notes={selected.notes?.[id] || null} />
+                          <EvaluateurPanel key={id} evaluateur={m} notes={selected.notes?.[id] || null} sections={SECTIONS} />
                         )
                       })}
                     </div>
@@ -563,17 +526,16 @@ export function EvaluationsPage() {
                   <div className="space-y-3">
                     <p className="text-xs font-bold text-gris-500 uppercase tracking-widest">Synthèse des évaluations</p>
 
-                    {/* Section by section */}
                     <div className="rounded-xl border border-gris-200 overflow-hidden bg-white">
                       <div className="grid grid-cols-[1fr_auto_auto] gap-x-3 px-3 py-2 border-b border-gris-100 bg-gris-50">
                         <span className="text-[10px] font-bold text-gris-400 uppercase tracking-wider">Section</span>
                         <span className="text-[10px] font-bold text-gris-400 uppercase tracking-wider text-right">Appréciation</span>
                         <span className="text-[10px] font-bold text-gris-400 uppercase tracking-wider text-right w-12">Moy.</span>
                       </div>
-                      {SECTIONS.filter(s => s.id !== 'generale').map(section => {
-                        const vals = Object.values(selected.notes).map(n => n.notes?.[section.id]?.note).filter(v => v != null)
+                      {SECTIONS.filter(s => s.label !== 'Appréciation générale').map(section => {
+                        const vals = Object.values(selected.notes).map(n => n.notes?.[section.key]?.note).filter(v => v != null)
                         const moy = vals.length > 0 ? (vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(1) : null
-                        const appr = getModeAppreciation(selected.notes, section.id)
+                        const appr = getModeAppreciation(selected.notes, section.key)
                         const ac = appr ? APPREC_COLORS[appr] : null
                         return (
                           <div key={section.id} className="grid grid-cols-[1fr_auto_auto] gap-x-3 items-center px-3 py-2.5 border-b border-gris-50 last:border-0">
@@ -589,7 +551,6 @@ export function EvaluationsPage() {
                       })}
                     </div>
 
-                    {/* Bilan général */}
                     {(() => {
                       const noteFin = getNoteFinaleAvg(selected.notes)
                       const apprGen = getModeAppreciation(selected.notes, 'generale')
@@ -615,13 +576,12 @@ export function EvaluationsPage() {
                       )
                     })()}
 
-                    {/* Commentaires des évaluateurs */}
                     {Object.entries(selected.notes).some(([, n]) => n.commentaire) && (
                       <div className="space-y-1.5">
                         <p className="text-[10px] font-bold text-gris-400 uppercase tracking-wider">Commentaires</p>
                         {Object.entries(selected.notes).map(([id, n]) => {
                           if (!n.commentaire) return null
-                          const m = MEMBRES.find(x => x.id === parseInt(id))
+                          const m = membres.find(x => x.id === parseInt(id))
                           return (
                             <div key={id} className="bg-gris-50 rounded-lg px-3 py-2.5 border border-gris-100">
                               <p className="text-[10px] font-bold text-gris-500 mb-1">{m ? `${m.prenom} ${m.nom}` : `Évaluateur ${id}`}</p>

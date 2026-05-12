@@ -1,4 +1,5 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
+import { fetchCriteres, ajouterCritere, modifierCritere, supprimerCritere } from '@/lib/supabase'
 import { Plus, Edit2, Trash2, Save, X, Loader, GripVertical, ChevronDown, ChevronRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -26,67 +27,15 @@ import {
 
 const APPRECIATIONS = ['Mauvais', 'Médiocre', 'Passable', 'Bien', 'Très bien', 'Excellent']
 
-const SECTIONS_INITIALES = [
-  {
-    id: 'melodie',
-    nom: 'Maitrise de la mélodie',
-    description: 'Évalue la capacité du koureul à maîtriser la mélodie des khassidas',
-    couleur: 'bg-blue-50 border-blue-200',
-    ordre: 1,
-    criteres: [
-      { id: 'm1', nom: 'Maitrise mélodique', description: 'Qualité de la restitution mélodique', note_max: 10 },
-    ],
-  },
-  {
-    id: 'hourouf',
-    nom: 'Phonétique "Hourouf"',
-    description: 'Qualité de la prononciation, fautes, "yakh" et justesse phonétique',
-    couleur: 'bg-purple-50 border-purple-200',
-    ordre: 2,
-    criteres: [
-      { id: 'h1', nom: 'Prononciation', description: 'Clarté et justesse des lettres', note_max: 10 },
-    ],
-  },
-  {
-    id: 'timing',
-    nom: 'Temps de prestation',
-    description: 'Respect du timing moyen de la khassida / mélodie',
-    couleur: 'bg-amber-50 border-amber-200',
-    ordre: 3,
-    criteres: [
-      { id: 't1', nom: 'Respect du timing', description: 'Adéquation avec le temps moyen attendu', note_max: 10 },
-    ],
-  },
-  {
-    id: 'discipline',
-    nom: 'Discipline',
-    description: 'Comportement, ordre, respect des règles pendant la prestation',
-    couleur: 'bg-orange-50 border-orange-200',
-    ordre: 4,
-    criteres: [
-      { id: 'd1', nom: 'Comportement', description: 'Discipline et respect des règles', note_max: 10 },
-    ],
-  },
-  {
-    id: 'ponctualite',
-    nom: 'Ponctualité / Présence',
-    description: 'Présence de tous les membres, retardataires, assiduité',
-    couleur: 'bg-rose-50 border-rose-200',
-    ordre: 5,
-    criteres: [
-      { id: 'p1', nom: 'Présence', description: 'Taux de présence et ponctualité', note_max: 10 },
-    ],
-  },
-  {
-    id: 'generale',
-    nom: 'Appréciation générale',
-    description: 'Évaluation globale et note finale sur la prestation',
-    couleur: 'bg-vert-50 border-vert-200',
-    ordre: 6,
-    criteres: [
-      { id: 'g1', nom: 'Note globale', description: 'Appréciation générale de la prestation', note_max: 10 },
-    ],
-  },
+const SECTION_COLORS = [
+  'bg-blue-50 border-blue-200',
+  'bg-purple-50 border-purple-200',
+  'bg-amber-50 border-amber-200',
+  'bg-orange-50 border-orange-200',
+  'bg-rose-50 border-rose-200',
+  'bg-vert-50 border-vert-200',
+  'bg-gris-50 border-gris-200',
+  'bg-indigo-50 border-indigo-200',
 ]
 
 function SectionCard({ section, onEdit, onDelete }) {
@@ -161,7 +110,8 @@ function SectionCard({ section, onEdit, onDelete }) {
 }
 
 export function CriteresPage() {
-  const [sections, setSections] = useState(SECTIONS_INITIALES)
+  const [sections, setSections] = useState([])
+  const [loading, setLoading] = useState(true)
   const [sheetOpen, setSheetOpen] = useState(false)
   const [editingSectionId, setEditingSectionId] = useState(null)
   const [form, setForm] = useState({
@@ -169,6 +119,28 @@ export function CriteresPage() {
     criteres: [{ nom: '', description: '', note_max: '10' }],
   })
   const [saving, setSaving] = useState(false)
+
+  useEffect(() => { loadData() }, [])
+
+  async function loadData() {
+    try {
+      const crits = await fetchCriteres()
+      setSections(crits.map((c, i) => ({
+        id: String(c.id),
+        nom: c.section_nom,
+        description: c.description || '',
+        couleur: SECTION_COLORS[i % SECTION_COLORS.length],
+        ordre: c.ordre,
+        criteres: [{
+          id: 'c' + c.id,
+          nom: c.section_nom,
+          description: c.description || '',
+          note_max: 10,
+        }],
+      })))
+    } catch (e) { console.error(e) }
+    finally { setLoading(false) }
+  }
 
   const ouvrirAjout = () => {
     setForm({ nom: '', description: '', criteres: [{ nom: '', description: '', note_max: '10' }] })
@@ -201,39 +173,26 @@ export function CriteresPage() {
   const sauvegarder = async () => {
     if (!form.nom) return
     setSaving(true)
-    await new Promise(r => setTimeout(r, 300))
-    const payload = {
-      nom: form.nom,
-      description: form.description,
-      criteres: form.criteres.map(c => ({
-        id: Date.now().toString() + Math.random().toString(36).slice(2, 6),
-        nom: c.nom || 'Critère',
-        description: c.description || '',
-        note_max: Number(c.note_max) || 10,
-      })),
-    }
-    if (editingSectionId) {
-      setSections(list => list.map(s =>
-        s.id === editingSectionId
-          ? { ...s, ...payload, criteres: payload.criteres.map((c, i) => ({ ...c, id: s.criteres[i]?.id || c.id })) }
-          : s
-      ))
-    } else {
-      setSections(list => [...list, {
-        id: 'sec_' + Date.now(),
-        ...payload,
-        couleur: 'bg-gris-50 border-gris-200',
-        ordre: list.length + 1,
-      }])
-    }
-    setSaving(false)
-    setSheetOpen(false)
+    try {
+      if (editingSectionId) {
+        await modifierCritere(Number(editingSectionId), { section_nom: form.nom, description: form.description })
+        loadData()
+      } else {
+        await ajouterCritere(form.nom, form.description)
+        loadData()
+      }
+      setSheetOpen(false)
+    } catch (e) { console.error(e) }
+    finally { setSaving(false) }
   }
 
-  const supprimerSection = (id) => {
+  const supprimerSection = async (id) => {
     const s = sections.find(x => x.id === id)
-    if (!s || !confirm(`Supprimer la section « ${s.nom} » et tous ses critères ?`)) return
-    setSections(list => list.filter(x => x.id !== id))
+    if (!s || !confirm(`Supprimer la section « ${s.nom} » ?`)) return
+    try {
+      await supprimerCritere(Number(id))
+      loadData()
+    } catch (e) { console.error(e) }
   }
 
   return (

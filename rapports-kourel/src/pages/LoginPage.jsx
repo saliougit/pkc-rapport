@@ -33,11 +33,11 @@ export function LoginPage() {
 
         {/* Logo + titre */}
         <div className="flex flex-col items-center gap-3 mb-8">
-          <div className="w-14 h-14 rounded-2xl bg-vert-800 flex items-center justify-center shadow-lg">
+          <div className="w-14 h-14 rounded-2xl bg-white flex items-center justify-center shadow-lg border border-gris-200">
             <img src="/images/logo-dmn.png" alt="DMN" className="w-10 h-10 object-contain" />
           </div>
           <div className="text-center">
-            <h1 className="text-xl font-bold text-gris-950">DMN Pôle Kourel</h1>
+            <h1 className="text-xl font-bold text-gris-950">DMN Pôle Kourel </h1>
             <p className="text-sm text-gris-500 mt-0.5">Centrale · Espace Administrateur</p>
           </div>
         </div>
