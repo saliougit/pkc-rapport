@@ -173,8 +173,18 @@ export default function MembreView() {
             </p>
 
             {loadingKourels ? (
-              <div className="flex-1 flex items-center justify-center">
-                <Loader size={22} className="animate-spin" style={{ color: '#16824E' }} />
+              <div className="space-y-1 sm:space-y-1.5 overflow-y-auto flex-1" style={{ maxHeight: '350px' }}>
+                {[...Array(4)].map((_, i) => (
+                  <div key={i} className="flex items-center gap-2 px-2 sm:px-3 py-1.5 sm:py-2 border rounded-lg bg-white animate-pulse" style={{ borderColor: '#E5E7EB' }}>
+                    {/* Checkbox skeleton */}
+                    <div className="w-5 h-5 rounded border-2 bg-gray-200 flex-shrink-0" />
+                    {/* Texte skeleton */}
+                    <div className="min-w-0 flex-1">
+                      <div className="h-3 bg-gray-200 rounded w-3/4 mb-1.5" />
+                      <div className="h-2.5 bg-gray-150 rounded w-1/2" />
+                    </div>
+                  </div>
+                ))}
               </div>
             ) : (
               <div className="space-y-1 sm:space-y-1.5 overflow-y-auto flex-1" style={{ maxHeight: '350px' }}>

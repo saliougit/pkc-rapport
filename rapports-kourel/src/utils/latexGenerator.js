@@ -1,26 +1,28 @@
 // src/utils/latexGenerator.js
 
 export function genererLatex(rapport, kourel, programmeAnnuel) {
+  const escapeCommon = (str) => str
+    .replace(/\\/g, '\\textbackslash{}')
+    .replace(/[&%$#_{}]/g, '\\$&')
+    .replace(/~/g, '\\textasciitilde{}')
+    .replace(/\^/g, '\\textasciicircum{}')
+    .replace(/✓/g, '$\\checkmark$')
+    .replace(/✗|✘/g, '$\\times$')
+    .replace(/–/g, '--')
+    .replace(/—/g, '---')
+    .replace(/…/g, '\\ldots{}')
+    .replace(/ /g, '~')
+
   // Pour les \node TikZ : les sauts de ligne cassent la compilation
   const escape = (str) => {
     if (!str) return ''
-    return str
-      .replace(/\\/g, '\\textbackslash{}')
-      .replace(/[&%$#_{}]/g, '\\$&')
-      .replace(/~/g, '\\textasciitilde{}')
-      .replace(/\^/g, '\\textasciicircum{}')
-      .replace(/\r?\n/g, ' ')
+    return escapeCommon(str).replace(/\r?\n/g, ' ')
   }
 
   // Pour les tcolorbox / paragraphes : \n → \\ (saut de ligne LaTeX)
   const escapeBlock = (str) => {
     if (!str) return ''
-    return str
-      .replace(/\\/g, '\\textbackslash{}')
-      .replace(/[&%$#_{}]/g, '\\$&')
-      .replace(/~/g, '\\textasciitilde{}')
-      .replace(/\^/g, '\\textasciicircum{}')
-      .replace(/\r?\n/g, '\\\\ ')
+    return escapeCommon(str).replace(/\r?\n/g, '\\\\ ')
   }
 
   const calcStatsPA = () => {
@@ -121,6 +123,7 @@ export function genererLatex(rapport, kourel, programmeAnnuel) {
 }
 
 \\begin{document}
+\\setlength{\\emergencystretch}{4em}
 
 % PAGE DE GARDE
 \\begin{center}

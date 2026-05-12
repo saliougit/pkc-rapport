@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { Loader } from 'lucide-react'
 import { supabase } from './lib/supabase'
 import { AdminLayout } from './components/layout/AdminLayout'
+import { PWANotification } from './components/PWANotification'
 import { LoginPage } from './pages/LoginPage'
 import { Dashboard } from './pages/admin/Dashboard'
 import { KourelsPage } from './pages/admin/Kourels'
@@ -46,6 +47,7 @@ function App() {
 
   return (
     <BrowserRouter>
+      <PWANotification />
       <Routes>
         {/* Login */}
         <Route
