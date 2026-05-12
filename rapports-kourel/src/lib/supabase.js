@@ -18,7 +18,34 @@ export async function loginAdmin(email, password) {
 }
 
 export async function logoutAdmin() {
-  await supabase.auth.signOut()
+  const { error } = await supabase.auth.signOut()
+  if (error) throw error
+}
+
+export async function getCurrentUser() {
+  const { data, error } = await supabase.auth.getUser()
+  if (error) throw error
+  return data.user
+}
+
+export async function verifyPassword(email, password) {
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+  if (error) throw { message: 'Ancien mot de passe incorrect.' }
+  return data
+}
+
+export async function updatePassword(newPassword) {
+  const { data, error } = await supabase.auth.updateUser({ password: newPassword })
+  if (error) throw error
+  return data
+}
+
+export async function resetPasswordForEmail(email) {
+  const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: `${window.location.origin}/admin`,
+  })
+  if (error) throw error
+  return data
 }
 
 export async function getSession() {

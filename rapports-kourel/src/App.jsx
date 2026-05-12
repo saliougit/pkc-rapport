@@ -56,7 +56,7 @@ function App() {
 
   if (session === undefined) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-surface">
+      <div className="min-h-screen flex items-center justify-center bg-white">
         <Loader size={24} className="animate-spin text-vert-700" />
       </div>
     )

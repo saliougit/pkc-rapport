@@ -9,7 +9,7 @@
     /* === Couleurs shadcn (HSL sans hsl()) ===
        Mappées sur notre palette de marque DMN PKC */
 
-    --background:    43 22% 95%;    /* surface #F5F3EE */
+    --background:     0  0% 100%;    /* blanc pur */
     --foreground:   150 15%  8%;    /* gris-950 #111714 */
 
     --card:           0  0% 100%;   /* blanc */

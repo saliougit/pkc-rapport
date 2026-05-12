@@ -457,8 +457,8 @@ export function EvaluationsPage() {
             <p className="text-xs text-gris-500 mt-1">Essayez de modifier vos filtres.</p>
           </div>
         ) : (
-          <>
-            <div className="flex items-center justify-between mb-3">
+          <div className="flex flex-col h-full">
+            <div className="flex items-center justify-between mb-3 flex-shrink-0">
               <p className="text-xs text-gris-500">
                 {filtres.length} résultat{filtres.length > 1 ? 's' : ''}
                 {filtres.length !== evenements.length && (
@@ -466,14 +466,16 @@ export function EvaluationsPage() {
                 )}
               </p>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 flex-1 overflow-y-auto pb-3">
               {pagines.map(e => (
                 <EventCard key={e.id} event={e} onClick={ouvrirDetail} />
               ))}
             </div>
 
-            <Pagination currentPage={pageCourante} totalPages={totalPages} onPageChange={setPage} />
-          </>
+            <div className="mt-auto flex-shrink-0">
+              <Pagination currentPage={pageCourante} totalPages={totalPages} onPageChange={setPage} />
+            </div>
+          </div>
         )}
       </div>
 
