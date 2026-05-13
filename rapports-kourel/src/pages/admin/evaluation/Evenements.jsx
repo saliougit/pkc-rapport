@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
 import { Plus, Edit2, Trash2, Save, X, Loader, Calendar, MapPin, Users, ChevronRight, ChevronDown, Eye, CheckCircle2, Clock, AlertCircle, ToggleLeft, Copy, KeyRound } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -19,6 +19,7 @@ import {
 import { Card } from '@/components/ui/card'
 import { ComboboxMulti } from '@/components/ui/combobox'
 import { PageHeader } from '@/components/layout/PageHeader'
+import { ConfirmDeleteDialog } from '@/components/ConfirmDeleteDialog'
 import {
   flexRender, getCoreRowModel, getSortedRowModel,
   getPaginationRowModel, useReactTable,
@@ -26,9 +27,14 @@ import {
 import {
   fetchEvenements, ajouterEvenement, modifierEvenement, supprimerEvenement,
   fetchTypesEvenements, fetchLieux, fetchMembres, fetchKourels,
-  fetchEvalMembres, assignerEvalMembre, supprimerEvalMembre,
+  fetchEvalMembres, assignerEvalMembre, supprimerEvalMembre, supprimerEvenementKourels,
+  ajouterEvenementKourel, ajouterLieu,
   fetchEvaluations,
 } from '@/lib/supabase'
+
+function genCodeEvaluation(evenementId, kourelId, membreId) {
+  return 'EVAL-' + String(evenementId).padStart(3, '0') + '-' + String(kourelId).padStart(2, '0') + '-' + String(membreId).padStart(2, '0')
+}
 
 function getEvaluateurStatus(note) {
   if (!note) return { label: 'Non assigné', class: 'bg-gris-100 text-gris-600', icon: AlertCircle }
@@ -192,6 +198,7 @@ export function EvenementsPage() {
   const [loading, setLoading] = useState(true)
   const [rowSelection, setRowSelection] = useState({})
   const [sorting, setSorting] = useState([])
+  const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 8 })
   const [sheetOpen, setSheetOpen] = useState(false)
   const [detailEvent, setDetailEvent] = useState(null)
   const [form, setForm] = useState({
@@ -200,6 +207,9 @@ export function EvenementsPage() {
   })
   const [editingId, setEditingId] = useState(null)
   const [saving, setSaving] = useState(false)
+  const [deleteDialog, setDeleteDialog] = useState({ open: false, item: null, loading: false })
+  const [errorMsg, setErrorMsg] = useState(null)
+  const dateInputRef = useRef(null)
 
   useEffect(() => { loadData() }, [])
 
@@ -325,18 +335,19 @@ export function EvenementsPage() {
   const table = useReactTable({
     data,
     columns,
-    state: { sorting, rowSelection },
+    state: { sorting, rowSelection, pagination },
     onSortingChange: setSorting,
     onRowSelectionChange: setRowSelection,
+    onPaginationChange: setPagination,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
-    initialState: { pagination: { pageSize: 8 } },
   })
 
   const ouvrirAjout = () => {
     setForm({ type_id: '', date_evenement: '', lieu: '', kourels: [] })
     setEditingId(null)
+    setErrorMsg(null)
     setSheetOpen(true)
   }
   const ouvrirEdition = (e) => {
@@ -352,6 +363,7 @@ export function EvenementsPage() {
       kourels,
     })
     setEditingId(e.id)
+    setErrorMsg(null)
     setSheetOpen(true)
   }
   function genererCodes(evaluateurs, existingCodes = {}) {
@@ -375,59 +387,81 @@ export function EvenementsPage() {
       const eventDate = new Date(form.date_evenement + 'T23:59:59')
       let statut = 'à venir'
       if (eventDate < now) statut = 'terminé'
+
+      let lieuId = Number(form.lieu)
+      if (form.lieu === '__custom__' && form.customLieu?.trim()) {
+        const newLieu = await ajouterLieu(form.customLieu.trim())
+        lieuId = newLieu.id
+      }
+
       const payload = {
         type_id: Number(form.type_id),
         date_evenement: form.date_evenement,
-        lieu_id: Number(form.lieu),
+        lieu_id: lieuId || null,
         statut,
       }
+
+      let eventId
       if (editingId) {
         await modifierEvenement(editingId, payload)
-        // Ré-associer les kourels
-        await fetch('/api/evenements/' + editingId + '/kourels', {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ kourels: form.kourels }),
-        })
-        loadData()
+        eventId = editingId
+        await supprimerEvenementKourels(eventId)
       } else {
         const newEvt = await ajouterEvenement(payload)
-        for (const k of form.kourels) {
-          const evalIds = k.evaluateurs || []
-          const pagIds = k.paginateurs || []
-          if (!evalIds.length && !pagIds.length) continue
-          await fetch('/api/generer-codes-evenement', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              evenement_id: newEvt.id,
-              kourel_id: Number(k.kourel_id),
-              evaluateurs: evalIds,
-              paginateurs: pagIds,
-            }),
-          })
-        }
-        loadData()
+        eventId = newEvt.id
       }
+
+      for (const k of form.kourels) {
+        const ek = await ajouterEvenementKourel(eventId, Number(k.kourel_id))
+        const evalIds = k.evaluateurs || []
+        const pagIds = k.paginateurs || []
+        for (const membreId of evalIds) {
+          const code = genCodeEvaluation(eventId, Number(k.kourel_id), membreId)
+          try {
+            await assignerEvalMembre(ek.id, membreId, 'evaluateur', code)
+          } catch (e) { if (e.code !== '23505') throw e }
+        }
+        for (const membreId of pagIds) {
+          try {
+            await assignerEvalMembre(ek.id, membreId, 'paginateur', null)
+          } catch (e) { if (e.code !== '23505') throw e }
+        }
+      }
+
+      await loadData()
+      setErrorMsg(null)
       setSheetOpen(false)
-    } catch (e) { console.error(e) }
+    } catch (e) {
+      console.error(e)
+      setErrorMsg(e?.message || e?.error?.message || 'Erreur lors de la sauvegarde')
+    }
     finally { setSaving(false) }
   }
-  const supprimer = async (e) => {
+  const supprimer = (e) => {
     const typeName = types.find(t => t.id === e.type_id)?.nom || 'Événement'
-    if (!confirm(`Supprimer l'événement « ${typeName} » du ${formatDate(e.date_evenement)} ?`)) return
+    const label = `${typeName} du ${formatDate(e.date_evenement)}`
+    setDeleteDialog({ open: true, item: e, label, loading: false })
+  }
+
+  const confirmerSuppression = async () => {
+    if (!deleteDialog.item) return
+    setDeleteDialog(d => ({ ...d, loading: true }))
     try {
-      await supprimerEvenement(e.id)
-      setData(list => list.filter(x => x.id !== e.id))
-    } catch (err) { console.error(err) }
+      await supprimerEvenement(deleteDialog.item.id)
+      setData(list => list.filter(x => x.id !== deleteDialog.item.id))
+      setDeleteDialog({ open: false, item: null, label: '', loading: false })
+    } catch (e) {
+      console.error(e)
+      setDeleteDialog(d => ({ ...d, loading: false }))
+    }
   }
 
   return (
-    <div>
+    <div className="h-full flex flex-col">
       <PageHeader
         breadcrumb={['Comité & Évaluation', 'Événements']}
         title="Événements"
-        subtitle="Instances avec date, lieu, koureul, évaluateurs et paginateurs"
+        subtitle=""
         action={
           <Button onClick={ouvrirAjout} className="gap-1.5">
             <Plus size={15} /> Créer un événement
@@ -435,112 +469,133 @@ export function EvenementsPage() {
         }
       />
 
-      <div className="rounded-lg border border-gris-200 overflow-hidden bg-white">
+      <div className="flex-1 min-h-0 flex flex-col rounded-lg border border-gris-200 overflow-hidden bg-white">
         {loading ? (
-          <div className="text-center py-16">
-            <Loader size={36} className="mx-auto mb-3 text-gris-300 animate-spin" />
-            <p className="text-sm font-semibold text-gris-700">Chargement…</p>
+          <div className="flex-1 flex items-center justify-center">
+            <div className="text-center">
+              <Loader size={36} className="mx-auto mb-3 text-gris-300 animate-spin" />
+              <p className="text-sm font-semibold text-gris-700">Chargement…</p>
+            </div>
           </div>
         ) : data.length === 0 ? (
-          <div className="text-center py-16">
-            <Calendar size={36} className="mx-auto mb-3 text-gris-300" />
-            <p className="text-sm font-semibold text-gris-700">Aucun événement</p>
-            <p className="text-xs text-gris-500 mt-1">Créez votre premier événement.</p>
+          <div className="flex-1 flex items-center justify-center">
+            <div className="text-center">
+              <Calendar size={36} className="mx-auto mb-3 text-gris-300" />
+              <p className="text-sm font-semibold text-gris-700">Aucun événement</p>
+              <p className="text-xs text-gris-500 mt-1">Créez votre premier événement.</p>
+            </div>
           </div>
         ) : (
-          <Table>
-            <TableHeader>
-              {table.getHeaderGroups().map(headerGroup => (
-                <TableRow key={headerGroup.id} className="bg-gris-100 border-b-2 border-gris-200">
-                  {headerGroup.headers.map(header => (
-                    <TableHead key={header.id}
-                      className="text-[11px] font-semibold text-gris-700 uppercase tracking-wider"
-                      onClick={header.column.getToggleSortingHandler()}
-                    >
-                      <div className="flex items-center gap-1.5 cursor-pointer select-none">
-                        {flexRender(header.column.columnDef.header, header.getContext())}
-                        {header.column.getIsSorted() && (
-                          <span className="text-gris-400 text-[10px]">{header.column.getIsSorted() === 'asc' ? '↑' : '↓'}</span>
-                        )}
-                      </div>
-                    </TableHead>
-                  ))}
-                </TableRow>
-              ))}
-            </TableHeader>
-            <TableBody>
-              {table.getRowModel().rows.map(row => (
-                <TableRow key={row.id}
-                  className={`border-b border-gris-100 transition-colors ${row.getIsSelected() ? 'bg-vert-50/50' : ''}`}
-                >
-                  {row.getVisibleCells().map(cell => (
-                    <TableCell key={cell.id}>
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+          <div className="flex-1 overflow-y-auto">
+            <Table>
+              <TableHeader className="sticky top-0 z-10">
+                {table.getHeaderGroups().map(headerGroup => (
+                  <TableRow key={headerGroup.id} className="bg-gris-100 border-b-2 border-gris-200">
+                    {headerGroup.headers.map(header => (
+                      <TableHead key={header.id}
+                        className="text-[11px] font-semibold text-gris-700 uppercase tracking-wider"
+                        onClick={header.column.getToggleSortingHandler()}
+                      >
+                        <div className="flex items-center gap-1.5 cursor-pointer select-none">
+                          {flexRender(header.column.columnDef.header, header.getContext())}
+                          {header.column.getIsSorted() && (
+                            <span className="text-gris-400 text-[10px]">{header.column.getIsSorted() === 'asc' ? '↑' : '↓'}</span>
+                          )}
+                        </div>
+                      </TableHead>
+                    ))}
+                  </TableRow>
+                ))}
+              </TableHeader>
+              <TableBody>
+                {table.getRowModel().rows.map(row => (
+                  <TableRow key={row.id}
+                    className={`border-b border-gris-100 transition-colors ${row.getIsSelected() ? 'bg-vert-50/50' : ''}`}
+                  >
+                    {row.getVisibleCells().map(cell => (
+                      <TableCell key={cell.id}>
+                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
         )}
-      </div>
 
-      <div className="flex items-center justify-between mt-4">
-        <p className="text-sm text-gris-500">
-          {Object.keys(rowSelection).length} sur {data.length} sélectionné(s)
-        </p>
-        <div className="flex items-center gap-3">
-          <Button variant="outline" size="sm"
-            onClick={() => table.previousPage()}
-            disabled={!table.getCanPreviousPage()}
-            className="h-8 text-xs"
-          >
-            Précédent
-          </Button>
-          <span className="text-xs text-gris-500">
-            Page {table.getState().pagination.pageIndex + 1} / {table.getPageCount()}
-          </span>
-          <Button variant="outline" size="sm"
-            onClick={() => table.nextPage()}
-            disabled={!table.getCanNextPage()}
-            className="h-8 text-xs"
-          >
-            Suivant
-          </Button>
+        <div className="flex-shrink-0 flex items-center justify-between border-t border-gris-100 px-4 py-2.5 bg-white">
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-gris-500">Lignes</span>
+            <Select value={String(pagination.pageSize)} onValueChange={v => setPagination({ pageIndex: 0, pageSize: Number(v) })}>
+              <SelectTrigger className="h-7 text-xs w-16">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {[5, 8, 10, 20, 50].map(n => <SelectItem key={n} value={String(n)}>{n}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-gris-500 ml-2">
+              {Object.keys(rowSelection).length} sur {data.length} sélectionné(s)
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            <Button variant="outline" size="sm"
+              onClick={() => table.previousPage()}
+              disabled={!table.getCanPreviousPage()}
+              className="h-7 text-xs px-3"
+            >
+              Précédent
+            </Button>
+            <span className="text-xs text-gris-500 tabular-nums">
+              {table.getState().pagination.pageIndex + 1} / {table.getPageCount()}
+            </span>
+            <Button variant="outline" size="sm"
+              onClick={() => table.nextPage()}
+              disabled={!table.getCanNextPage()}
+              className="h-7 text-xs px-3"
+            >
+              Suivant
+            </Button>
+          </div>
         </div>
       </div>
 
       {/* Detail Sheet */}
       <Sheet open={!!detailEvent} onOpenChange={open => !open && setDetailEvent(null)}>
-        <SheetContent className="w-full sm:max-w-2xl bg-white p-0 flex flex-col h-full">
+        <SheetContent 
+          className="w-full sm:max-w-2xl bg-white p-0 flex flex-col h-full"
+          onInteractOutside={(e) => e.preventDefault()}
+          onEscapeKeyDown={(e) => e.preventDefault()}
+        >
           {detailEvent && (
             <>
-              <SheetHeader className="px-6 pt-6 pb-4 border-b border-gris-100 flex-shrink-0">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <SheetTitle className="text-lg font-bold text-gris-950">
-                      {types.find(t => t.id === detailEvent.type_id)?.nom || '—'}
-                    </SheetTitle>
-                    <div className="text-sm text-gris-500 mt-2 flex flex-wrap items-center gap-x-4 gap-y-1">
-                      <span className="flex items-center gap-1.5"><Calendar size={13} />{formatDate(detailEvent.date_evenement)}</span>
-                      <span className="flex items-center gap-1.5"><MapPin size={13} />{detailEvent.lieu?.nom || detailEvent.lieu}</span>
-                      <span className="flex items-center gap-1.5 font-medium text-gris-700"><Users size={13} />{(detailEvent.kourels || []).map(ek => ek.kourel?.nom).filter(Boolean).join(', ')}</span>
-                    </div>
+              <SheetHeader className="px-6 pt-6 pb-4 border-b border-gris-100 flex-shrink-0 flex items-start justify-between">
+                <div className="flex-1 min-w-0 pr-4">
+                  <SheetTitle className="text-lg font-bold text-gris-950">
+                    {types.find(t => t.id === detailEvent.type_id)?.nom || '—'}
+                  </SheetTitle>
+                  <div className="text-sm text-gris-500 mt-2 flex flex-wrap items-center gap-x-4 gap-y-1">
+                    <span className="flex items-center gap-1.5"><Calendar size={13} />{formatDate(detailEvent.date_evenement)}</span>
+                    <span className="flex items-center gap-1.5"><MapPin size={13} />{detailEvent.lieu?.nom || detailEvent.lieu}</span>
+                    <span className="flex items-center gap-1.5 font-medium text-gris-700"><Users size={13} />{(detailEvent.kourels || []).map(ek => ek.kourel?.nom).filter(Boolean).join(', ')}</span>
                   </div>
-                  <Select value={detailEvent.statut} onValueChange={s => changerStatutEvent(detailEvent.id, s)}>
-                    <SelectTrigger className={`h-8 w-36 text-xs font-semibold border-0 ${
-                      detailEvent.statut === 'terminé' ? 'bg-vert-50 text-vert-700' :
-                      detailEvent.statut === 'en cours' ? 'bg-blue-50 text-blue-700' :
-                      'bg-amber-50 text-amber-700'
-                    }`}>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="à venir">À venir</SelectItem>
-                      <SelectItem value="en cours">En cours</SelectItem>
-                      <SelectItem value="terminé">Terminé</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <div className="mt-3">
+                    <Select value={detailEvent.statut} onValueChange={s => changerStatutEvent(detailEvent.id, s)}>
+                      <SelectTrigger className={`h-8 w-36 text-xs font-semibold border-0 ${
+                        detailEvent.statut === 'terminé' ? 'bg-vert-50 text-vert-700' :
+                        detailEvent.statut === 'en cours' ? 'bg-blue-50 text-blue-700' :
+                        'bg-amber-50 text-amber-700'
+                      }`}>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="à venir">À venir</SelectItem>
+                        <SelectItem value="en cours">En cours</SelectItem>
+                        <SelectItem value="terminé">Terminé</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
               </SheetHeader>
 
@@ -605,7 +660,7 @@ export function EvenementsPage() {
               <SheetFooter className="px-6 py-4 border-t border-gris-100 flex-shrink-0">
                 <SheetClose asChild>
                   <Button variant="outline" className="rounded-lg">
-                    <X size={14} /> Fermer
+                    Fermer
                   </Button>
                 </SheetClose>
               </SheetFooter>
@@ -616,16 +671,27 @@ export function EvenementsPage() {
 
       {/* Create/Edit Sheet */}
       <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
-        <SheetContent className="w-full sm:max-w-md bg-white p-0 flex flex-col h-full">
-          <SheetHeader className="px-6 pt-6 pb-4 border-b border-gris-100 flex-shrink-0">
-            <SheetTitle className="text-lg font-bold text-gris-950">
-              {editingId ? "Modifier l'événement" : "Nouvel événement"}
-            </SheetTitle>
-            <p className="text-sm text-gris-500">
-              {editingId ? 'Modifiez les informations' : 'Créez une instance avec date, lieu, koureul et équipe'}
-            </p>
+        <SheetContent 
+          className="w-full sm:max-w-md bg-white p-0 flex flex-col h-full"
+          onInteractOutside={(e) => e.preventDefault()}
+          onEscapeKeyDown={(e) => e.preventDefault()}
+        >
+          <SheetHeader className="px-6 pt-6 pb-4 border-b border-gris-100 flex-shrink-0 flex items-start justify-between">
+            <div className="flex-1">
+              <SheetTitle className="text-lg font-bold text-gris-950">
+                {editingId ? "Modifier l'événement" : "Nouvel événement"}
+              </SheetTitle>
+              <p className="text-sm text-gris-500 mt-1">
+                {editingId ? 'Modifiez les informations' : 'Créez une instance avec date, lieu, koureul et équipe'}
+              </p>
+            </div>
           </SheetHeader>
 
+          {errorMsg && (
+            <div className="mx-6 mt-4 text-xs font-semibold text-rouge bg-rouge-bg border border-rouge/20 rounded-lg px-3 py-2.5">
+              {errorMsg}
+            </div>
+          )}
           <div className="flex-1 overflow-y-auto space-y-5 px-6 py-5">
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold text-gris-500 uppercase tracking-wider">
@@ -643,7 +709,20 @@ export function EvenementsPage() {
 
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold text-gris-500 uppercase tracking-wider">Date</Label>
-              <Input type="date" value={form.date_evenement} onChange={e => setForm(f => ({ ...f, date_evenement: e.target.value }))} />
+              <div className="relative">
+                <Calendar 
+                  size={16} 
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gris-400 cursor-pointer hover:text-gris-600 transition-colors" 
+                  onClick={() => dateInputRef.current?.showPicker?.()}
+                />
+                <Input 
+                  ref={dateInputRef}
+                  type="date" 
+                  value={form.date_evenement} 
+                  onChange={e => setForm(f => ({ ...f, date_evenement: e.target.value }))} 
+                  className="pr-10 [&::-webkit-calendar-picker-indicator]:hidden"
+                />
+              </div>
             </div>
 
             <div className="space-y-1.5">
@@ -770,8 +849,8 @@ export function EvenementsPage() {
 
           <SheetFooter className="flex-row gap-3 px-6 py-4 border-t border-gris-100 flex-shrink-0">
             <SheetClose asChild>
-              <Button variant="outline" className="flex-1 gap-1.5 rounded-lg">
-                <X size={14} /> Annuler
+              <Button variant="outline" className="flex-1 rounded-lg">
+                Annuler
               </Button>
             </SheetClose>
             <Button
@@ -785,6 +864,17 @@ export function EvenementsPage() {
           </SheetFooter>
         </SheetContent>
       </Sheet>
+
+      <ConfirmDeleteDialog
+        open={deleteDialog.open}
+        onOpenChange={(open) => setDeleteDialog({ ...deleteDialog, open })}
+        title="Supprimer l'événement"
+        description="Cette action est irréversible. L'événement et toutes ses données d'évaluation seront supprimés."
+        itemName={deleteDialog.label}
+        onConfirm={confirmerSuppression}
+        loading={deleteDialog.loading}
+        variant="danger"
+      />
     </div>
   )
 }

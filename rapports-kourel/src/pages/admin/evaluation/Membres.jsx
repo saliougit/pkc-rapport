@@ -15,6 +15,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
 import { PageHeader } from '@/components/layout/PageHeader'
+import { ConfirmDeleteDialog } from '@/components/ConfirmDeleteDialog'
 import {
   flexRender, getCoreRowModel, getSortedRowModel,
   getPaginationRowModel, getFilteredRowModel, useReactTable,
@@ -27,12 +28,14 @@ export function MembresPage() {
   const [kourels, setKourels] = useState([])
   const [rowSelection, setRowSelection] = useState({})
   const [sorting, setSorting] = useState([])
+  const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 8 })
   const [globalFilter, setGlobalFilter] = useState('')
   const [filterKourel, setFilterKourel] = useState('tous')
   const [sheetOpen, setSheetOpen] = useState(false)
   const [form, setForm] = useState({ prenom: '', nom: '', kourel: '', telephone: '', statut: 'actif' })
   const [editingId, setEditingId] = useState(null)
   const [saving, setSaving] = useState(false)
+  const [deleteDialog, setDeleteDialog] = useState({ open: false, item: null, loading: false })
 
   useEffect(() => {
     loadData()
@@ -129,15 +132,15 @@ export function MembresPage() {
   const table = useReactTable({
     data: filteredData,
     columns,
-    state: { sorting, rowSelection, globalFilter },
+    state: { sorting, rowSelection, globalFilter, pagination },
     onSortingChange: setSorting,
     onRowSelectionChange: setRowSelection,
     onGlobalFilterChange: setGlobalFilter,
+    onPaginationChange: setPagination,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
-    initialState: { pagination: { pageSize: 8 } },
   })
 
   const ouvrirAjout = () => {
@@ -166,11 +169,20 @@ export function MembresPage() {
     finally { setSaving(false) }
   }
   const supprimer = async (m) => {
-    if (!confirm(`Supprimer ${m.prenom} ${m.nom} ?`)) return
+    setDeleteDialog({ open: true, item: m, loading: false })
+  }
+
+  const confirmerSuppression = async () => {
+    if (!deleteDialog.item) return
+    setDeleteDialog(d => ({ ...d, loading: true }))
     try {
-      await supprimerMembre(m.id)
-      setData(list => list.filter(x => x.id !== m.id))
-    } catch (e) { console.error(e) }
+      await supprimerMembre(deleteDialog.item.id)
+      setData(list => list.filter(x => x.id !== deleteDialog.item.id))
+      setDeleteDialog({ open: false, item: null, loading: false })
+    } catch (e) {
+      console.error(e)
+      setDeleteDialog(d => ({ ...d, loading: false }))
+    }
   }
 
   if (loading) {
@@ -265,11 +277,22 @@ export function MembresPage() {
 
         {/* Pagination — toujours en bas */}
         <div className="flex-shrink-0 flex items-center justify-between border-t border-gris-100 px-4 py-2.5 bg-white">
-          <p className="text-xs text-gris-500">
-            {Object.keys(rowSelection).length > 0
-              ? `${Object.keys(rowSelection).length} sélectionné(s)`
-              : `${filteredData.length} membre${filteredData.length > 1 ? 's' : ''}`}
-          </p>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-gris-500">Lignes</span>
+            <Select value={String(pagination.pageSize)} onValueChange={v => setPagination({ pageIndex: 0, pageSize: Number(v) })}>
+              <SelectTrigger className="h-7 text-xs w-16">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {[5, 8, 10, 20, 50].map(n => <SelectItem key={n} value={String(n)}>{n}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-gris-500 ml-2">
+              {Object.keys(rowSelection).length > 0
+                ? `${Object.keys(rowSelection).length} sélectionné(s)`
+                : `${filteredData.length} membre${filteredData.length > 1 ? 's' : ''}`}
+            </p>
+          </div>
           <div className="flex items-center gap-3">
             <Button variant="outline" size="sm"
               onClick={() => table.previousPage()}
@@ -293,14 +316,20 @@ export function MembresPage() {
       </div>
 
       <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
-        <SheetContent className="w-full sm:max-w-md bg-white p-0 flex flex-col h-full">
+        <SheetContent 
+          className="w-full sm:max-w-md bg-white p-0 flex flex-col h-full"
+          onInteractOutside={(e) => e.preventDefault()}
+          onEscapeKeyDown={(e) => e.preventDefault()}
+        >
           <SheetHeader className="px-6 pt-6 pb-4 border-b border-gris-100 flex-shrink-0">
-            <SheetTitle className="text-lg font-bold text-gris-950">
-              {editingId ? 'Modifier le membre' : 'Nouveau membre du comité'}
-            </SheetTitle>
-            <p className="text-sm text-gris-500">
-              {editingId ? 'Modifiez les informations du membre' : "Ajoutez un nouveau membre au comité d'évaluation"}
-            </p>
+            <div className="flex-1">
+              <SheetTitle className="text-lg font-bold text-gris-950">
+                {editingId ? 'Modifier le membre' : 'Nouveau membre du comité'}
+              </SheetTitle>
+              <p className="text-sm text-gris-500 mt-1">
+                {editingId ? 'Modifiez les informations du membre' : "Ajoutez un nouveau membre au comité d'évaluation"}
+              </p>
+            </div>
           </SheetHeader>
 
           <div className="flex-1 overflow-y-auto space-y-5 px-6 py-5">
@@ -344,8 +373,8 @@ export function MembresPage() {
 
           <SheetFooter className="flex-row gap-3 px-6 py-4 border-t border-gris-100 flex-shrink-0">
             <SheetClose asChild>
-              <Button variant="outline" className="flex-1 gap-1.5 rounded-lg">
-                <X size={14} /> Annuler
+              <Button variant="outline" className="flex-1 rounded-lg">
+                Annuler
               </Button>
             </SheetClose>
             <Button
@@ -359,6 +388,16 @@ export function MembresPage() {
           </SheetFooter>
         </SheetContent>
       </Sheet>
+
+      <ConfirmDeleteDialog
+        open={deleteDialog.open}
+        onOpenChange={(open) => setDeleteDialog({ ...deleteDialog, open })}
+        title="Supprimer le membre du comité"
+        description="Cette action est irréversible. Le membre sera supprimé de tous les événements."
+        itemName={deleteDialog.item ? `${deleteDialog.item.prenom} ${deleteDialog.item.nom}` : ''}
+        onConfirm={confirmerSuppression}
+        loading={deleteDialog.loading}
+      />
     </div>
   )
 }

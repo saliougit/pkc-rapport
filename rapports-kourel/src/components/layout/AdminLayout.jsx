@@ -13,10 +13,10 @@ import {
   LayoutDashboard, FileText, BookOpen,
   ClipboardList, Users, Settings, Bell,
   LogOut, ChevronRight, Calendar, Star, ListChecks, Scale,
-  ClipboardCheck, FileSpreadsheet, ExternalLink,
+  ClipboardCheck, FileSpreadsheet, ExternalLink, KeyRound,
 } from 'lucide-react'
 import { logoutAdmin } from '@/lib/supabase'
-import { UserProfileSheet } from '@/components/UserProfileSheet'
+import { ChangePasswordModal } from '@/components/ChangePasswordModal'
 
 const NAV = [
   { title: 'Tableau de bord', icon: LayoutDashboard, href: '/admin' },
@@ -207,8 +207,19 @@ function AppSidebar({ user, profile, nav, onLogout }) {
 }
 
 function TopBar({ user, profile, onLogout }) {
-  const [profileOpen, setProfileOpen] = useState(false)
+  const [menuOpen, setMenuOpen] = useState(false)
+  const [showChangePassword, setShowChangePassword] = useState(false)
   const initiale = (user?.email?.[0] || 'A').toUpperCase()
+
+  const handleLogoutClick = async () => {
+    setMenuOpen(false)
+    try {
+      await onLogout()
+    } catch {
+      // ignore
+    }
+    window.location.href = '/login'
+  }
 
   return (
     <header className="flex items-center gap-3 border-b border-gris-200 bg-white px-4 md:px-6 h-14 flex-shrink-0 relative">
@@ -234,21 +245,50 @@ function TopBar({ user, profile, onLogout }) {
 
         <Separator orientation="vertical" className="h-5 bg-gris-200" />
 
-        <button
-          onClick={() => setProfileOpen(true)}
-          className="flex items-center gap-2 px-2 py-1 rounded-lg hover:bg-gris-100 transition-colors group"
-        >
-          <div className="w-7 h-7 rounded-full bg-vert-700 flex items-center justify-center">
-            <span className="text-white text-xs font-bold">{initiale}</span>
-          </div>
-          <div className="hidden lg:block text-left">
-            <p className="text-xs font-semibold text-gris-950 truncate max-w-[120px]">{user?.email}</p>
-            <p className="text-[10px] text-gris-500">{ROLE_LABELS[profile?.role] || 'Admin'}</p>
-          </div>
-        </button>
+        <div className="relative">
+          <button
+            onClick={() => setMenuOpen(!menuOpen)}
+            className="flex items-center gap-2 px-2 py-1 rounded-lg hover:bg-gris-100 transition-colors group"
+          >
+            <div className="w-7 h-7 rounded-full bg-vert-700 flex items-center justify-center">
+              <span className="text-white text-xs font-bold">{initiale}</span>
+            </div>
+            <div className="hidden lg:block text-left">
+              <p className="text-xs font-semibold text-gris-950 truncate max-w-[120px]">{user?.email}</p>
+              <p className="text-[10px] text-gris-500">{ROLE_LABELS[profile?.role] || 'Admin'}</p>
+            </div>
+          </button>
+
+          {menuOpen && (
+            <>
+              <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} />
+              <div className="absolute right-0 top-full mt-1 z-50 w-56 bg-white border border-gris-200 rounded-xl shadow-lg py-1.5">
+                <div className="px-3 py-2 border-b border-gris-100">
+                  <p className="text-xs font-semibold text-gris-950 truncate">{user?.email}</p>
+                  <p className="text-[10px] text-gris-500">{ROLE_LABELS[profile?.role] || 'Admin'}</p>
+                </div>
+                <button
+                  onClick={() => { setMenuOpen(false); setShowChangePassword(true) }}
+                  className="flex items-center gap-2.5 w-full px-3 py-2 text-xs font-medium text-gris-700 hover:bg-gris-50 transition-colors"
+                >
+                  <KeyRound size={14} className="text-gris-400" />
+                  Changer le mot de passe
+                </button>
+                <div className="border-t border-gris-100 my-1" />
+                <button
+                  onClick={handleLogoutClick}
+                  className="flex items-center gap-2.5 w-full px-3 py-2 text-xs font-medium text-rouge hover:bg-rouge-bg transition-colors"
+                >
+                  <LogOut size={14} />
+                  Déconnexion
+                </button>
+              </div>
+            </>
+          )}
+        </div>
       </div>
 
-      <UserProfileSheet open={profileOpen} onOpenChange={setProfileOpen} user={user} profile={profile} onLogout={onLogout} />
+      <ChangePasswordModal open={showChangePassword} onOpenChange={setShowChangePassword} />
     </header>
   )
 }

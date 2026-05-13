@@ -76,16 +76,14 @@ export function UserProfileSheet({ open, onOpenChange, user, profile, onLogout }
 
   return (
     <Sheet open={open} onOpenChange={handleOpenChange}>
-      <SheetContent side="right" className="w-full sm:max-w-md bg-white flex flex-col p-0">
+      <SheetContent 
+        side="right" 
+        className="w-full sm:max-w-md bg-white flex flex-col p-0"
+        onInteractOutside={(e) => e.preventDefault()}
+        onEscapeKeyDown={(e) => e.preventDefault()}
+      >
         <SheetHeader className="px-6 pt-6 pb-4 border-b border-gris-100">
-          <div className="flex items-start justify-between">
-            <div className="flex-1">
-              <SheetTitle className="text-lg font-bold text-gris-950">Mon profil</SheetTitle>
-            </div>
-            <SheetClose className="h-8 w-8 rounded-lg hover:bg-gris-100 flex items-center justify-center text-gris-400 hover:text-gris-600" asChild>
-              <button><X size={18} /></button>
-            </SheetClose>
-          </div>
+          <SheetTitle className="text-lg font-bold text-gris-950">Mon profil</SheetTitle>
         </SheetHeader>
 
         <div className="flex-1 overflow-y-auto px-6 py-6">

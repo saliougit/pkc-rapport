@@ -292,7 +292,9 @@ export function EvaluationsPage() {
   const [filterLieu, setFilterLieu] = useState('tous')
 
   const [page, setPage] = useState(1)
-  const perPage = 6
+  const [perPage, setPerPage] = useState(6)
+
+  useEffect(() => { setPage(1) }, [perPage])
 
   useEffect(() => { loadData() }, [])
 
@@ -472,7 +474,18 @@ export function EvaluationsPage() {
               ))}
             </div>
 
-            <div className="mt-auto flex-shrink-0">
+            <div className="mt-auto flex-shrink-0 flex items-center justify-between pt-3">
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-gris-500">Lignes</span>
+                <Select value={String(perPage)} onValueChange={v => setPerPage(Number(v))}>
+                  <SelectTrigger className="h-7 text-xs w-16">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {[3, 6, 9, 12, 18].map(n => <SelectItem key={n} value={String(n)}>{n}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
               <Pagination currentPage={pageCourante} totalPages={totalPages} onPageChange={setPage} />
             </div>
           </div>
@@ -480,24 +493,28 @@ export function EvaluationsPage() {
       </div>
 
       <Sheet open={!!selected} onOpenChange={open => { if (!open) setSelected(null) }}>
-        <SheetContent className="w-full sm:max-w-2xl bg-white p-0 flex flex-col h-full">
+        <SheetContent 
+          className="w-full sm:max-w-2xl bg-white p-0 flex flex-col h-full"
+          onInteractOutside={(e) => e.preventDefault()}
+          onEscapeKeyDown={(e) => e.preventDefault()}
+        >
           {selected && (
             <>
               <SheetHeader className="px-6 pt-6 pb-4 border-b border-gris-100 flex-shrink-0">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <SheetTitle className="text-lg font-bold text-gris-950">
-                      {selected.type_nom}
-                    </SheetTitle>
-                    <div className="text-sm text-gris-500 mt-2 flex flex-wrap items-center gap-x-4 gap-y-1">
-                      <span className="flex items-center gap-1.5"><Calendar size={13} />{formatDate(selected.date_evenement)}</span>
-                      <span className="flex items-center gap-1.5"><MapPin size={13} />{selected.lieu_nom}</span>
-                      <span className="flex items-center gap-1.5 font-medium text-gris-700"><Users size={13} />{selected.kourel?.nom || '—'}</span>
-                    </div>
+                <div className="flex-1 min-w-0">
+                  <SheetTitle className="text-lg font-bold text-gris-950">
+                    {selected.type_nom}
+                  </SheetTitle>
+                  <div className="text-sm text-gris-500 mt-2 flex flex-wrap items-center gap-x-4 gap-y-1">
+                    <span className="flex items-center gap-1.5"><Calendar size={13} />{formatDate(selected.date_evenement)}</span>
+                    <span className="flex items-center gap-1.5"><MapPin size={13} />{selected.lieu_nom}</span>
+                    <span className="flex items-center gap-1.5 font-medium text-gris-700"><Users size={13} />{selected.kourel?.nom || '—'}</span>
                   </div>
-                  <Badge className={`text-xs font-semibold px-2.5 py-0.5 ${STATUS_STYLES[selected.statut] || ''}`}>
-                    {selected.statut}
-                  </Badge>
+                  <div className="mt-3">
+                    <Badge className={`text-xs font-semibold px-2.5 py-0.5 ${STATUS_STYLES[selected.statut] || ''}`}>
+                      {selected.statut}
+                    </Badge>
+                  </div>
                 </div>
               </SheetHeader>
 
@@ -611,8 +628,8 @@ export function EvaluationsPage() {
 
               <SheetFooter className="flex-row gap-3 px-6 py-4 border-t border-gris-100 flex-shrink-0">
                 <SheetClose asChild>
-                  <Button variant="outline" className="flex-1 gap-1.5 rounded-lg">
-                    <X size={14} /> Fermer
+                  <Button variant="outline" className="flex-1 rounded-lg">
+                    Fermer
                   </Button>
                 </SheetClose>
                 <Button onClick={sauvegarderConclusion} disabled={saving} className="flex-1 gap-1.5 rounded-lg">

@@ -250,10 +250,29 @@ export async function ajouterLieu(nom) {
 export async function fetchEvenements() {
   const { data, error } = await supabase
     .from('evenements')
-    .select('*, type:type_id(id, nom), lieu:lieu_id(id, nom), kourels:evenement_kourels(id, kourel:kourel_id(id, nom))')
+    .select('*, type:type_id(id, nom), lieu:lieu_id(id, nom), kourels:evenement_kourels(id, kourel:kourel_id(id, nom), eval_membres:eval_membres(id, membre_id, role, code_acces))')
     .order('date_evenement', { ascending: false })
   if (error) throw error
-  return data
+
+  return (data || []).map(ev => {
+    const allEvalIds = []
+    const allPagIds = []
+    const kourels = (ev.kourels || []).map(ek => {
+      const evaluateurs = (ek.eval_membres || [])
+        .filter(em => em.role === 'evaluateur')
+        .map(em => em.membre_id)
+      const paginateurs = (ek.eval_membres || [])
+        .filter(em => em.role === 'paginateur')
+        .map(em => em.membre_id)
+      const codes = (ek.eval_membres || [])
+        .filter(em => em.code_acces)
+        .reduce((acc, em) => ({ ...acc, [em.membre_id]: em.code_acces }), {})
+      allEvalIds.push(...evaluateurs)
+      allPagIds.push(...paginateurs)
+      return { ...ek, evaluateurs, paginateurs, codes }
+    })
+    return { ...ev, kourels, evaluateurs: allEvalIds, paginateurs: allPagIds }
+  })
 }
 
 export async function ajouterEvenement(evenement) {

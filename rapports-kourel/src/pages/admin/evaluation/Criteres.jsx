@@ -200,7 +200,7 @@ export function CriteresPage() {
       <PageHeader
         breadcrumb={['Comité & Évaluation', 'Critères']}
         title="Sections et critères d'évaluation"
-        subtitle={`${sections.length} sections · Chaque section contient une appréciation, des remarques et une note`}
+        subtitle={`${sections.length} sections`}
         action={
           <Button onClick={ouvrirAjout} className="gap-1.5">
             <Plus size={15} /> Ajouter une section
@@ -237,14 +237,20 @@ export function CriteresPage() {
       </Card>
 
       <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
-        <SheetContent className="w-full sm:max-w-lg bg-white p-0 flex flex-col h-full">
+        <SheetContent 
+          className="w-full sm:max-w-lg bg-white p-0 flex flex-col h-full"
+          onInteractOutside={(e) => e.preventDefault()}
+          onEscapeKeyDown={(e) => e.preventDefault()}
+        >
           <SheetHeader className="px-6 pt-6 pb-4 border-b border-gris-100 flex-shrink-0">
-            <SheetTitle className="text-lg font-bold text-gris-950">
-              {editingSectionId ? 'Modifier la section' : 'Nouvelle section'}
-            </SheetTitle>
-            <p className="text-sm text-gris-500">
-              {editingSectionId ? 'Modifiez les critères de cette section' : 'Ajoutez une section avec ses critères'}
-            </p>
+            <div className="flex-1">
+              <SheetTitle className="text-lg font-bold text-gris-950">
+                {editingSectionId ? 'Modifier la section' : 'Nouvelle section'}
+              </SheetTitle>
+              <p className="text-sm text-gris-500 mt-1">
+                {editingSectionId ? 'Modifiez les critères de cette section' : 'Ajoutez une section avec ses critères'}
+              </p>
+            </div>
           </SheetHeader>
 
           <div className="flex-1 overflow-y-auto space-y-5 px-6 py-5">
@@ -329,8 +335,8 @@ export function CriteresPage() {
 
           <SheetFooter className="flex-row gap-3 px-6 py-4 border-t border-gris-100 flex-shrink-0">
             <SheetClose asChild>
-              <Button variant="outline" className="flex-1 gap-1.5 rounded-lg">
-                <X size={14} /> Annuler
+              <Button variant="outline" className="flex-1 rounded-lg">
+                Annuler
               </Button>
             </SheetClose>
             <Button

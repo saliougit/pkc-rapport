@@ -99,7 +99,7 @@ export function Dashboard() {
   const actifs = membres.filter(m => m.statut === 'actif').length
 
   return (
-    <div className="max-w-4xl space-y-6">
+    <div className="w-full space-y-6">
       <PageHeader
         title="Tableau de bord"
         subtitle={today.charAt(0).toUpperCase() + today.slice(1)}
