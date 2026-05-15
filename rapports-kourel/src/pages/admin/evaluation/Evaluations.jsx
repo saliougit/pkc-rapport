@@ -77,93 +77,94 @@ function EventCard({ event, onClick }) {
   const total = event.evaluateurs.length
   const progres = total > 0 ? Math.round((soumis / total) * 100) : 0
 
-  const isValidated = event.statut === 'terminé' && (event.conclusion || moy != null)
-  const ac = apprGen ? APPREC_COLORS[apprGen] : null
+  const accent =
+    event.statut === 'terminé' ? '#16824E'
+    : event.statut === 'en cours' ? '#3B82F6'
+    : '#F59E0B'
 
-  const accentColor = event.statut === 'terminé' ? 'bg-vert-500'
-    : event.statut === 'en cours' ? 'bg-blue-500' : 'bg-amber-400'
+  const statutPill =
+    event.statut === 'terminé'
+      ? { color: '#15803d', background: '#f0fdf4', border: '1px solid #bbf7d0' }
+      : event.statut === 'en cours'
+      ? { color: '#1d4ed8', background: '#eff6ff', border: '1px solid #bfdbfe' }
+      : { color: '#b45309', background: '#fffbeb', border: '1px solid #fde68a' }
+
+  const kourelNom = event.kourels?.map(k => k.kourel?.nom).filter(Boolean).join(', ') || '—'
 
   return (
-    <button
+    <div
       onClick={() => onClick(event)}
-      className="group w-full text-left rounded-2xl border border-gris-200 bg-gradient-to-br from-white to-gris-50 shadow-sm hover:shadow-lg hover:border-vert-300 transition-all duration-200 overflow-hidden hover:scale-[1.02] relative"
+      className="group relative overflow-hidden cursor-pointer transition-all duration-200 hover:-translate-y-1 hover:shadow-lg"
+      style={{ background: '#fff', borderRadius: 14, border: '1px solid #e5e7eb', padding: '10px 12px', boxShadow: '0 1px 4px rgba(0,0,0,0.07)' }}
     >
-      {/* Animated blob decorations - positioned outside content flow */}
-      <div 
-        className="absolute -top-12 -right-12 w-28 h-28 rounded-full opacity-0 group-hover:opacity-20 transition-opacity duration-300 pointer-events-none animate-pulse" 
-        style={{ background: accentColor.replace('bg-', '') === 'vert-500' ? '#16824E' : accentColor.replace('bg-', '') === 'blue-500' ? '#3B82F6' : '#FBBF24' }} 
+      {/* Barre accent haut */}
+      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3, background: accent, borderRadius: '14px 14px 0 0', opacity: 0.85 }} />
+
+      {/* Bulle coin haut-droite */}
+      <div
+        className="absolute pointer-events-none transition-all duration-500 group-hover:opacity-30 group-hover:scale-125"
+        style={{ top: -20, right: -20, width: 60, height: 60, borderRadius: '50%', background: accent, opacity: 0.13, filter: 'blur(18px)' }}
       />
-      <div 
-        className="absolute -bottom-10 -left-10 w-24 h-24 rounded-full opacity-0 group-hover:opacity-15 transition-opacity duration-500 pointer-events-none animate-pulse" 
-        style={{ background: accentColor.replace('bg-', '') === 'vert-500' ? '#16824E' : accentColor.replace('bg-', '') === 'blue-500' ? '#3B82F6' : '#FBBF24', animationDelay: '0.3s' }} 
+      {/* Bulle coin bas-gauche */}
+      <div
+        className="absolute pointer-events-none transition-all duration-700 group-hover:opacity-25 group-hover:scale-125"
+        style={{ bottom: -16, left: -16, width: 44, height: 44, borderRadius: '50%', background: accent, opacity: 0.1, filter: 'blur(14px)' }}
       />
 
-      <div className={`h-1 w-full flex-shrink-0 ${accentColor}`} />
-
-      <div className="p-4 space-y-2.5 relative z-10">
-        <div className="flex items-start justify-between gap-2">
-          <h3 className="text-sm font-bold text-gris-950 leading-tight flex-1 min-w-0 group-hover:text-vert-700 transition-colors">{event.type_nom}</h3>
-          <Badge className={`text-[8px] font-semibold px-1.5 py-0 border flex-shrink-0 ${STATUS_STYLES[event.statut] || ''}`}>
+      {/* Ligne 1 : kourel + score + statut */}
+      <div className="relative z-10 flex items-center justify-between gap-2" style={{ paddingTop: 3 }}>
+        <div style={{ minWidth: 0, flex: 1 }}>
+          <p className="truncate group-hover:text-vert-700 transition-colors"
+            style={{ fontSize: 13, fontWeight: 900, lineHeight: '17px', margin: 0, color: '#09090b' }}>
+            {kourelNom}
+          </p>
+          <p className="truncate" style={{ fontSize: 10, lineHeight: '14px', margin: 0, color: '#9ca3af' }}>
+            {event.type_nom}
+          </p>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+          {moy != null && (
+            <div style={{ textAlign: 'right' }}>
+              <span style={{ fontSize: 18, fontWeight: 900, lineHeight: 1, color: accent }}>
+                {moy}
+              </span>
+              <span style={{ fontSize: 9, color: '#9ca3af' }}>/10</span>
+            </div>
+          )}
+          <span style={{ ...statutPill, fontSize: 8, fontWeight: 700, borderRadius: 999, padding: '2px 7px', lineHeight: '13px', whiteSpace: 'nowrap' }}>
             {event.statut}
-          </Badge>
-        </div>
-
-        <div className="flex flex-col gap-0.5 text-xs">
-          <span className="text-gris-500 flex items-center gap-1.5">
-            <Calendar size={11} className="flex-shrink-0 text-gris-400" />
-            {formatDate(event.date_evenement)}
           </span>
-          <div className="flex items-center gap-1.5 min-w-0">
-            <span className="text-gris-500 flex items-center gap-1 truncate">
-              <MapPin size={11} className="flex-shrink-0 text-gris-400" />{event.lieu_nom}
-            </span>
-            <span className="text-gris-300 flex-shrink-0">·</span>
-            <span className="font-medium text-gris-700 truncate">{event.kourel?.nom || '—'}</span>
-          </div>
-        </div>
-
-        {isValidated ? (
-          <div className="rounded-lg bg-vert-50 border border-vert-100 px-2 py-1.5 flex items-center justify-between gap-2">
-            <div className="flex items-center gap-1">
-              <CheckCircle2 size={12} className="text-vert-600 flex-shrink-0" />
-              {apprGen && ac ? (
-                <span className="text-[10px] font-bold px-1.5 py-0 rounded-full" style={{ color: ac.color, background: ac.bg }}>
-                  {apprGen}
-                </span>
-              ) : (
-                <span className="text-xs text-vert-600 font-semibold">Validé</span>
-              )}
-            </div>
-            {moy != null && (
-              <div className="text-right flex-shrink-0">
-                <span className="text-base font-black text-vert-700 leading-none">{moy}</span>
-                <span className="text-[9px] text-vert-500">/10</span>
-              </div>
-            )}
-          </div>
-        ) : (
-          <div className="flex items-center gap-2">
-            <div className="flex-1 bg-gris-100 rounded-full h-1.5 overflow-hidden">
-              <div
-                className={`h-full rounded-full transition-all ${progres === 100 ? 'bg-vert-500' : progres > 0 ? 'bg-blue-400' : 'bg-gris-200'}`}
-                style={{ width: `${progres}%` }}
-              />
-            </div>
-            <span className="text-[9px] font-semibold text-gris-500 flex-shrink-0 flex items-center gap-1">
-              <Users size={8} />{soumis}/{total}
-            </span>
-          </div>
-        )}
-
-        <div className="flex items-center justify-end gap-1.5 pt-1 group-hover:text-vert-700 transition-colors">
-          <span className="text-xs font-semibold text-gris-600 group-hover:text-vert-700">Détails</span>
-          <ChevronRight size={13} className="text-gris-400 group-hover:text-vert-600 group-hover:translate-x-0.5 transition-all" />
         </div>
       </div>
-    </button>
+
+      {/* Ligne 2 : date · lieu + appréciation / progression */}
+      <div className="relative z-10 flex items-center justify-between gap-2" style={{ marginTop: 5 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 9, color: '#9ca3af', minWidth: 0, flex: 1 }}>
+          <Calendar size={8} style={{ flexShrink: 0 }} />
+          <span style={{ flexShrink: 0 }}>{formatDate(event.date_evenement)}</span>
+          <span style={{ color: '#d1d5db', flexShrink: 0, margin: '0 1px' }}>·</span>
+          <MapPin size={8} style={{ flexShrink: 0 }} />
+          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{event.lieu_nom}</span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0 }}>
+          {apprGen && APPREC_COLORS[apprGen] && (
+            <span style={{ color: APPREC_COLORS[apprGen].color, background: APPREC_COLORS[apprGen].bg, fontSize: 8, fontWeight: 700, borderRadius: 999, padding: '2px 7px', lineHeight: '13px' }}>
+              {apprGen}
+            </span>
+          )}
+          {soumis < total && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+              <div style={{ width: 32, height: 3, borderRadius: 99, background: '#f3f4f6', overflow: 'hidden' }}>
+                <div style={{ width: `${progres}%`, height: '100%', borderRadius: 99, background: '#60a5fa', transition: 'width 0.3s' }} />
+              </div>
+              <span style={{ fontSize: 8, fontWeight: 600, color: '#9ca3af' }}>{soumis}/{total}</span>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
   )
 }
-
 function EvaluateurPanel({ evaluateur, notes, sections }) {
   const [open, setOpen] = useState(false)
   const status = getStatusEval(notes)
@@ -285,6 +286,8 @@ export function EvaluationsPage() {
   const [filterStatut, setFilterStatut] = useState('tous')
   const [filterType, setFilterType] = useState('tous')
   const [filterLieu, setFilterLieu] = useState('tous')
+  const [filterDateStart, setFilterDateStart] = useState('')
+  const [filterDateEnd, setFilterDateEnd] = useState('')
 
   const [page, setPage] = useState(1)
   const [perPage, setPerPage] = useState(6)
@@ -354,9 +357,15 @@ export function EvaluationsPage() {
       if (filterStatut !== 'tous' && e.statut !== filterStatut) return false
       if (filterType !== 'tous' && e.type_id !== parseInt(filterType)) return false
       if (filterLieu !== 'tous' && e.lieu_nom !== filterLieu) return false
+      if (filterDateStart && new Date(e.date_evenement) < new Date(filterDateStart)) return false
+      if (filterDateEnd) {
+        const end = new Date(filterDateEnd)
+        end.setDate(end.getDate() + 1)
+        if (new Date(e.date_evenement) >= end) return false
+      }
       return true
     })
-  }, [evenements, search, filterStatut, filterType, filterLieu])
+  }, [evenements, search, filterStatut, filterType, filterLieu, filterDateStart, filterDateEnd])
 
   const totalPages = Math.max(1, Math.ceil(filtres.length / perPage))
   const pageCourante = Math.min(page, totalPages)
@@ -433,9 +442,14 @@ export function EvaluationsPage() {
             </SelectContent>
           </Select>
 
-          {(search || filterStatut !== 'tous' || filterType !== 'tous' || filterLieu !== 'tous') && (
+          <input type="date" value={filterDateStart} onChange={e => { setFilterDateStart(e.target.value); setPage(1) }}
+            className="h-9 w-36 text-xs border border-gris-200 rounded-lg px-2 bg-white text-gris-700 focus:outline-none focus:ring-2 focus:ring-vert-500" />
+          <span className="text-[10px] text-gris-400">→</span>
+          <input type="date" value={filterDateEnd} onChange={e => { setFilterDateEnd(e.target.value); setPage(1) }}
+            className="h-9 w-36 text-xs border border-gris-200 rounded-lg px-2 bg-white text-gris-700 focus:outline-none focus:ring-2 focus:ring-vert-500" />
+          {(search || filterStatut !== 'tous' || filterType !== 'tous' || filterLieu !== 'tous' || filterDateStart || filterDateEnd) && (
             <Button variant="ghost" size="sm" className="h-9 text-xs text-gris-500"
-              onClick={() => { setSearch(''); setFilterStatut('tous'); setFilterType('tous'); setFilterLieu('tous'); setPage(1) }}>
+              onClick={() => { setSearch(''); setFilterStatut('tous'); setFilterType('tous'); setFilterLieu('tous'); setFilterDateStart(''); setFilterDateEnd(''); setPage(1) }}>
               <X size={13} className="mr-1" /> Réinitialiser
             </Button>
           )}
@@ -463,7 +477,7 @@ export function EvaluationsPage() {
                 )}
               </p>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 flex-1 overflow-y-auto pb-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 items-start flex-1 overflow-y-auto pb-3">
               {pagines.map(e => (
                 <EventCard key={e.id} event={e} onClick={ouvrirDetail} />
               ))}
@@ -503,7 +517,7 @@ export function EvaluationsPage() {
                   <div className="text-sm text-gris-500 mt-2 flex flex-wrap items-center gap-x-4 gap-y-1">
                     <span className="flex items-center gap-1.5"><Calendar size={13} />{formatDate(selected.date_evenement)}</span>
                     <span className="flex items-center gap-1.5"><MapPin size={13} />{selected.lieu_nom}</span>
-                    <span className="flex items-center gap-1.5 font-medium text-gris-700"><Users size={13} />{selected.kourel?.nom || '—'}</span>
+                    <span className="flex items-center gap-1.5 font-medium text-gris-700"><Users size={13} />{selected.kourels?.map(k => k.kourel?.nom).filter(Boolean).join(', ') || '—'}</span>
                   </div>
                   <div className="mt-3">
                     <Badge className={`text-xs font-semibold px-2.5 py-0.5 ${STATUS_STYLES[selected.statut] || ''}`}>
