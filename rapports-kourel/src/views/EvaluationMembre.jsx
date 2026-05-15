@@ -325,7 +325,12 @@ export default function EvaluationMembre() {
     if (!codeParam || criteres.length === 0) return
     const cUpper = codeParam.toUpperCase().trim()
     if (!cUpper) { navigate('/', { replace: true }); return }
-    validerCodeAcces(cUpper)
+
+    const timeout = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('timeout')), 10000)
+    )
+
+    Promise.race([validerCodeAcces(cUpper), timeout])
       .then(data => {
         if (data) {
           setCodeValide(data)
@@ -334,7 +339,13 @@ export default function EvaluationMembre() {
           setCodeError(true)
         }
       })
-      .catch(() => setCodeError(true))
+      .catch(err => {
+        if (err?.message === 'timeout') {
+          setLoadError('La vérification du code prend trop de temps. Vérifiez votre connexion et réessayez.')
+        } else {
+          setCodeError(true)
+        }
+      })
   }, [codeParam, criteres.length])
 
   useEffect(() => {
