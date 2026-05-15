@@ -214,9 +214,10 @@ app.post('/api/valider-code-acces', async (req, res) => {
       .eq('code_acces', code.toUpperCase().trim())
       .maybeSingle()
 
-    if (error) throw error
-    if (!data) return res.status(404).json({ success: false, error: 'Code invalide' })
+    if (error) { console.error('❌ Supabase error:', error.message); throw error }
+    if (!data) { console.log('⚠️ Code not found:', code); return res.status(404).json({ success: false, error: 'Code invalide' }) }
 
+    console.log('✅ Code valide, membre:', data.membre?.prenom, data.membre?.nom)
     res.json({ success: true, data })
   } catch (error) {
     res.status(500).json({ success: false, error: error.message })

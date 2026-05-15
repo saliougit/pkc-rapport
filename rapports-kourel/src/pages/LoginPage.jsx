@@ -70,9 +70,6 @@ function RunningShield() {
             <img src="/images/logo-dmn-removebg-preview.png" alt="DMN" className="w-full h-full object-contain" />
           </div>
           <div className="absolute -inset-4 rounded-3xl bg-vert-500/20 blur-xl -z-10" />
-          <div className={`absolute -top-2 -right-2 w-8 h-8 rounded-full bg-amber-400 flex items-center justify-center shadow-lg transition-all duration-300 ${isNear ? 'scale-150 opacity-100' : 'scale-100 opacity-70'}`}>
-            <span className="text-[10px] font-black text-amber-900">!</span>
-          </div>
         </div>
         <p className="text-center text-white/60 text-sm mt-6 font-medium tracking-wide">
           {isNear ? 'Hé ! Tu veux pas m\'attraper !' : 'Espace Administrateur'}
