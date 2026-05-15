@@ -117,6 +117,7 @@ CREATE TABLE IF NOT EXISTS evenements (
   statut         TEXT DEFAULT 'à venir'
                   CHECK (statut IN ('à venir', 'en cours', 'terminé')),
   conclusion     TEXT,
+  note_definitive NUMERIC(3,1),
   created_by     UUID REFERENCES auth.users(id),
   created_at     TIMESTAMPTZ DEFAULT now()
 );

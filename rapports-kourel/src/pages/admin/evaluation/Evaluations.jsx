@@ -1,6 +1,5 @@
 import { useState, useMemo, useEffect } from 'react'
 import { Calendar, MapPin, ChevronRight, ChevronDown, Users, CheckCircle2, Clock, AlertCircle, Save, Loader, X, Search, SlidersHorizontal, ChevronLeft, ChevronFirst, ChevronLast } from 'lucide-react'
-import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
@@ -43,7 +42,7 @@ function getMoyenneGlobale(notesObj) {
     Object.values(e.notes || {}).map(n => n.note).filter(v => v != null)
   )
   if (!allNotes.length) return null
-  return (allNotes.reduce((a, b) => a + b, 0) / allNotes.length).toFixed(1)
+  return (allNotes.reduce((a, b) => a + b, 0) / allNotes.length).toFixed(2)
 }
 
 function getStatusEval(notes) {
@@ -53,6 +52,16 @@ function getStatusEval(notes) {
   if (filled === 0) return { label: 'En attente', class: 'bg-amber-50 text-amber-700' }
   if (filled < total) return { label: 'En cours', class: 'bg-blue-50 text-blue-700' }
   return { label: 'Soumis', class: 'bg-vert-50 text-vert-700' }
+}
+
+function noteVersAppreciation(note) {
+  if (note == null) return null
+  if (note >= 9) return 'Excellent'
+  if (note >= 7.5) return 'Très bien'
+  if (note >= 6) return 'Bien'
+  if (note >= 4) return 'Passable'
+  if (note >= 2) return 'Médiocre'
+  return 'Mauvais'
 }
 
 function getModeAppreciation(notesObj, sectionKey) {
@@ -67,12 +76,13 @@ function getModeAppreciation(notesObj, sectionKey) {
 function getNoteFinaleAvg(notesObj) {
   const vals = Object.values(notesObj || {}).map(n => n.note_finale).filter(v => v != null)
   if (!vals.length) return null
-  return (vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(1)
+  return (vals.reduce((a, b) => a + b, 0) / vals.length)
 }
 
 function EventCard({ event, onClick }) {
-  const moy = getNoteFinaleAvg(event.notes)
-  const apprGen = getModeAppreciation(event.notes, 'generale')
+  const rawMoy = event.note_definitive != null ? Number(event.note_definitive) : getNoteFinaleAvg(event.notes)
+  const moy = rawMoy != null ? Number(rawMoy).toFixed(2) : null
+  const apprGen = noteVersAppreciation(rawMoy)
   const soumis = Object.keys(event.notes).length
   const total = event.evaluateurs.length
   const progres = total > 0 ? Math.round((soumis / total) * 100) : 0
@@ -94,70 +104,67 @@ function EventCard({ event, onClick }) {
   return (
     <div
       onClick={() => onClick(event)}
-      className="group relative overflow-hidden cursor-pointer transition-all duration-200 hover:-translate-y-1 hover:shadow-lg"
-      style={{ background: '#fff', borderRadius: 14, border: '1px solid #e5e7eb', padding: '10px 12px', boxShadow: '0 1px 4px rgba(0,0,0,0.07)' }}
+      className="group relative overflow-hidden cursor-pointer transition-all duration-300 hover:-translate-y-1.5 hover:shadow-2xl"
+      style={{ background: '#fff', borderRadius: 18, border: '1px solid #e5e7eb', padding: '18px 20px', boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}
     >
-      {/* Barre accent haut */}
-      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3, background: accent, borderRadius: '14px 14px 0 0', opacity: 0.85 }} />
+      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 5, background: accent, borderRadius: '18px 18px 0 0', opacity: 0.9 }} />
 
-      {/* Bulle coin haut-droite */}
       <div
-        className="absolute pointer-events-none transition-all duration-500 group-hover:opacity-30 group-hover:scale-125"
-        style={{ top: -20, right: -20, width: 60, height: 60, borderRadius: '50%', background: accent, opacity: 0.13, filter: 'blur(18px)' }}
+        className="absolute pointer-events-none transition-all duration-500 group-hover:opacity-40 group-hover:scale-150"
+        style={{ top: -30, right: -30, width: 100, height: 100, borderRadius: '50%', background: accent, opacity: 0.08, filter: 'blur(28px)' }}
       />
-      {/* Bulle coin bas-gauche */}
       <div
-        className="absolute pointer-events-none transition-all duration-700 group-hover:opacity-25 group-hover:scale-125"
-        style={{ bottom: -16, left: -16, width: 44, height: 44, borderRadius: '50%', background: accent, opacity: 0.1, filter: 'blur(14px)' }}
+        className="absolute pointer-events-none transition-all duration-700 group-hover:opacity-35 group-hover:scale-150"
+        style={{ bottom: -24, left: -24, width: 80, height: 80, borderRadius: '50%', background: accent, opacity: 0.06, filter: 'blur(22px)' }}
       />
 
-      {/* Ligne 1 : kourel + score + statut */}
-      <div className="relative z-10 flex items-center justify-between gap-2" style={{ paddingTop: 3 }}>
+      <div className="relative z-10 flex items-center justify-between gap-3" style={{ paddingTop: 5 }}>
         <div style={{ minWidth: 0, flex: 1 }}>
           <p className="truncate group-hover:text-vert-700 transition-colors"
-            style={{ fontSize: 13, fontWeight: 900, lineHeight: '17px', margin: 0, color: '#09090b' }}>
+            style={{ fontSize: 17, fontWeight: 900, lineHeight: '22px', margin: 0, color: '#09090b' }}>
             {kourelNom}
           </p>
-          <p className="truncate" style={{ fontSize: 10, lineHeight: '14px', margin: 0, color: '#9ca3af' }}>
+          <p className="truncate" style={{ fontSize: 12, lineHeight: '16px', margin: 0, marginTop: 2, color: '#9ca3af' }}>
             {event.type_nom}
           </p>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-          {moy != null && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+          {moy != null ? (
             <div style={{ textAlign: 'right' }}>
-              <span style={{ fontSize: 18, fontWeight: 900, lineHeight: 1, color: accent }}>
+              <span style={{ fontSize: 26, fontWeight: 900, lineHeight: 1, color: accent }}>
                 {moy}
               </span>
-              <span style={{ fontSize: 9, color: '#9ca3af' }}>/10</span>
+              <span style={{ fontSize: 11, color: '#9ca3af' }}>/10</span>
             </div>
+          ) : (
+            <span style={{ fontSize: 16, fontWeight: 700, color: '#d1d5db' }}>—</span>
           )}
-          <span style={{ ...statutPill, fontSize: 8, fontWeight: 700, borderRadius: 999, padding: '2px 7px', lineHeight: '13px', whiteSpace: 'nowrap' }}>
+          <span style={{ ...statutPill, fontSize: 10, fontWeight: 700, borderRadius: 999, padding: '3px 10px', lineHeight: '16px', whiteSpace: 'nowrap' }}>
             {event.statut}
           </span>
         </div>
       </div>
 
-      {/* Ligne 2 : date · lieu + appréciation / progression */}
-      <div className="relative z-10 flex items-center justify-between gap-2" style={{ marginTop: 5 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 9, color: '#9ca3af', minWidth: 0, flex: 1 }}>
-          <Calendar size={8} style={{ flexShrink: 0 }} />
+      <div className="relative z-10 flex items-center justify-between gap-2" style={{ marginTop: 8 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: '#9ca3af', minWidth: 0, flex: 1 }}>
+          <Calendar size={10} style={{ flexShrink: 0 }} />
           <span style={{ flexShrink: 0 }}>{formatDate(event.date_evenement)}</span>
           <span style={{ color: '#d1d5db', flexShrink: 0, margin: '0 1px' }}>·</span>
-          <MapPin size={8} style={{ flexShrink: 0 }} />
+          <MapPin size={10} style={{ flexShrink: 0 }} />
           <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{event.lieu_nom}</span>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
           {apprGen && APPREC_COLORS[apprGen] && (
-            <span style={{ color: APPREC_COLORS[apprGen].color, background: APPREC_COLORS[apprGen].bg, fontSize: 8, fontWeight: 700, borderRadius: 999, padding: '2px 7px', lineHeight: '13px' }}>
+            <span style={{ color: APPREC_COLORS[apprGen].color, background: APPREC_COLORS[apprGen].bg, fontSize: 10, fontWeight: 700, borderRadius: 999, padding: '2px 9px', lineHeight: '15px' }}>
               {apprGen}
             </span>
           )}
           {soumis < total && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-              <div style={{ width: 32, height: 3, borderRadius: 99, background: '#f3f4f6', overflow: 'hidden' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+              <div style={{ width: 44, height: 5, borderRadius: 99, background: '#f3f4f6', overflow: 'hidden' }}>
                 <div style={{ width: `${progres}%`, height: '100%', borderRadius: 99, background: '#60a5fa', transition: 'width 0.3s' }} />
               </div>
-              <span style={{ fontSize: 8, fontWeight: 600, color: '#9ca3af' }}>{soumis}/{total}</span>
+              <span style={{ fontSize: 10, fontWeight: 600, color: '#9ca3af' }}>{soumis}/{total}</span>
             </div>
           )}
         </div>
@@ -168,75 +175,93 @@ function EventCard({ event, onClick }) {
 function EvaluateurPanel({ evaluateur, notes, sections }) {
   const [open, setOpen] = useState(false)
   const status = getStatusEval(notes)
+  const noteFinale = notes?.note_finale != null ? Number(notes.note_finale).toFixed(2) : null
 
   return (
-    <Card className="border-gris-200 overflow-hidden">
+    <div className="rounded-xl border border-gris-200 bg-white overflow-hidden shadow-sm">
       <button
         onClick={() => setOpen(!open)}
-        className="w-full flex items-center justify-between p-4 hover:bg-gris-50 transition-colors text-left"
+        className="w-full flex items-center justify-between gap-3 px-4 py-3 hover:bg-gris-50 transition-colors text-left"
       >
         <div className="flex items-center gap-3 min-w-0">
-          <div className="w-8 h-8 rounded-full bg-vert-100 flex items-center justify-center flex-shrink-0">
-            <span className="text-xs font-bold text-vert-800">
+          <div className="w-9 h-9 rounded-full bg-vert-600 flex items-center justify-center flex-shrink-0 shadow-sm">
+            <span className="text-xs font-bold text-white">
               {evaluateur.prenom?.[0]}{evaluateur.nom?.[0]}
             </span>
           </div>
           <div className="min-w-0">
-            <p className="text-sm font-semibold text-gris-950 truncate">{evaluateur.prenom} {evaluateur.nom}</p>
-            <p className="text-xs text-gris-500 truncate">{evaluateur.kourel}</p>
+            <p className="text-sm font-bold text-gris-950 truncate">{evaluateur.prenom} {evaluateur.nom}</p>
+            <p className="text-[10px] text-gris-500 truncate">{evaluateur.kourel}</p>
           </div>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
-          {notes?.note_finale != null && (
-            <span className="text-sm font-bold text-vert-700">{notes.note_finale}/10</span>
+          {noteFinale && (
+            <div className="text-right">
+              <p className="text-sm font-black text-vert-700 leading-none">{noteFinale}<span className="text-[9px] text-vert-500">/10</span></p>
+            </div>
           )}
-          <Badge className={`text-[10px] font-semibold px-2 py-0.5 ${status.class}`}>
+          <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full border whitespace-nowrap ${status.class}`}>
             {status.label}
-          </Badge>
-          {open ? <ChevronDown size={15} className="text-gris-400" /> : <ChevronRight size={15} className="text-gris-400" />}
+          </span>
+          {open ? <ChevronDown size={14} className="text-gris-300 flex-shrink-0" /> : <ChevronRight size={14} className="text-gris-300 flex-shrink-0" />}
         </div>
       </button>
 
       {open && (
-        <div className="px-4 pb-4 border-t border-gris-100 pt-3">
+        <div className="border-t border-gris-100 px-4 py-3.5 space-y-2.5">
           {notes ? (
-            <div className="space-y-2">
-              {sections.map(section => {
+            sections.filter(s => {
+              const sec = notes.notes?.[s.key || s.id]
+              return sec && (sec.note != null || sec.appreciation || sec.remarques)
+            }).length > 0 ? (
+              sections.map(section => {
                 const s = notes.notes?.[section.key || section.id]
-                if (!s) return null
+                if (!s || (s.note == null && !s.appreciation && !s.remarques)) return null
+                const appr = s.appreciation || noteVersAppreciation(s.note)
+                const ac = appr ? APPREC_COLORS[appr] : null
                 return (
-                  <div key={section.id} className="bg-gris-50 rounded-lg p-3">
-                    <div className="flex items-center justify-between mb-0.5">
-                      <p className="text-[11px] font-semibold text-gris-700">{section.label}</p>
-                      {s.note != null && (
-                        <span className="text-xs font-bold text-vert-700">{s.note}/10</span>
+                  <div key={section.id} className="flex items-center justify-between gap-3 rounded-lg border border-gris-100 bg-gris-50/50 px-3.5 py-2.5">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-semibold text-gris-800">{section.label}</p>
+                      {s.remarques && (
+                        <p className="text-[10px] text-gris-500 italic mt-0.5 truncate">"{s.remarques}"</p>
                       )}
                     </div>
-                    {s.appreciation && (
-                      <p className="text-[11px] text-gris-600">
-                        <span className="text-gris-400">Appréciation : </span>
-                        {s.appreciation}
-                      </p>
-                    )}
-                    {s.remarques && (
-                      <p className="text-[11px] text-gris-500 italic mt-0.5">"{s.remarques}"</p>
-                    )}
+                    <div className="flex items-center gap-3 flex-shrink-0">
+                      {s.note != null ? (
+                        <div className="text-right">
+                          <p className="text-sm font-black text-gris-900 leading-none">{Number(s.note).toFixed(2)}<span className="text-[9px] text-gris-400">/10</span></p>
+                          <div className="h-1 w-full bg-gris-200 rounded-full mt-1 overflow-hidden" style={{ width: 36 }}>
+                            <div className="h-full rounded-full" style={{ width: `${(s.note / 10) * 100}%`, background: ac?.color || '#9ca3af' }} />
+                          </div>
+                        </div>
+                      ) : (
+                        <p className="text-xs text-gris-300 font-bold">—</p>
+                      )}
+                      {appr && ac ? (
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap" style={{ color: ac.color, background: ac.bg, border: `1px solid ${ac.color}20` }}>
+                          {appr}
+                        </span>
+                      ) : null}
+                    </div>
                   </div>
                 )
-              })}
-              {notes.commentaire && (
-                <div className="pt-2 border-t border-gris-100">
-                  <p className="text-[11px] font-semibold text-gris-500">Commentaire :</p>
-                  <p className="text-xs text-gris-700 mt-0.5">{notes.commentaire}</p>
-                </div>
-              )}
-            </div>
+              })
+            ) : (
+              <p className="text-xs text-gris-400 italic text-center py-2">Évaluation en cours, aucune note saisie.</p>
+            )
           ) : (
-            <p className="text-xs text-gris-400 italic text-center py-4">Évaluation non soumise.</p>
+            <p className="text-xs text-gris-400 italic text-center py-2">Évaluation non soumise.</p>
+          )}
+          {notes?.commentaire && (
+            <div className="rounded-lg border border-blue-100 bg-blue-50/50 px-3.5 py-2.5">
+              <p className="text-[10px] font-bold text-blue-500 mb-0.5">Commentaire</p>
+              <p className="text-xs text-gris-700 leading-relaxed italic">"{notes.commentaire}"</p>
+            </div>
           )}
         </div>
       )}
-    </Card>
+    </div>
   )
 }
 
@@ -280,6 +305,7 @@ export function EvaluationsPage() {
   const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState(null)
   const [conclusion, setConclusion] = useState('')
+  const [noteDefinitive, setNoteDefinitive] = useState('')
   const [saving, setSaving] = useState(false)
 
   const [search, setSearch] = useState('')
@@ -374,17 +400,19 @@ export function EvaluationsPage() {
   const ouvrirDetail = (e) => {
     setSelected(e)
     setConclusion(e.conclusion || '')
+    setNoteDefinitive(e.note_definitive != null ? String(e.note_definitive) : '')
   }
 
   const sauvegarderConclusion = async () => {
     if (!selected) return
     setSaving(true)
     try {
-      await modifierEvenement(selected.id, { conclusion })
+      const nd = noteDefinitive !== '' ? parseFloat(noteDefinitive) : null
+      await modifierEvenement(selected.id, { conclusion, note_definitive: nd })
       setEvenements(list => list.map(e =>
-        e.id === selected.id ? { ...e, conclusion } : e
+        e.id === selected.id ? { ...e, conclusion, note_definitive: nd } : e
       ))
-      setSelected(s => ({ ...s, conclusion }))
+      setSelected(s => ({ ...s, conclusion, note_definitive: nd }))
     } catch (err) { console.error(err) }
     finally { setSaving(false) }
   }
@@ -554,38 +582,46 @@ export function EvaluationsPage() {
                   <div className="space-y-3">
                     <p className="text-xs font-bold text-gris-500 uppercase tracking-widest">Synthèse des évaluations</p>
 
-                    <div className="rounded-xl border border-gris-200 overflow-hidden bg-white">
-                      <div className="grid grid-cols-[1fr_auto_auto] gap-x-3 px-3 py-2 border-b border-gris-100 bg-gris-50">
-                        <span className="text-[10px] font-bold text-gris-400 uppercase tracking-wider">Section</span>
-                        <span className="text-[10px] font-bold text-gris-400 uppercase tracking-wider text-right">Appréciation</span>
-                        <span className="text-[10px] font-bold text-gris-400 uppercase tracking-wider text-right w-12">Moy.</span>
-                      </div>
-                      {SECTIONS.filter(s => s.label !== 'Appréciation générale').map(section => {
-                        const vals = Object.values(selected.notes).map(n => n.notes?.[section.key]?.note).filter(v => v != null)
-                        const moy = vals.length > 0 ? (vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(1) : null
-                        const appr = getModeAppreciation(selected.notes, section.key)
-                        const ac = appr ? APPREC_COLORS[appr] : null
-                        return (
-                          <div key={section.id} className="grid grid-cols-[1fr_auto_auto] gap-x-3 items-center px-3 py-2.5 border-b border-gris-50 last:border-0">
-                            <span className="text-xs font-medium text-gris-700">{section.label}</span>
-                            {appr ? (
-                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ color: ac.color, background: ac.bg }}>
+                    {SECTIONS.filter(s => s.label !== 'Appréciation générale').map(section => {
+                      const vals = Object.values(selected.notes).map(n => n.notes?.[section.key]?.note).filter(v => v != null)
+                      const moy = vals.length > 0 ? (vals.reduce((a, b) => a + b, 0) / vals.length) : null
+                      const appr = noteVersAppreciation(moy)
+                      const ac = appr ? APPREC_COLORS[appr] : null
+                      return (
+                        <div key={section.id} className="flex items-center justify-between gap-3 rounded-xl border border-gris-100 bg-white px-3.5 py-2.5 shadow-sm">
+                          <div className="min-w-0 flex-1">
+                            <p className="text-xs font-semibold text-gris-800">{section.label}</p>
+                            <p className="text-[10px] text-gris-400 mt-0.5">{vals.length} évaluateur{vals.length > 1 ? 's' : ''}</p>
+                          </div>
+                          <div className="flex items-center gap-3 flex-shrink-0">
+                            {moy != null ? (
+                              <div className="text-right">
+                                <p className="text-sm font-black text-gris-900 leading-none">{moy.toFixed(2)}<span className="text-[9px] text-gris-400">/10</span></p>
+                                <div className="h-1 w-full bg-gris-100 rounded-full mt-1 overflow-hidden" style={{ width: 40 }}>
+                                  <div className="h-full rounded-full transition-all" style={{ width: `${(moy / 10) * 100}%`, background: ac?.color || '#9ca3af' }} />
+                                </div>
+                              </div>
+                            ) : (
+                              <p className="text-xs text-gris-300 font-bold">—</p>
+                            )}
+                            {appr && ac ? (
+                              <span className="text-[10px] font-bold px-2.5 py-1 rounded-full whitespace-nowrap" style={{ color: ac.color, background: ac.bg, border: `1px solid ${ac.color}20` }}>
                                 {appr}
                               </span>
-                            ) : <span className="text-xs text-gris-300">—</span>}
-                            <span className="text-xs font-bold text-gris-800 text-right w-12">{moy ? `${moy}/10` : '—'}</span>
+                            ) : null}
                           </div>
-                        )
-                      })}
-                    </div>
+                        </div>
+                      )
+                    })}
 
                     {(() => {
                       const noteFin = getNoteFinaleAvg(selected.notes)
-                      const apprGen = getModeAppreciation(selected.notes, 'generale')
+                      const apprGen = noteVersAppreciation(noteFin)
                       const ac = apprGen ? APPREC_COLORS[apprGen] : null
-                      if (!noteFin && !apprGen) return null
+                      const nd = selected.note_definitive
+                      if (!noteFin && !apprGen && nd == null) return null
                       return (
-                        <div className="rounded-xl border-2 border-vert-200 bg-vert-50/50 px-4 py-3 flex items-center justify-between gap-4">
+                        <div className="rounded-xl border-2 border-vert-200 bg-gradient-to-br from-vert-50 to-white px-4 py-3.5 flex items-center justify-between gap-4 shadow-sm">
                           <div>
                             <p className="text-[10px] font-bold text-vert-600 uppercase tracking-wider mb-1">Bilan général</p>
                             {apprGen && (
@@ -594,12 +630,20 @@ export function EvaluationsPage() {
                               </span>
                             )}
                           </div>
-                          {noteFin && (
-                            <div className="text-right">
-                              <p className="text-[10px] text-vert-600 font-semibold mb-0.5">Note générale</p>
-                              <p className="text-2xl font-black text-vert-700 leading-none">{noteFin}<span className="text-sm text-vert-500">/10</span></p>
-                            </div>
-                          )}
+                          <div className="flex items-center gap-5">
+                            {noteFin && (
+                              <div className="text-right">
+                                <p className="text-[9px] text-vert-600 font-semibold mb-0.5">Note évaluateurs</p>
+                                <p className="text-xl font-black text-vert-700 leading-none">{noteFin.toFixed(2)}<span className="text-xs text-vert-500">/10</span></p>
+                              </div>
+                            )}
+                            {nd != null && (
+                              <div className="text-right">
+                                <p className="text-[9px] text-blue-600 font-semibold mb-0.5">Note définitive</p>
+                                <p className="text-xl font-black text-blue-700 leading-none">{Number(nd).toFixed(2)}<span className="text-xs text-blue-500">/10</span></p>
+                              </div>
+                            )}
+                          </div>
                         </div>
                       )
                     })()}
@@ -622,16 +666,67 @@ export function EvaluationsPage() {
                   </div>
                 )}
 
-                <div>
-                  <p className="text-xs font-semibold text-gris-500 uppercase tracking-wider mb-2">
-                    Conclusion (Admin)
-                  </p>
-                  <Textarea
-                    value={conclusion}
-                    onChange={e => setConclusion(e.target.value)}
-                    placeholder="Rédigez votre évaluation globale de l'événement…"
-                    rows={4}
-                  />
+                <div className="space-y-4">
+                  <div>
+                    <p className="text-xs font-semibold text-gris-500 uppercase tracking-wider mb-2">
+                      Conclusion (Admin)
+                    </p>
+                    <Textarea
+                      value={conclusion}
+                      onChange={e => setConclusion(e.target.value)}
+                      placeholder="Rédigez votre évaluation globale de l'événement…"
+                      rows={4}
+                    />
+                  </div>
+
+                {Object.keys(selected.notes).length > 0 && (() => {
+                  const hasNotes = Object.values(selected.notes).some(n =>
+                    Object.values(n.notes || {}).some(s => s.note != null)
+                  )
+                  return hasNotes && (
+                    <div className="rounded-xl border-2 border-blue-100 bg-gradient-to-br from-blue-50 to-white p-4 shadow-sm">
+                      <p className="text-[10px] font-bold text-blue-500 uppercase tracking-wider mb-3">Note finale</p>
+                      <div className="flex items-center gap-6">
+                        <div className="flex-1 text-center">
+                          <p className="text-[9px] text-gris-400 mb-1.5">Note générale<br/>(moyenne des évaluateurs)</p>
+                          {(() => {
+                            const n = getNoteFinaleAvg(selected.notes)
+                            const a = noteVersAppreciation(n)
+                            const c = a ? APPREC_COLORS[a] : null
+                            return n ? (
+                              <>
+                                <p className="text-2xl font-black text-vert-700 leading-none">{n.toFixed(2)}<span className="text-sm text-vert-500">/10</span></p>
+                                {a && c && (
+                                  <p className="text-[10px] font-bold mt-1.5 inline-block px-2.5 py-0.5 rounded-full" style={{ color: c.color, background: c.bg }}>
+                                    {a}
+                                  </p>
+                                )}
+                              </>
+                            ) : (
+                              <p className="text-xs text-gris-300 font-bold">—</p>
+                            )
+                          })()}
+                        </div>
+                        <div className="w-px h-16 bg-blue-200" />
+                        <div className="flex-1 text-center">
+                          <p className="text-[9px] text-gris-400 mb-1.5">Note définitive<br/></p>
+                          <input
+                            type="number" step="0.1" min="0" max="10"
+                            value={noteDefinitive}
+                            onChange={e => {
+                              const v = e.target.value
+                              if (v === '' || (parseFloat(v) >= 0 && parseFloat(v) <= 10)) {
+                                setNoteDefinitive(v)
+                              }
+                            }}
+                            placeholder="—"
+                            className="w-20 text-center text-2xl font-black text-blue-600 bg-white border-2 border-blue-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-300 mx-auto shadow-sm"
+                          />
+                          <p className="text-[9px] text-gris-400 mt-1.5">Laissez vide pour garder la note générale</p>
+                        </div>
+                      </div>
+                    </div>
+                  )})()}
                 </div>
               </div>
 
