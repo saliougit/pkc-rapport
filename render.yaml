@@ -4,9 +4,8 @@ services:
     env: node
     region: frankfurt
     plan: free
-    rootDirectory: rapports-kourel
-    buildCommand: rm -rf node_modules && npm install && npm run build
-    startCommand: npm start
+    buildCommand: cd rapports-kourel && rm -rf node_modules && npm install && npm run build
+    startCommand: cd rapports-kourel && npm start
     envVars:
       - key: NODE_ENV
         value: production
