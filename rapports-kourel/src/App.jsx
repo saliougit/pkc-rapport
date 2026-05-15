@@ -15,6 +15,7 @@ import { CriteresPage } from './pages/admin/evaluation/Criteres'
 import MembreView from './views/MembreView'
 import EvaluationMembre from './views/EvaluationMembre'
 import PublicAccueil from './views/PublicAccueil'
+import ResetPasswordPage from './pages/ResetPasswordPage'
 
 function ComingSoon({ title }) {
   return (
@@ -95,6 +96,7 @@ function App() {
         <Route path="/"          element={<PublicAccueil />} />
         <Route path="/rapport"   element={<MembreView />} />
         <Route path="/evaluer"   element={<EvaluationMembre />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
 
         <Route path="/*" element={<Navigate to="/" replace />} />
       </Routes>

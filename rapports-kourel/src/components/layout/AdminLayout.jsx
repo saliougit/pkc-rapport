@@ -13,7 +13,7 @@ import {
   LayoutDashboard, FileText, BookOpen,
   ClipboardList, Users, Settings, Bell,
   LogOut, ChevronRight, Calendar, Star, ListChecks, Scale,
-  ClipboardCheck, FileSpreadsheet, ExternalLink, KeyRound,
+  ClipboardCheck, FileSpreadsheet, KeyRound,
 } from 'lucide-react'
 import { logoutAdmin } from '@/lib/supabase'
 import { ChangePasswordModal } from '@/components/ChangePasswordModal'
@@ -31,7 +31,7 @@ const NAV = [
     ],
   },
   {
-    title: 'Comité & Évaluation',
+    title: 'Comité suivi & Évaluation',
     icon: ClipboardList,
     children: [
       { icon: Users,     title: 'Membres',             href: '/admin/evaluation/membres' },
@@ -39,7 +39,6 @@ const NAV = [
       { icon: Calendar,  title: 'Événements',          href: '/admin/evaluation/evenements' },
       { icon: Star,      title: 'Évaluations',         href: '/admin/evaluation/evaluations' },
       { icon: Scale,     title: 'Critères',            href: '/admin/evaluation/criteres' },
-      { icon: ExternalLink, title: 'Page publique éval', href: '/evaluer', target: '_blank' },
     ],
   },
   {
@@ -296,10 +295,10 @@ function TopBar({ user, profile, onLogout }) {
 function filterNavByRole(nav, role) {
   if (role === 'admin') return nav
   if (role === 'dieuwrigne') {
-    return nav.filter(g => g.title === 'Comité & Évaluation')
+    return nav.filter(g => g.title === 'Comité suivi & Évaluation')
   }
   if (role === 'membre') {
-    return nav.filter(g => g.title === 'Comité & Évaluation')
+    return nav.filter(g => g.title === 'Comité suivi & Évaluation')
   }
   return nav
 }

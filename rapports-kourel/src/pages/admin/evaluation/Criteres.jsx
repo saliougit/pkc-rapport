@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react'
 import { fetchCriteres, ajouterCritere, modifierCritere, supprimerCritere } from '@/lib/supabase'
-import { Plus, Edit2, Trash2, Save, X, Loader, GripVertical, ChevronDown, ChevronRight } from 'lucide-react'
+import { Plus, Edit2, Trash2, Save, X, Loader, GripVertical, ChevronDown, ChevronRight, Info } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -42,70 +42,77 @@ function SectionCard({ section, onEdit, onDelete }) {
   const [open, setOpen] = useState(true)
 
   return (
-    <Card className={`border ${section.couleur}`}>
+    <div className="group rounded-xl border border-gris-200 bg-white shadow-sm hover:shadow-md hover:border-gris-300 transition-all duration-200 overflow-hidden">
+      {/* Header */}
       <button
         onClick={() => setOpen(!open)}
-        className="w-full flex items-center justify-between p-4 hover:opacity-80 transition-opacity text-left"
+        className="w-full flex items-center justify-between p-5 hover:bg-gris-50 transition-colors text-left"
       >
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-white flex items-center justify-center border border-gris-200">
-            <span className="text-xs font-bold text-gris-500">{section.ordre}</span>
+        <div className="flex items-center gap-4 flex-1 min-w-0">
+          <div className={`flex-shrink-0 w-12 h-12 rounded-lg ${section.couleur} flex items-center justify-center`}>
+            <span className="text-sm font-bold text-gris-700">{section.ordre}</span>
           </div>
-          <div>
-            <p className="text-sm font-semibold text-gris-950">{section.nom}</p>
-            <p className="text-xs text-gris-500">{section.description}</p>
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-gris-950 line-clamp-1">{section.nom}</p>
+            <p className="text-xs text-gris-500 line-clamp-1">{section.description || 'Sans description'}</p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <Badge variant="outline" className="text-xs font-medium">
+        <div className="flex items-center gap-3 flex-shrink-0 ml-3">
+          <Badge variant="secondary" className="text-xs font-medium whitespace-nowrap">
             {section.criteres.length} critère{section.criteres.length > 1 ? 's' : ''}
           </Badge>
-          {!open && <ChevronRight size={16} className="text-gris-400" />}
-          {open && <ChevronDown size={16} className="text-gris-400" />}
+          {open ? <ChevronDown size={18} className="text-gris-400" /> : <ChevronRight size={18} className="text-gris-400" />}
         </div>
       </button>
 
+      {/* Content */}
       {open && (
-        <div className="border-t border-inherit px-4 pb-4 pt-3">
-          <div className="space-y-2">
-            {section.criteres.map(critere => (
-              <div key={critere.id}
-                className="flex items-center justify-between bg-white rounded-lg px-3 py-2 border border-gris-100"
-              >
-                <div>
-                  <p className="text-sm font-medium text-gris-800">{critere.nom}</p>
-                  <p className="text-xs text-gris-500">{critere.description}</p>
+        <div className="border-t border-gris-100 px-5 py-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mb-4">
+            {section.criteres.length > 0 ? (
+              section.criteres.map(critere => (
+                <div key={critere.id}
+                  className="flex flex-col bg-gris-50/50 rounded-lg px-4 py-3 border border-gris-100 hover:bg-gris-100/50 transition-colors group/item"
+                >
+                  <div className="flex-1 min-w-0 mb-3">
+                    <p className="text-sm font-medium text-gris-900">{critere.nom}</p>
+                    {critere.description && <p className="text-xs text-gris-500 line-clamp-1">{critere.description}</p>}
+                  </div>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs font-semibold text-gris-400">/10</span>
+                    <Button size="icon" variant="ghost"
+                      className="h-8 w-8 text-gris-400 hover:text-vert-700 hover:bg-vert-50"
+                      onClick={(e) => { e.stopPropagation(); onEdit(section) }}
+                    >
+                      <Edit2 size={14} />
+                    </Button>
+                  </div>
                 </div>
-                <div className="flex items-center gap-3">
-                  <span className="text-xs font-semibold text-gris-400">/{critere.note_max}</span>
-                  <Button size="icon" variant="ghost"
-                    className="h-7 w-7 text-gris-400 hover:text-vert-700"
-                    onClick={(e) => { e.stopPropagation(); onEdit(section) }}
-                  >
-                    <Edit2 size={13} />
-                  </Button>
-                </div>
+              ))
+            ) : (
+              <div className="text-center py-6 text-gris-500">
+                <p className="text-sm">Aucun critère ajouté</p>
               </div>
-            ))}
+            )}
           </div>
 
-          <div className="flex items-center gap-2 mt-3 pt-3 border-t border-inherit">
-            <Button size="sm" variant="ghost"
-              className="text-xs text-gris-500 hover:text-vert-700"
+          <div className="flex items-center gap-2 pt-3 border-t border-gris-100 flex-wrap gap-y-2">
+            <Button size="sm" variant="outline"
+              className="text-xs rounded-lg h-8 gap-1.5"
               onClick={(e) => { e.stopPropagation(); onEdit(section) }}
             >
-              <Plus size={13} className="mr-1" /> Ajouter un critère
+              <Plus size={13} /> Ajouter un critère
             </Button>
-            <Button size="sm" variant="ghost"
-              className="text-xs text-gris-500 hover:text-rouge"
+            <Button size="sm" ok="ghost"
+              className="text-xs text-rouge hover:text-rouge hover:bg-rouge-bg rounded-lg h-8 gap-1.5"
               onClick={(e) => { e.stopPropagation(); onDelete(section.id) }}
             >
-              <Trash2 size={13} className="mr-1" /> Supprimer la section
+              <Trash2 size={13} /> Supprimer
             </Button>
           </div>
         </div>
       )}
-    </Card>
+    </div>
   )
 }
 
@@ -198,7 +205,7 @@ export function CriteresPage() {
   return (
     <div>
       <PageHeader
-        breadcrumb={['Comité & Évaluation', 'Critères']}
+        breadcrumb={['Comité suivi & Évaluation', 'Critères']}
         title="Sections et critères d'évaluation"
         subtitle={`${sections.length} sections`}
         action={
@@ -208,7 +215,7 @@ export function CriteresPage() {
         }
       />
 
-      <div className="space-y-3 mb-6">
+      <div className="space-y-4 mb-6">
         {sections.map(section => (
           <SectionCard
             key={section.id}
@@ -218,23 +225,27 @@ export function CriteresPage() {
           />
         ))}
         {sections.length === 0 && (
-          <div className="text-center py-16 border border-dashed border-gris-200 rounded-lg bg-gris-50/50">
+          <div className="text-center py-20 border border-dashed border-gris-200 rounded-xl bg-gris-50/30">
+            <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-gris-100 mb-4">
+              <ChevronDown size={24} className="text-gris-400" />
+            </div>
             <p className="text-sm font-semibold text-gris-700">Aucune section définie</p>
             <p className="text-xs text-gris-500 mt-1">Créez des sections pour organiser vos critères d'évaluation.</p>
           </div>
         )}
       </div>
 
-      <Card className="border-vert-200 bg-vert-50">
-        <CardContent className="p-4">
-          <p className="text-xs font-bold text-vert-800 uppercase tracking-wider mb-2">Structure d'évaluation</p>
-          <p className="text-xs text-vert-700">
-            Chaque évaluateur attribue pour chaque section : une <strong>appréciation</strong> (Mauvais à Excellent),
-            des <strong>remarques</strong> (texte libre), et une <strong>note</strong> /10.
-            Une appréciation générale avec note finale conclut l'évaluation.
-          </p>
-        </CardContent>
-      </Card>
+      <div className="rounded-xl border border-vert-200 bg-gradient-to-br from-vert-50 to-vert-100/50 p-5 shadow-sm">
+        <div className="flex items-center gap-2 mb-3">
+          <Info size={16} className="text-vert-700 flex-shrink-0" />
+          <p className="text-xs font-bold text-vert-900 uppercase tracking-wider">Structure d'évaluation</p>
+        </div>
+        <p className="text-sm text-vert-800 leading-relaxed">
+          Chaque évaluateur attribue pour chaque section : une <strong>appréciation</strong> (Mauvais à Excellent),
+          des <strong>remarques</strong> (texte libre), et une <strong>note</strong> /10.
+          Une appréciation générale avec note finale conclut l'évaluation.
+        </p>
+      </div>
 
       <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
         <SheetContent 

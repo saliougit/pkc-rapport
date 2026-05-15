@@ -18,6 +18,19 @@ const supabaseServer = createClient(
 
 const MOIS_FR = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre']
 
+function genererCodeAcces() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+  const parts = []
+  for (let i = 0; i < 3; i++) {
+    let part = ''
+    for (let j = 0; j < 4; j++) {
+      part += chars[Math.floor(Math.random() * chars.length)]
+    }
+    parts.push(part)
+  }
+  return parts.join('-')
+}
+
 async function envoyerWhatsApp(telephone, apikey, message) {
   const url = `https://api.callmebot.com/whatsapp.php?phone=${encodeURIComponent(telephone)}&text=${encodeURIComponent(message)}&apikey=${apikey}`
   const res = await fetch(url)
@@ -230,7 +243,7 @@ app.post('/api/generer-codes-evenement', async (req, res) => {
 
     // 2. Créer les évaluateurs (avec codes)
     for (const membre_id of evaluateurs) {
-      const code = 'EVAL-' + String(evenement_id).padStart(3, '0') + '-' + String(kourel_id).padStart(2, '0') + '-' + String(membre_id).padStart(2, '0')
+      const code = req.body.codes?.[membre_id] || genererCodeAcces()
       const { data, error } = await supabaseServer
         .from('eval_membres')
         .insert({
@@ -289,7 +302,7 @@ app.put('/api/evenements/:id/kourels', async (req, res) => {
       const evalIds = k.evaluateurs || []
       const pagIds = k.paginateurs || []
       for (const membre_id of evalIds) {
-        const code = 'EVAL-' + String(eventId).padStart(3, '0') + '-' + String(k.kourel_id).padStart(2, '0') + '-' + String(membre_id).padStart(2, '0')
+        const code = k.codes?.[membre_id] || genererCodeAcces()
         await supabaseServer.from('eval_membres').insert({
           evenement_kourel_id: ek.id, membre_id, role: 'evaluateur', code_acces: code,
         }).select().single().catch(e => { if (e.code !== '23505') throw e })

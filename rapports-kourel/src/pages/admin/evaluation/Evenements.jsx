@@ -29,17 +29,26 @@ import {
   fetchTypesEvenements, fetchLieux, fetchMembres, fetchKourels,
   fetchEvalMembres, assignerEvalMembre, supprimerEvalMembre, supprimerEvenementKourels,
   ajouterEvenementKourel, ajouterLieu,
-  fetchEvaluations,
+  fetchEvaluations, fetchCriteres,
 } from '@/lib/supabase'
 
-function genCodeEvaluation(evenementId, kourelId, membreId) {
-  return 'EVAL-' + String(evenementId).padStart(3, '0') + '-' + String(kourelId).padStart(2, '0') + '-' + String(membreId).padStart(2, '0')
+function genererCodeAcces() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+  const parts = []
+  for (let i = 0; i < 3; i++) {
+    let part = ''
+    for (let j = 0; j < 4; j++) {
+      part += chars[Math.floor(Math.random() * chars.length)]
+    }
+    parts.push(part)
+  }
+  return parts.join('-')
 }
 
 function getEvaluateurStatus(note) {
   if (!note) return { label: 'Non assigné', class: 'bg-gris-100 text-gris-600', icon: AlertCircle }
-  const filled = Object.values(note.notes || {}).filter(v => v != null).length
-  const total = 6
+  const filled = Object.values(note.notes || {}).filter(v => v != null && v.note != null).length
+  const total = Object.keys(note.notes || {}).length
   if (filled === 0) return { label: 'En attente', class: 'bg-amber-50 text-amber-700', icon: Clock }
   if (filled < total) return { label: 'En cours', class: 'bg-blue-50 text-blue-700', icon: ToggleLeft }
   return { label: 'Soumis', class: 'bg-vert-50 text-vert-700', icon: CheckCircle2 }
@@ -79,7 +88,8 @@ function CodeRow({ membre, code }) {
 
 function EvaluateurDetail({ evaluateur, note, code, onCopyCode }) {
   const [open, setOpen] = useState(false)
-  const status = getEvaluateurStatus(note)
+  const effectiveNote = note || (code ? { notes: {}, note_finale: null, commentaire: '', soumis: false } : null)
+  const status = getEvaluateurStatus(effectiveNote)
   const [copied, setCopied] = useState(false)
 
   const handleCopy = (e) => {
@@ -138,7 +148,7 @@ function EvaluateurDetail({ evaluateur, note, code, onCopyCode }) {
         </div>
       )}
 
-      {open && note && (
+      {open && effectiveNote && (
         <div className="px-4 pb-4 border-t border-gris-100 pt-3 space-y-3">
           {SECTIONS.map(section => (
             <div key={section.id} className="bg-gris-50 rounded-lg p-3">
@@ -146,47 +156,42 @@ function EvaluateurDetail({ evaluateur, note, code, onCopyCode }) {
               <div className="grid grid-cols-3 gap-3 text-xs">
                 <div>
                   <span className="text-gris-500">Appréciation : </span>
-                  <span className="font-medium text-gris-800">{note.notes?.[section.id]?.appreciation || '—'}</span>
+                  <span className="font-medium text-gris-800">{effectiveNote.notes?.[section.id]?.appreciation || '—'}</span>
                 </div>
                 <div>
                   <span className="text-gris-500">Note : </span>
-                  <span className="font-medium text-gris-800">{note.notes?.[section.id]?.note != null ? `${note.notes[section.id].note}/10` : '—'}</span>
+                  <span className="font-medium text-gris-800">{effectiveNote.notes?.[section.id]?.note != null ? `${effectiveNote.notes[section.id].note}/10` : '—'}</span>
                 </div>
               </div>
-              {note.notes?.[section.id]?.remarques && (
+              {effectiveNote.notes?.[section.id]?.remarques && (
                 <p className="text-xs text-gris-600 mt-1 italic">
-                  "{note.notes[section.id].remarques}"
+                  "{effectiveNote.notes[section.id].remarques}"
                 </p>
               )}
             </div>
           ))}
-          {note.commentaire && (
+          {effectiveNote.commentaire && (
             <div className="pt-2 border-t border-gris-200">
               <p className="text-xs font-semibold text-gris-500">Commentaire :</p>
-              <p className="text-xs text-gris-700 mt-0.5">{note.commentaire}</p>
+              <p className="text-xs text-gris-700 mt-0.5">{effectiveNote.commentaire}</p>
             </div>
           )}
-          {note.note_finale != null && (
+          {effectiveNote.note_finale != null && (
             <div className="flex items-center gap-2 pt-2 border-t border-gris-200">
               <span className="text-xs font-semibold text-gris-700">Note finale :</span>
-              <span className="text-sm font-bold text-vert-700">{note.note_finale}/10</span>
+              <span className="text-sm font-bold text-vert-700">{effectiveNote.note_finale}/10</span>
             </div>
           )}
         </div>
       )}
 
-      {open && !note && (
+      {open && !effectiveNote && (
         <div className="px-4 pb-4 border-t border-gris-100 pt-3">
           <p className="text-xs text-gris-400 italic">Ce membre n'a pas encore soumis son évaluation.</p>
         </div>
       )}
     </Card>
   )
-}
-
-function genCode() {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
-  return Array.from({ length: 8 }, () => chars[Math.floor(Math.random() * chars.length)]).join('')
 }
 
 export function EvenementsPage() {
@@ -209,15 +214,26 @@ export function EvenementsPage() {
   const [saving, setSaving] = useState(false)
   const [deleteDialog, setDeleteDialog] = useState({ open: false, item: null, loading: false })
   const [errorMsg, setErrorMsg] = useState(null)
+  const [eventNotes, setEventNotes] = useState({})
+  const [criteresData, setCriteresData] = useState([])
   const dateInputRef = useRef(null)
 
   useEffect(() => { loadData() }, [])
 
+  useEffect(() => {
+    if (data.length > 0 && criteresData.length > 0) {
+      data.forEach(ev => {
+        if (!eventNotes[ev.id]) chargerNotesEvaluation(ev.id)
+      })
+    }
+  }, [data.length, criteresData.length])
+
   async function loadData() {
     try {
-      const [evts, tps, lxs, mbrs, kls] = await Promise.all([
-        fetchEvenements(), fetchTypesEvenements(), fetchLieux(), fetchMembres(), fetchKourels()
+      const [evts, tps, lxs, mbrs, kls, crits] = await Promise.all([
+        fetchEvenements(), fetchTypesEvenements(), fetchLieux(), fetchMembres(), fetchKourels(), fetchCriteres()
       ])
+      setCriteresData(crits || [])
       setData(evts || [])
       setTypes(tps || [])
       setLieux(lxs || [])
@@ -228,8 +244,44 @@ export function EvenementsPage() {
   }
 
   const getEvaluateurNote = (eventId, evaluateurId) => {
-    const ev = data.find(e => e.id === eventId)
-    return ev?.notes?.[evaluateurId] || null
+    return eventNotes[eventId]?.[evaluateurId] || null
+  }
+
+  async function chargerNotesEvaluation(eventId) {
+    try {
+      const evals = await fetchEvaluations(eventId)
+      const notes = {}
+      ;(evals || []).forEach(ev => {
+        const sectionNotes = {}
+        ;(ev.notes || []).forEach(n => {
+          const critere = criteresData.find(c => c.id === n.critere_id)
+          const section = SECTIONS.find(s => s.label === (critere?.section_nom || ''))
+          const key = section ? section.id : String(n.critere_id)
+          sectionNotes[key] = {
+            appreciation: n.appreciation || '',
+            note: n.note,
+            remarques: n.remarques || '',
+          }
+        })
+        const vals = Object.values(sectionNotes).filter(v => v.note != null)
+        notes[ev.membre_id] = {
+          notes: sectionNotes,
+          note_finale: vals.length ? (vals.reduce((a, b) => a + b.note, 0) / vals.length) : null,
+          commentaire: ev.commentaire || '',
+          soumis: ev.soumis,
+        }
+      })
+      setEventNotes(prev => ({ ...prev, [eventId]: notes }))
+    } catch (e) {
+      console.error('Erreur chargement notes:', e)
+    }
+  }
+
+  const ouvrirDetail = (e) => {
+    setDetailEvent(e)
+    if (!eventNotes[e.id]) {
+      chargerNotesEvaluation(e.id)
+    }
   }
 
   const columns = useMemo(() => [
@@ -278,7 +330,8 @@ export function EvenementsPage() {
       id: 'evaluateurs',
       cell: ({ row }) => {
         const ev = row.original
-        const soumis = Object.keys(ev.notes || {}).length
+        const notes = eventNotes[ev.id] || {}
+        const soumis = Object.values(notes).filter(n => n.soumis).length
         return (
           <div className="flex items-center gap-1.5 text-sm">
             <Users size={13} className="text-gris-400 flex-shrink-0" />
@@ -314,7 +367,7 @@ export function EvenementsPage() {
         const e = row.original
         return (
           <div className="flex items-center justify-end gap-1">
-            <Button size="icon" variant="ghost" onClick={() => setDetailEvent(e)}
+            <Button size="icon" variant="ghost" onClick={() => ouvrirDetail(e)}
               className="h-8 w-8 text-gris-400 hover:text-vert-700 hover:bg-vert-50">
               <Eye size={14} />
             </Button>
@@ -369,7 +422,7 @@ export function EvenementsPage() {
   function genererCodes(evaluateurs, existingCodes = {}) {
     const codes = {}
     evaluateurs.forEach(membreId => {
-      codes[membreId] = existingCodes[membreId] || genCode()
+      codes[membreId] = existingCodes[membreId] || genererCodeAcces()
     })
     return codes
   }
@@ -416,7 +469,7 @@ export function EvenementsPage() {
         const evalIds = k.evaluateurs || []
         const pagIds = k.paginateurs || []
         for (const membreId of evalIds) {
-          const code = genCodeEvaluation(eventId, Number(k.kourel_id), membreId)
+          const code = k.codes?.[membreId] || genererCodeAcces()
           try {
             await assignerEvalMembre(ek.id, membreId, 'evaluateur', code)
           } catch (e) { if (e.code !== '23505') throw e }
@@ -459,7 +512,7 @@ export function EvenementsPage() {
   return (
     <div className="h-full flex flex-col">
       <PageHeader
-        breadcrumb={['Comité & Évaluation', 'Événements']}
+        breadcrumb={['Comité suivi & Évaluation', 'Événements']}
         title="Événements"
         subtitle=""
         action={
@@ -798,7 +851,7 @@ export function EvenementsPage() {
                         selected={k.evaluateurs}
                         onChange={v => {
                           const newCodes = { ...k.codes }
-                          v.forEach(id => { if (!newCodes[id]) newCodes[id] = genCode() })
+                          v.forEach(id => { if (!newCodes[id]) newCodes[id] = genererCodeAcces() })
                           setForm(f => {
                             const kourels = [...f.kourels]
                             kourels[ki] = { ...kourels[ki], evaluateurs: v, codes: newCodes }
@@ -817,7 +870,7 @@ export function EvenementsPage() {
                         </Label>
                         <div className="space-y-1">
                           {k.evaluateurs.map(id => (
-                            <CodeRow key={id} membre={membresData.find(x => x.id === id)} code={k.codes[id] || genCode()} />
+                            <CodeRow key={id} membre={membresData.find(x => x.id === id)} code={k.codes[id] || genererCodeAcces()} />
                           ))}
                         </div>
                       </div>

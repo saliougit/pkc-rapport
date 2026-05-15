@@ -196,7 +196,7 @@ export function MembresPage() {
   return (
     <div className="h-full flex flex-col">
       <PageHeader
-        breadcrumb={['Comité & Évaluation', 'Membres']}
+        breadcrumb={['Comité suivi & Évaluation', 'Membres']}
         title="Membres du comité"
         subtitle={`${data.length} membre${data.length > 1 ? 's' : ''}`}
         action={

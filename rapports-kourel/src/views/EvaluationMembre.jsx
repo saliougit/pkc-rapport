@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useSearchParams, useNavigate } from 'react-router-dom'
 import {
   ChevronRight, ChevronLeft, CheckCircle2, Clock,
   Calendar, MapPin, Users, Music, FileText,
-  ArrowLeft, ArrowRight, AlertCircle, Star,
+  ArrowLeft, ArrowRight, AlertCircle, Star, Loader,
 } from 'lucide-react'
 import { fetchCriteres, getOrCreateEvaluation, saveEvaluationNote, soumettreEvaluation } from '@/lib/supabase'
 
@@ -255,98 +255,10 @@ function DotsStep({ etape }) {
   )
 }
 
-// ─── Écran saisie du code ─────────────────────────────────────────────────────
-
-function EcranCode({ onValide }) {
-  const [code, setCode] = useState('')
-  const [error, setError] = useState('')
-  const [loading, setLoading] = useState(false)
-
-  const valider = async (e) => {
-    e?.preventDefault()
-    const cUpper = code.toUpperCase().trim()
-    if (!cUpper) { setError('Veuillez entrer votre code.'); return }
-    setLoading(true)
-    try {
-      const res = await fetch('/api/valider-code-acces', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code: cUpper }),
-      })
-      const json = await res.json()
-      if (!json.success) { setError('Code invalide. Vérifiez le code reçu.'); return }
-      onValide(json.data)
-    } catch {
-      setError('Erreur de connexion. Réessayez.')
-    }
-    finally { setLoading(false) }
-  }
-
-  return (
-    <div className="min-h-screen flex justify-center" style={{ background: '#014421' }}>
-    <div className="w-full max-w-md flex flex-col min-h-screen">
-      <div className="flex-1 flex flex-col items-center justify-center px-5 pt-12 pb-6">
-        <div className="w-16 h-16 rounded-2xl bg-white flex items-center justify-center mb-5 shadow-lg">
-          <img src="/images/logo-dmn.png" alt="DMN" className="w-11 h-11 object-contain" />
-        </div>
-        <h1 className="text-white text-xl font-black text-center mb-1">DMN · Évaluation</h1>
-        <p className="text-vert-200 text-xs text-center">Comité Suivi & Évaluation</p>
-      </div>
-
-      <div className="bg-white rounded-t-3xl px-5 pt-8 pb-8 shadow-2xl">
-        <p className="text-gris-950 text-lg font-black mb-1">Accéder à l'évaluation</p>
-        <p className="text-gris-500 text-sm mb-6">
-          Saisissez le code qui vous a été communiqué par l'administrateur.
-        </p>
-
-        <form onSubmit={valider} className="space-y-4">
-          <div>
-            <label className="block text-xs font-bold text-gris-500 uppercase tracking-widest mb-2">
-              Code d'accès
-            </label>
-            <input
-              value={code}
-              onChange={e => { setCode(e.target.value.toUpperCase()); setError('') }}
-              placeholder="EVAL-001-01"
-              autoCapitalize="characters"
-              autoCorrect="off"
-              spellCheck={false}
-              className="w-full h-14 px-4 text-xl font-mono tracking-[0.3em] uppercase text-center border-2 rounded-2xl outline-none transition-all"
-              style={{
-                borderColor: error ? '#EF4444' : code ? '#014421' : '#E5E7EB',
-                color: '#014421',
-              }}
-            />
-            {error && (
-              <div className="mt-2 flex items-center gap-2 bg-red-50 border border-red-200 rounded-xl px-3 py-2">
-                <span className="text-red-500 text-sm">⚠</span>
-                <p className="text-red-600 text-xs font-semibold">{error}</p>
-              </div>
-            )}
-          </div>
-
-          <button
-            type="submit"
-            disabled={!code.trim() || loading}
-            className="w-full h-14 rounded-2xl text-base font-bold text-white flex items-center justify-center gap-2 transition-all active:scale-95 disabled:opacity-40"
-            style={{ background: '#016030' }}
-          >
-            {loading ? 'Vérification…' : <>Accéder <ChevronRight size={18} /></>}
-          </button>
-
-          <p className="text-[11px] text-gris-400 text-center">
-            Code perdu ? Contactez l'administrateur du comité.
-          </p>
-        </form>
-      </div>
-    </div>
-    </div>
-  )
-}
-
 // ─── PAGE PRINCIPALE ──────────────────────────────────────────────────────────
 
 export default function EvaluationMembre() {
+  const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const codeParam = searchParams.get('code') || ''
 
@@ -374,15 +286,17 @@ export default function EvaluationMembre() {
   const [soumis, setSoumis] = useState(false)
   const [readOnly, setReadOnly] = useState(false)
   const [popup, setPopup] = useState(null)
+  const [codeError, setCodeError] = useState(false)
 
   useEffect(() => {
+    if (!codeParam) { navigate('/', { replace: true }); return }
     fetchCriteres().then(setCriteres).catch(console.error)
   }, [])
 
   useEffect(() => {
     if (!codeParam || criteres.length === 0) return
     const cUpper = codeParam.toUpperCase().trim()
-    if (!cUpper) return
+    if (!cUpper) { navigate('/', { replace: true }); return }
     fetch('/api/valider-code-acces', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -393,9 +307,11 @@ export default function EvaluationMembre() {
         if (json.success) {
           setCodeValide(json.data)
           setEtape(1)
+        } else {
+          setCodeError(true)
         }
       })
-      .catch(console.error)
+      .catch(() => setCodeError(true))
   }, [codeParam, criteres.length])
 
   useEffect(() => {
@@ -491,7 +407,19 @@ export default function EvaluationMembre() {
   }
 
   if (!codeValide) {
-    return <EcranCode onValide={cv => { setCodeValide(cv); setEtape(1) }} />
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-white">
+        {codeError ? (
+          <div className="text-center px-6">
+            <p className="text-lg font-bold text-gris-700 mb-2">Code invalide</p>
+            <p className="text-sm text-gris-500 mb-4">Le code saisi n'est pas reconnu.</p>
+            <a href="/" className="text-vert-700 font-semibold underline text-sm">Retour à l'accueil</a>
+          </div>
+        ) : (
+          <Loader size={24} className="animate-spin text-vert-700" />
+        )}
+      </div>
+    )
   }
 
   const evenement = codeValide.evenement_kourel?.evenement

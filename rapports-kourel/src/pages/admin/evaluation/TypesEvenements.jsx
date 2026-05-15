@@ -139,7 +139,7 @@ export function TypesEvenementsPage() {
   return (
     <div className="h-full flex flex-col">
       <PageHeader
-        breadcrumb={['Comité & Évaluation', 'Types']}
+        breadcrumb={['Comité  suivi & Évaluation', 'Types']}
         title="Types d'événements"
         subtitle=""
         action={

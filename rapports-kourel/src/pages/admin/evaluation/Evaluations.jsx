@@ -391,7 +391,7 @@ export function EvaluationsPage() {
   return (
     <div className="h-full flex flex-col">
       <PageHeader
-        breadcrumb={['Comité & Évaluation', 'Évaluations']}
+        breadcrumb={['Comité suivi & Évaluation', 'Évaluations']}
         title="Évaluations"
         subtitle={`${evenements.length} événement${evenements.length > 1 ? 's' : ''}`}
       />
