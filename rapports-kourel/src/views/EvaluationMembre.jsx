@@ -313,18 +313,27 @@ export default function EvaluationMembre() {
 
   useEffect(() => {
     if (!codeParam) { navigate('/', { replace: true }); return }
-    fetchCriteres()
+    const fetchTimeout = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('timeout_criteres')), 15000)
+    )
+    Promise.race([fetchCriteres(), fetchTimeout])
       .then(data => {
-        if (!data?.length) setLoadError('Impossible de charger les critères. Vérifiez votre connexion.')
+        if (!data?.length) setLoadError('Aucun critère trouvé. Vérifiez la base de données.')
         else setCriteres(data)
       })
-      .catch(err => setLoadError(err?.message || 'Erreur de connexion au serveur.'))
+      .catch(err => {
+        if (err?.message === 'timeout_criteres') {
+          setLoadError('Le serveur met trop de temps à répondre. Réessayez dans quelques secondes.')
+        } else {
+          setLoadError(err?.message || 'Erreur de connexion.')
+        }
+      })
   }, [])
 
   useEffect(() => {
     if (!codeParam || criteres.length === 0) return
     const cUpper = codeParam.toUpperCase().trim()
-    if (!cUpper) { navigate('/', { replace: true }); return }
+    console.log('[EVAL] 3. validerCodeAcces start, code=', cUpper)
 
     const timeout = new Promise((_, reject) =>
       setTimeout(() => reject(new Error('timeout')), 10000)
@@ -332,6 +341,7 @@ export default function EvaluationMembre() {
 
     Promise.race([validerCodeAcces(cUpper), timeout])
       .then(data => {
+        console.log('[EVAL] 4. validerCodeAcces result=', data)
         if (data) {
           setCodeValide(data)
           setEtape(1)
@@ -340,8 +350,9 @@ export default function EvaluationMembre() {
         }
       })
       .catch(err => {
+        console.error('[EVAL] 4. validerCodeAcces ERROR', err)
         if (err?.message === 'timeout') {
-          setLoadError('La vérification du code prend trop de temps. Vérifiez votre connexion et réessayez.')
+          setLoadError('Timeout : la vérification du code prend trop de temps.')
         } else {
           setCodeError(true)
         }
@@ -471,7 +482,10 @@ export default function EvaluationMembre() {
             <a href="/" className="text-vert-700 font-semibold underline text-sm">Retour à l'accueil</a>
           </div>
         ) : (
-          <Loader size={24} className="animate-spin text-vert-700" />
+          <div className="flex flex-col items-center gap-3">
+            <Loader size={24} className="animate-spin text-vert-700" />
+            <p className="text-xs text-gris-400">Connexion en cours…</p>
+          </div>
         )}
       </div>
     )
