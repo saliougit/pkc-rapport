@@ -20,20 +20,6 @@ export default defineConfig({
         start_url: '/',
         orientation: 'portrait-primary',
         categories: ['education', 'productivity'],
-        screenshots: [
-          {
-            src: '/images/screenshot-1.png',
-            sizes: '540x720',
-            type: 'image/png',
-            form_factor: 'narrow'
-          },
-          {
-            src: '/images/screenshot-2.png',
-            sizes: '1280x720',
-            type: 'image/png',
-            form_factor: 'wide'
-          }
-        ],
         icons: [
           {
             src: '/images/icon-192.png',

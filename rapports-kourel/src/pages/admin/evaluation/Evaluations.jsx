@@ -455,6 +455,7 @@ export function EvaluationsPage() {
           conclusion: conclusionsKourel[k.id] ?? k.conclusion,
         }))
       }))
+      setSelected(null)
     } catch (err) { console.error(err) }
     finally { setSaving(false) }
   }

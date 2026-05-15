@@ -124,39 +124,22 @@ function SectionCard({ section, data, onChange, index, total, readOnly, isGenera
       </div>
 
       {isGenerale ? (
-        <>
-          <div className="bg-gris-50 rounded-2xl px-5 py-5 flex flex-col items-center gap-3">
-            <p className="text-xs font-bold text-gris-400 uppercase tracking-widest">Moyenne générale (auto-calculée)</p>
-            <div className="flex flex-col items-center">
-              <div className="w-24 h-24 rounded-full flex items-center justify-center border-4"
-                style={{ borderColor: noteColor, background: moyenneAuto ? noteColor + '15' : '#F9FAFB' }}>
-                <span className="text-3xl font-black leading-none" style={{ color: noteColor }}>
-                  {moyenneAuto != null ? Number(moyenneAuto).toFixed(1) : '—'}
-                </span>
-              </div>
-              <span className="text-[10px] text-gris-400 mt-1">/10</span>
+        <div className="bg-gris-50 rounded-2xl px-5 py-5 flex flex-col items-center gap-3">
+          <div className="flex flex-col items-center">
+            <div className="w-24 h-24 rounded-full flex items-center justify-center border-4"
+              style={{ borderColor: noteColor, background: moyenneAuto ? noteColor + '15' : '#F9FAFB' }}>
+              <span className="text-3xl font-black leading-none" style={{ color: noteColor }}>
+                {moyenneAuto != null ? Number(moyenneAuto).toFixed(1) : '—'}
+              </span>
             </div>
-            {moyenneAuto != null && (
-              <div className="w-full bg-gris-200 rounded-full h-1.5">
-                <div className="h-1.5 rounded-full transition-all" style={{ width: `${(moyenneAuto / 10) * 100}%`, background: noteColor }} />
-              </div>
-            )}
-            <p className="text-[11px] text-gris-400 text-center">Cette note est calculée automatiquement à partir de vos évaluations précédentes.</p>
+            <span className="text-[10px] text-gris-400 mt-1">/10</span>
           </div>
-          <div>
-            <p className="text-xs font-bold text-gris-500 uppercase tracking-widest mb-2">
-              Conclusion générale <span className="font-normal normal-case text-gris-400">(optionnel)</span>
-            </p>
-            <textarea
-              value={data.remarques}
-              onChange={e => onChange({ remarques: e.target.value })}
-              rows={4}
-              placeholder="Votre conclusion globale sur cet événement…"
-              disabled={readOnly}
-              className="w-full px-4 py-3 text-sm border border-gris-200 rounded-xl focus:border-vert-700 focus:outline-none resize-none bg-white placeholder:text-gris-400 disabled:bg-gris-50 disabled:cursor-not-allowed"
-            />
-          </div>
-        </>
+          {moyenneAuto != null && (
+            <div className="w-full bg-gris-200 rounded-full h-1.5">
+              <div className="h-1.5 rounded-full transition-all" style={{ width: `${(moyenneAuto / 10) * 100}%`, background: noteColor }} />
+            </div>
+          )}
+        </div>
       ) : (
         <>
           <div>
@@ -414,6 +397,7 @@ export default function EvaluationMembre() {
   }
 
   const sectionComplete = (id) => {
+    if (id === sectionGeneraleId) return true
     const n = evalData.notes[id]
     return n?.appreciation && n.note != null
   }
@@ -422,6 +406,7 @@ export default function EvaluationMembre() {
 
   const validerEtAvancer = (cible) => {
     const section = SECTIONS[sectionIdx]
+    if (section.id === sectionGeneraleId) { cible(); return }
     const n = evalData.notes[section.id]
     const manque = []
     if (!n?.appreciation) manque.push('appreciation')
@@ -433,8 +418,16 @@ export default function EvaluationMembre() {
     cible()
   }
 
+  const allerEtape3 = () => {
+    if (sectionGeneraleId) {
+      const moy = getMoyenneSansGenerale()
+      if (moy != null) updateSection(sectionGeneraleId, { note: moy, appreciation: getAppreciationFromNote(moy) })
+    }
+    setEtape(3)
+  }
+
   const validerEtFinaliser = () => {
-    const premiere = SECTIONS.find(s => !sectionComplete(s.id))
+    const premiere = SECTIONS.find(s => s.id !== sectionGeneraleId && !sectionComplete(s.id))
     if (premiere) {
       const n = evalData.notes[premiere.id]
       const manque = []
@@ -444,7 +437,7 @@ export default function EvaluationMembre() {
       setPopup({ sectionLabel: premiere.label, manque })
       return
     }
-    setEtape(3)
+    allerEtape3()
   }
 
   const soumettre = async () => {
@@ -710,7 +703,7 @@ export default function EvaluationMembre() {
                 </span>
               </div>
               <div className="flex gap-1">
-                {SECTIONS.map((s, i) => (
+                {SECTIONS.filter(s => s.id !== sectionGeneraleId).map((s, i) => (
                   <button
                     key={s.id}
                     onClick={() => setSectionIdx(i)}
@@ -759,7 +752,7 @@ export default function EvaluationMembre() {
               </button>
               {readOnly ? (
                 <button
-                  onClick={() => setEtape(3)}
+                  onClick={allerEtape3}
                   className="flex-1 h-12 rounded-2xl flex items-center justify-center gap-2 text-sm font-bold text-white transition-all active:scale-95"
                   style={{ background: '#6B7280' }}
                 >
@@ -767,7 +760,11 @@ export default function EvaluationMembre() {
                 </button>
               ) : sectionIdx < SECTIONS.length - 1 ? (
                 <button
-                  onClick={() => validerEtAvancer(() => setSectionIdx(i => i + 1))}
+                  onClick={() => validerEtAvancer(() => {
+                    const next = SECTIONS[sectionIdx + 1]
+                    if (next?.id === sectionGeneraleId) allerEtape3()
+                    else setSectionIdx(i => i + 1)
+                  })}
                   className="flex-1 h-12 rounded-2xl flex items-center justify-center gap-2 text-sm font-bold text-white transition-all active:scale-95"
                   style={{ background: '#016030' }}
                 >
