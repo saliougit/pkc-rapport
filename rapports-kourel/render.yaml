@@ -4,6 +4,7 @@ services:
     env: node
     region: frankfurt
     plan: free
+    rootDir: rapports-kourel
     buildCommand: rm -rf node_modules && npm install && npm run build
     startCommand: npm start
     envVars:
