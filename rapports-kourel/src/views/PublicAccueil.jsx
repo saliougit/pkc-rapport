@@ -112,12 +112,14 @@ export default function PublicAccueil() {
               </div>
               <p className="text-[10px] text-gris-400 leading-relaxed">
                 <ShieldCheck size={10} className="inline mr-0.5" />
-                Code à 8 caractères. En cas de perte, contactez l'administrateur.
+                Code à 12 caractères. En cas de perte, contactez l'administrateur.
               </p>
             </form>
           </div>
         </div>
       </div>
     </div>
+
   )
 }
+

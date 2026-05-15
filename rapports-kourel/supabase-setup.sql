@@ -117,7 +117,6 @@ CREATE TABLE IF NOT EXISTS evenements (
   statut         TEXT DEFAULT 'à venir'
                   CHECK (statut IN ('à venir', 'en cours', 'terminé')),
   conclusion     TEXT,
-  note_definitive NUMERIC(3,1),
   created_by     UUID REFERENCES auth.users(id),
   created_at     TIMESTAMPTZ DEFAULT now()
 );
@@ -129,6 +128,7 @@ CREATE TABLE IF NOT EXISTS evenement_kourels (
   id           SERIAL PRIMARY KEY,
   evenement_id INTEGER NOT NULL REFERENCES evenements(id) ON DELETE CASCADE,
   kourel_id    INTEGER NOT NULL REFERENCES kourels(id) ON DELETE CASCADE,
+  note_definitive NUMERIC(3,1),
   created_at   TIMESTAMPTZ DEFAULT now(),
   UNIQUE(evenement_id, kourel_id)
 );

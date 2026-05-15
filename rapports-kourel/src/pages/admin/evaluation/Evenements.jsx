@@ -301,7 +301,6 @@ export function EvenementsPage() {
       cell: ({ row }) => (
         <div>
           <p className="text-sm font-semibold text-gris-950">{types.find(t => t.id === row.original.type_id)?.nom || '—'}</p>
-          <p className="text-xs text-gris-500">{(row.original.kourels || []).map(ek => ek.kourel?.nom).filter(Boolean).join(', ') || '—'}</p>
         </div>
       ),
     },

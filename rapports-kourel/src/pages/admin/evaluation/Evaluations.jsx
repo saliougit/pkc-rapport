@@ -16,6 +16,7 @@ import { PageHeader } from '@/components/layout/PageHeader'
 import {
   fetchEvenements, fetchTypesEvenements, fetchLieux, fetchMembres,
   fetchEvalMembres, fetchEvaluations, fetchCriteres, modifierEvenement,
+  modifierNoteDefinitive, modifierEvenementKourel,
 } from '@/lib/supabase'
 
 function formatDate(d) {
@@ -80,7 +81,8 @@ function getNoteFinaleAvg(notesObj) {
 }
 
 function EventCard({ event, onClick }) {
-  const rawMoy = event.note_definitive != null ? Number(event.note_definitive) : getNoteFinaleAvg(event.notes)
+  const nd = event.kourels?.reduce((acc, k) => k.note_definitive != null ? k.note_definitive : acc, null)
+  const rawMoy = nd != null ? Number(nd) : getNoteFinaleAvg(event.notes)
   const moy = rawMoy != null ? Number(rawMoy).toFixed(2) : null
   const apprGen = noteVersAppreciation(rawMoy)
   const soumis = Object.keys(event.notes).length
@@ -214,39 +216,43 @@ function EvaluateurPanel({ evaluateur, notes, sections }) {
               const sec = notes.notes?.[s.key || s.id]
               return sec && (sec.note != null || sec.appreciation || sec.remarques)
             }).length > 0 ? (
-              sections.map(section => {
-                const s = notes.notes?.[section.key || section.id]
-                if (!s || (s.note == null && !s.appreciation && !s.remarques)) return null
-                const appr = s.appreciation || noteVersAppreciation(s.note)
-                const ac = appr ? APPREC_COLORS[appr] : null
-                return (
-                  <div key={section.id} className="flex items-center justify-between gap-3 rounded-lg border border-gris-100 bg-gris-50/50 px-3.5 py-2.5">
-                    <div className="min-w-0 flex-1">
-                      <p className="text-xs font-semibold text-gris-800">{section.label}</p>
-                      {s.remarques && (
-                        <p className="text-[10px] text-gris-500 italic mt-0.5 truncate">"{s.remarques}"</p>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-3 flex-shrink-0">
-                      {s.note != null ? (
-                        <div className="text-right">
-                          <p className="text-sm font-black text-gris-900 leading-none">{Number(s.note).toFixed(2)}<span className="text-[9px] text-gris-400">/10</span></p>
-                          <div className="h-1 w-full bg-gris-200 rounded-full mt-1 overflow-hidden" style={{ width: 36 }}>
-                            <div className="h-full rounded-full" style={{ width: `${(s.note / 10) * 100}%`, background: ac?.color || '#9ca3af' }} />
-                          </div>
-                        </div>
-                      ) : (
-                        <p className="text-xs text-gris-300 font-bold">—</p>
-                      )}
-                      {appr && ac ? (
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap" style={{ color: ac.color, background: ac.bg, border: `1px solid ${ac.color}20` }}>
-                          {appr}
+              <div className="rounded-lg border border-gris-200 overflow-hidden">
+                <div className="grid grid-cols-[1fr_60px_80px] bg-gris-100 px-3.5 py-1.5">
+                  <span className="text-[9px] font-bold text-gris-400 uppercase">Critère</span>
+                  <span className="text-[9px] font-bold text-gris-400 uppercase text-right">Note</span>
+                  <span className="text-[9px] font-bold text-gris-400 uppercase text-right">Appréciation</span>
+                </div>
+                {sections.map(section => {
+                  const s = notes.notes?.[section.key || section.id]
+                  if (!s || (s.note == null && !s.appreciation && !s.remarques)) return null
+                  const appr = s.appreciation || noteVersAppreciation(s.note)
+                  const ac = appr ? APPREC_COLORS[appr] : null
+                  return (
+                    <div key={section.id} className="border-t border-gris-100">
+                      <div className="grid grid-cols-[1fr_60px_80px] items-center px-3.5 py-2 bg-white">
+                        <span className="text-xs font-semibold text-gris-800 truncate">{section.label}</span>
+                        <span className="text-xs font-black text-gris-900 text-right">
+                          {s.note != null
+                            ? <>{Number(s.note).toFixed(1)}<span className="text-[9px] text-gris-400">/10</span></>
+                            : <span className="text-gris-300">—</span>
+                          }
                         </span>
-                      ) : null}
+                        <span className="text-right">
+                          {appr && ac
+                            ? <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full whitespace-nowrap" style={{ color: ac.color, background: ac.bg }}>{appr}</span>
+                            : <span className="text-[10px] text-gris-300">—</span>
+                          }
+                        </span>
+                      </div>
+                      {s.remarques && (
+                        <div className="px-3.5 pb-2 bg-gris-50/50">
+                          <p className="text-[10px] text-gris-500 italic truncate">"{s.remarques}"</p>
+                        </div>
+                      )}
                     </div>
-                  </div>
-                )
-              })
+                  )
+                })}
+              </div>
             ) : (
               <p className="text-xs text-gris-400 italic text-center py-2">Évaluation en cours, aucune note saisie.</p>
             )
@@ -305,7 +311,10 @@ export function EvaluationsPage() {
   const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState(null)
   const [conclusion, setConclusion] = useState('')
-  const [noteDefinitive, setNoteDefinitive] = useState('')
+  const [notesDefinitives, setNotesDefinitives] = useState({})
+  const [conclusionsKourel, setConclusionsKourel] = useState({})
+  const [noteGlobale, setNoteGlobale] = useState('')
+  const [openKourels, setOpenKourels] = useState({})
   const [saving, setSaving] = useState(false)
 
   const [search, setSearch] = useState('')
@@ -400,19 +409,52 @@ export function EvaluationsPage() {
   const ouvrirDetail = (e) => {
     setSelected(e)
     setConclusion(e.conclusion || '')
-    setNoteDefinitive(e.note_definitive != null ? String(e.note_definitive) : '')
+    setNoteGlobale(e.note_globale != null ? String(e.note_globale) : '')
+    const ok = {}
+    ;(e.kourels || []).forEach(k => { ok[k.id] = true })
+    setOpenKourels(ok)
+    const nds = {}
+    const ck = {}
+    ;(e.kourels || []).forEach(k => {
+      if (k.note_definitive != null) nds[k.id] = String(k.note_definitive)
+      ck[k.id] = k.conclusion || ''
+    })
+    setNotesDefinitives(nds)
+    setConclusionsKourel(ck)
   }
 
   const sauvegarderConclusion = async () => {
     if (!selected) return
     setSaving(true)
     try {
-      const nd = noteDefinitive !== '' ? parseFloat(noteDefinitive) : null
-      await modifierEvenement(selected.id, { conclusion, note_definitive: nd })
-      setEvenements(list => list.map(e =>
-        e.id === selected.id ? { ...e, conclusion, note_definitive: nd } : e
-      ))
-      setSelected(s => ({ ...s, conclusion, note_definitive: nd }))
+      const ng = noteGlobale !== '' ? parseFloat(noteGlobale) : null
+      await modifierEvenement(selected.id, { conclusion, note_globale: ng })
+      const promesses = (selected.kourels || []).map(k => {
+        const nd = notesDefinitives[k.id] !== undefined && notesDefinitives[k.id] !== ''
+          ? parseFloat(notesDefinitives[k.id]) : null
+        const ck = conclusionsKourel[k.id] ?? ''
+        return modifierEvenementKourel(k.id, { note_definitive: nd, conclusion: ck })
+      })
+      await Promise.all(promesses)
+      setEvenements(list => list.map(e => {
+        if (e.id !== selected.id) return e
+        const kourels = (e.kourels || []).map(k => ({
+          ...k,
+          note_definitive: notesDefinitives[k.id] !== '' ? parseFloat(notesDefinitives[k.id]) : null,
+          conclusion: conclusionsKourel[k.id] ?? k.conclusion,
+        }))
+        return { ...e, conclusion, note_globale: ng, kourels }
+      }))
+      setSelected(s => ({
+        ...s,
+        conclusion,
+        note_globale: ng,
+        kourels: (s.kourels || []).map(k => ({
+          ...k,
+          note_definitive: notesDefinitives[k.id] !== '' ? parseFloat(notesDefinitives[k.id]) : null,
+          conclusion: conclusionsKourel[k.id] ?? k.conclusion,
+        }))
+      }))
     } catch (err) { console.error(err) }
     finally { setSaving(false) }
   }
@@ -555,179 +597,180 @@ export function EvaluationsPage() {
                 </div>
               </SheetHeader>
 
-              <div className="flex-1 overflow-y-auto px-6 py-5 space-y-6">
-                {selected.evaluateurs.length === 0 ? (
+              <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
+
+                {(selected.kourels || []).length === 0 ? (
                   <div className="text-center py-10 border border-dashed border-gris-200 rounded-lg bg-gris-50/50">
                     <Users size={28} className="mx-auto mb-2 text-gris-300" />
-                    <p className="text-sm text-gris-500">Aucun évaluateur assigné</p>
+                    <p className="text-sm text-gris-500">Aucun kourel associé à cet événement</p>
                   </div>
                 ) : (
-                  <div>
-                    <p className="text-xs font-semibold text-gris-500 uppercase tracking-wider mb-3">
-                      Évaluateurs ({selected.evaluateurs.length})
-                    </p>
-                    <div className="space-y-2">
-                      {selected.evaluateurs.map(id => {
-                        const m = membres.find(x => x.id === id)
-                        if (!m) return null
-                        return (
-                          <EvaluateurPanel key={id} evaluateur={m} notes={selected.notes?.[id] || null} sections={SECTIONS} />
-                        )
-                      })}
-                    </div>
-                  </div>
-                )}
+                  (selected.kourels || []).map(k => {
+                    const kourelEvalIds = k.evaluateurs || []
+                    const kourelNotes = Object.fromEntries(
+                      Object.entries(selected.notes).filter(([id]) => kourelEvalIds.includes(parseInt(id)))
+                    )
+                    const noteFin = getNoteFinaleAvg(kourelNotes)
+                    const apprGen = noteVersAppreciation(noteFin)
+                    const ac = apprGen ? APPREC_COLORS[apprGen] : null
 
-                {Object.keys(selected.notes).length > 0 && (
-                  <div className="space-y-3">
-                    <p className="text-xs font-bold text-gris-500 uppercase tracking-widest">Synthèse des évaluations</p>
+                    return (
+                      <div key={k.id} className="rounded-xl border border-gris-200 overflow-hidden shadow-sm">
 
-                    {SECTIONS.filter(s => s.label !== 'Appréciation générale').map(section => {
-                      const vals = Object.values(selected.notes).map(n => n.notes?.[section.key]?.note).filter(v => v != null)
-                      const moy = vals.length > 0 ? (vals.reduce((a, b) => a + b, 0) / vals.length) : null
-                      const appr = noteVersAppreciation(moy)
-                      const ac = appr ? APPREC_COLORS[appr] : null
-                      return (
-                        <div key={section.id} className="flex items-center justify-between gap-3 rounded-xl border border-gris-100 bg-white px-3.5 py-2.5 shadow-sm">
-                          <div className="min-w-0 flex-1">
-                            <p className="text-xs font-semibold text-gris-800">{section.label}</p>
-                            <p className="text-[10px] text-gris-400 mt-0.5">{vals.length} évaluateur{vals.length > 1 ? 's' : ''}</p>
+                        {/* En-tête kourel cliquable */}
+                        <button
+                          onClick={() => setOpenKourels(prev => ({ ...prev, [k.id]: !prev[k.id] }))}
+                          className="w-full px-4 py-3 bg-gris-50 border-b border-gris-200 flex items-center justify-between gap-3 hover:bg-gris-100 transition-colors text-left"
+                        >
+                          <div className="flex items-center gap-2">
+                            <ChevronRight size={14} className={`text-gris-400 transition-transform duration-200 flex-shrink-0 ${openKourels[k.id] ? 'rotate-90' : ''}`} />
+                            <p className="text-sm font-bold text-gris-950">{k.kourel?.nom || '—'}</p>
                           </div>
-                          <div className="flex items-center gap-3 flex-shrink-0">
-                            {moy != null ? (
-                              <div className="text-right">
-                                <p className="text-sm font-black text-gris-900 leading-none">{moy.toFixed(2)}<span className="text-[9px] text-gris-400">/10</span></p>
-                                <div className="h-1 w-full bg-gris-100 rounded-full mt-1 overflow-hidden" style={{ width: 40 }}>
-                                  <div className="h-full rounded-full transition-all" style={{ width: `${(moy / 10) * 100}%`, background: ac?.color || '#9ca3af' }} />
-                                </div>
-                              </div>
-                            ) : (
-                              <p className="text-xs text-gris-300 font-bold">—</p>
-                            )}
-                            {appr && ac ? (
-                              <span className="text-[10px] font-bold px-2.5 py-1 rounded-full whitespace-nowrap" style={{ color: ac.color, background: ac.bg, border: `1px solid ${ac.color}20` }}>
-                                {appr}
-                              </span>
-                            ) : null}
-                          </div>
-                        </div>
-                      )
-                    })}
-
-                    {(() => {
-                      const noteFin = getNoteFinaleAvg(selected.notes)
-                      const apprGen = noteVersAppreciation(noteFin)
-                      const ac = apprGen ? APPREC_COLORS[apprGen] : null
-                      const nd = selected.note_definitive
-                      if (!noteFin && !apprGen && nd == null) return null
-                      return (
-                        <div className="rounded-xl border-2 border-vert-200 bg-gradient-to-br from-vert-50 to-white px-4 py-3.5 flex items-center justify-between gap-4 shadow-sm">
-                          <div>
-                            <p className="text-[10px] font-bold text-vert-600 uppercase tracking-wider mb-1">Bilan général</p>
-                            {apprGen && (
-                              <span className="text-xs font-bold px-2.5 py-1 rounded-full" style={{ color: ac.color, background: ac.bg }}>
+                          <div className="flex items-center gap-2 flex-shrink-0">
+                            {apprGen && ac && (
+                              <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full" style={{ color: ac.color, background: ac.bg }}>
                                 {apprGen}
                               </span>
                             )}
+                            {noteFin != null ? (
+                              <span className="text-base font-black text-vert-700 leading-none">
+                                {noteFin.toFixed(2)}<span className="text-[10px] text-vert-500 font-normal">/10</span>
+                              </span>
+                            ) : (
+                              <span className="text-xs text-gris-300 font-bold">—</span>
+                            )}
                           </div>
-                          <div className="flex items-center gap-5">
-                            {noteFin && (
-                              <div className="text-right">
-                                <p className="text-[9px] text-vert-600 font-semibold mb-0.5">Note évaluateurs</p>
-                                <p className="text-xl font-black text-vert-700 leading-none">{noteFin.toFixed(2)}<span className="text-xs text-vert-500">/10</span></p>
+                        </button>
+
+                        {/* Contenu pliable */}
+                        {openKourels[k.id] && <div className="p-4 space-y-2">
+                          {kourelEvalIds.length === 0 ? (
+                            <p className="text-xs text-gris-400 italic text-center py-4">Aucun évaluateur assigné à ce kourel</p>
+                          ) : (
+                            kourelEvalIds.map(id => {
+                              const m = membres.find(x => x.id === id)
+                              if (!m) return null
+                              return <EvaluateurPanel key={id} evaluateur={m} notes={selected.notes?.[id] || null} sections={SECTIONS} />
+                            })
+                          )}
+
+                          {/* Synthèse critères pour ce kourel */}
+                          {Object.keys(kourelNotes).length > 0 && SECTIONS.length > 0 && (
+                            <div className="mt-3">
+                              <p className="text-[10px] font-bold text-gris-400 uppercase tracking-wider pt-1 mb-2">Synthèse par critère</p>
+                              <div className="rounded-lg border border-gris-200 overflow-hidden">
+                                <div className="grid grid-cols-[1fr_60px_80px] bg-gris-100 px-3 py-1.5">
+                                  <span className="text-[9px] font-bold text-gris-400 uppercase">Critère</span>
+                                  <span className="text-[9px] font-bold text-gris-400 uppercase text-right">Note</span>
+                                  <span className="text-[9px] font-bold text-gris-400 uppercase text-right">Appréciation</span>
+                                </div>
+                                {SECTIONS.map(section => {
+                                  const vals = Object.values(kourelNotes).map(n => n.notes?.[section.key]?.note).filter(v => v != null)
+                                  const moy = vals.length > 0 ? vals.reduce((a, b) => a + b, 0) / vals.length : null
+                                  const appr = noteVersAppreciation(moy)
+                                  const sac = appr ? APPREC_COLORS[appr] : null
+                                  return (
+                                    <div key={section.id} className="grid grid-cols-[1fr_60px_80px] items-center px-3 py-2 border-t border-gris-100 bg-white">
+                                      <span className="text-xs font-medium text-gris-700 truncate">{section.label}</span>
+                                      <span className="text-xs font-black text-gris-800 text-right">{moy != null ? `${moy.toFixed(1)}/10` : '—'}</span>
+                                      <span className="text-right">
+                                        {appr && sac
+                                          ? <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{ color: sac.color, background: sac.bg }}>{appr}</span>
+                                          : <span className="text-[10px] text-gris-300">—</span>
+                                        }
+                                      </span>
+                                    </div>
+                                  )
+                                })}
                               </div>
-                            )}
-                            {nd != null && (
-                              <div className="text-right">
-                                <p className="text-[9px] text-blue-600 font-semibold mb-0.5">Note définitive</p>
-                                <p className="text-xl font-black text-blue-700 leading-none">{Number(nd).toFixed(2)}<span className="text-xs text-blue-500">/10</span></p>
-                              </div>
-                            )}
+                            </div>
+                          )}
+
+                          {/* Commentaires de ce kourel */}
+                          {Object.entries(kourelNotes).some(([, n]) => n.commentaire) && (
+                            <div className="mt-2 space-y-1">
+                              <p className="text-[10px] font-bold text-gris-400 uppercase tracking-wider pt-1">Commentaires</p>
+                              {Object.entries(kourelNotes).map(([id, n]) => {
+                                if (!n.commentaire) return null
+                                const m = membres.find(x => x.id === parseInt(id))
+                                return (
+                                  <div key={id} className="bg-gris-50 rounded-lg px-3 py-2 border border-gris-100">
+                                    <p className="text-[10px] font-bold text-gris-500">{m ? `${m.prenom} ${m.nom}` : `Évaluateur ${id}`}</p>
+                                    <p className="text-xs text-gris-700 italic mt-0.5">"{n.commentaire}"</p>
+                                  </div>
+                                )
+                              })}
+                            </div>
+                          )}
+                        </div>}
+
+                        {/* Conclusion + Note définitive pour ce kourel */}
+                        <div className="px-4 py-3 border-t border-gris-100 bg-gris-50/60 space-y-3">
+                          <div>
+                            <p className="text-xs font-semibold text-gris-700 mb-1.5">Conclusion pour ce kourel</p>
+                            <Textarea
+                              value={conclusionsKourel[k.id] ?? ''}
+                              onChange={e => setConclusionsKourel(prev => ({ ...prev, [k.id]: e.target.value }))}
+                              placeholder={`Conclusion pour ${k.kourel?.nom || 'ce kourel'}…`}
+                              rows={3}
+                            />
+                          </div>
+                          <div className="flex items-center justify-between gap-4">
+                            <div>
+                              <p className="text-xs font-semibold text-gris-700">Note définitive</p>
+                              <p className="text-[10px] text-gris-400">Vide = garder la moyenne</p>
+                            </div>
+                            <input
+                              type="number" step="0.1" min="0" max="10"
+                              value={notesDefinitives[k.id] ?? ''}
+                              onChange={e => {
+                                const v = e.target.value
+                                if (v === '' || (parseFloat(v) >= 0 && parseFloat(v) <= 10)) {
+                                  setNotesDefinitives(prev => ({ ...prev, [k.id]: v }))
+                                }
+                              }}
+                              placeholder="—"
+                              className="w-16 text-center text-lg font-black text-blue-600 bg-white border-2 border-blue-200 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-300 shadow-sm"
+                            />
                           </div>
                         </div>
-                      )
-                    })()}
-
-                    {Object.entries(selected.notes).some(([, n]) => n.commentaire) && (
-                      <div className="space-y-1.5">
-                        <p className="text-[10px] font-bold text-gris-400 uppercase tracking-wider">Commentaires</p>
-                        {Object.entries(selected.notes).map(([id, n]) => {
-                          if (!n.commentaire) return null
-                          const m = membres.find(x => x.id === parseInt(id))
-                          return (
-                            <div key={id} className="bg-gris-50 rounded-lg px-3 py-2.5 border border-gris-100">
-                              <p className="text-[10px] font-bold text-gris-500 mb-1">{m ? `${m.prenom} ${m.nom}` : `Évaluateur ${id}`}</p>
-                              <p className="text-xs text-gris-700 leading-relaxed italic">"{n.commentaire}"</p>
-                            </div>
-                          )
-                        })}
                       </div>
-                    )}
-                  </div>
+                    )
+                  })
                 )}
 
-                <div className="space-y-4">
-                  <div>
-                    <p className="text-xs font-semibold text-gris-500 uppercase tracking-wider mb-2">
-                      Conclusion (Admin)
-                    </p>
-                    <Textarea
-                      value={conclusion}
-                      onChange={e => setConclusion(e.target.value)}
-                      placeholder="Rédigez votre évaluation globale de l'événement…"
-                      rows={4}
-                    />
-                  </div>
+                {/* Section globale — uniquement si 2+ kourels */}
+                {(selected.kourels || []).length >= 2 && (
+                  <div className="rounded-xl border-2 border-gris-200 bg-gris-50/50 p-4 space-y-4">
+                    <p className="text-xs font-bold text-gris-500 uppercase tracking-wider">Bilan global de l'événement</p>
 
-                {Object.keys(selected.notes).length > 0 && (() => {
-                  const hasNotes = Object.values(selected.notes).some(n =>
-                    Object.values(n.notes || {}).some(s => s.note != null)
-                  )
-                  return hasNotes && (
-                    <div className="rounded-xl border-2 border-blue-100 bg-gradient-to-br from-blue-50 to-white p-4 shadow-sm">
-                      <p className="text-[10px] font-bold text-blue-500 uppercase tracking-wider mb-3">Note finale</p>
-                      <div className="flex items-center gap-6">
-                        <div className="flex-1 text-center">
-                          <p className="text-[9px] text-gris-400 mb-1.5">Note générale<br/>(moyenne des évaluateurs)</p>
-                          {(() => {
-                            const n = getNoteFinaleAvg(selected.notes)
-                            const a = noteVersAppreciation(n)
-                            const c = a ? APPREC_COLORS[a] : null
-                            return n ? (
-                              <>
-                                <p className="text-2xl font-black text-vert-700 leading-none">{n.toFixed(2)}<span className="text-sm text-vert-500">/10</span></p>
-                                {a && c && (
-                                  <p className="text-[10px] font-bold mt-1.5 inline-block px-2.5 py-0.5 rounded-full" style={{ color: c.color, background: c.bg }}>
-                                    {a}
-                                  </p>
-                                )}
-                              </>
-                            ) : (
-                              <p className="text-xs text-gris-300 font-bold">—</p>
-                            )
-                          })()}
-                        </div>
-                        <div className="w-px h-16 bg-blue-200" />
-                        <div className="flex-1 text-center">
-                          <p className="text-[9px] text-gris-400 mb-1.5">Note définitive<br/></p>
-                          <input
-                            type="number" step="0.1" min="0" max="10"
-                            value={noteDefinitive}
-                            onChange={e => {
-                              const v = e.target.value
-                              if (v === '' || (parseFloat(v) >= 0 && parseFloat(v) <= 10)) {
-                                setNoteDefinitive(v)
-                              }
-                            }}
-                            placeholder="—"
-                            className="w-20 text-center text-2xl font-black text-blue-600 bg-white border-2 border-blue-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-300 mx-auto shadow-sm"
-                          />
-                          <p className="text-[9px] text-gris-400 mt-1.5">Laissez vide pour garder la note générale</p>
-                        </div>
+                    <div className="flex items-start gap-4">
+                      <div className="flex-1">
+                        <p className="text-xs font-semibold text-gris-700 mb-1.5">Conclusion générale</p>
+                        <Textarea
+                          value={conclusion}
+                          onChange={e => setConclusion(e.target.value)}
+                          placeholder="Synthèse globale de l'événement…"
+                          rows={3}
+                        />
+                      </div>
+                      <div className="flex-shrink-0 text-center">
+                        <p className="text-xs font-semibold text-gris-700 mb-1.5">Note globale</p>
+                        <input
+                          type="number" step="0.1" min="0" max="10"
+                          value={noteGlobale}
+                          onChange={e => {
+                            const v = e.target.value
+                            if (v === '' || (parseFloat(v) >= 0 && parseFloat(v) <= 10)) setNoteGlobale(v)
+                          }}
+                          placeholder="—"
+                          className="w-16 text-center text-lg font-black text-gris-800 bg-white border-2 border-gris-200 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-vert-400 focus:border-vert-300 shadow-sm"
+                        />
+                        <p className="text-[9px] text-gris-400 mt-1">Vide = pas de note</p>
                       </div>
                     </div>
-                  )})()}
-                </div>
+                  </div>
+                )}
               </div>
 
               <SheetFooter className="flex-row gap-3 px-6 py-4 border-t border-gris-100 flex-shrink-0">

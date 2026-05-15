@@ -250,7 +250,7 @@ export async function ajouterLieu(nom) {
 export async function fetchEvenements() {
   const { data, error } = await supabase
     .from('evenements')
-    .select('*, type:type_id(id, nom), lieu:lieu_id(id, nom), kourels:evenement_kourels(id, kourel:kourel_id(id, nom), eval_membres:eval_membres(id, membre_id, role, code_acces))')
+    .select('*, type:type_id(id, nom), lieu:lieu_id(id, nom), kourels:evenement_kourels(id, note_definitive, conclusion, kourel:kourel_id(id, nom), eval_membres:eval_membres(id, membre_id, role, code_acces))')
     .order('date_evenement', { ascending: false })
   if (error) throw error
 
@@ -313,6 +313,22 @@ export async function modifierEvenement(id, updates) {
     .from('evenements')
     .update(updates)
     .eq('id', id)
+  if (error) throw error
+}
+
+export async function modifierNoteDefinitive(evenementKourelId, note) {
+  const { error } = await supabase
+    .from('evenement_kourels')
+    .update({ note_definitive: note })
+    .eq('id', evenementKourelId)
+  if (error) throw error
+}
+
+export async function modifierEvenementKourel(evenementKourelId, updates) {
+  const { error } = await supabase
+    .from('evenement_kourels')
+    .update(updates)
+    .eq('id', evenementKourelId)
   if (error) throw error
 }
 

@@ -5,7 +5,7 @@ import {
   Calendar, MapPin, Users, Music, FileText,
   ArrowLeft, ArrowRight, AlertCircle, Star, Loader,
 } from 'lucide-react'
-import { fetchCriteres, getOrCreateEvaluation, saveEvaluationNote, soumettreEvaluation } from '@/lib/supabase'
+import { fetchCriteres, getOrCreateEvaluation, saveEvaluationNote, soumettreEvaluation, validerCodeAcces } from '@/lib/supabase'
 
 const APPRECIATIONS = [
   { label: 'Mauvais',   value: 'Mauvais',   color: '#ee6161', bg: '#FEF2F2', active: '#EF4444', min: 0,   max: 2,   mid: 1   },
@@ -94,17 +94,19 @@ function NoteSelector({ value, onChange, readOnly }) {
 
 // ─── Carte section ──────────────────────────────────────────────────────────
 
-function SectionCard({ section, data, onChange, index, total, readOnly }) {
+function SectionCard({ section, data, onChange, index, total, readOnly, isGenerale, moyenneAuto }) {
   const Icon = section.icon
   const donePct = Math.round(((index) / total) * 100)
+  const noteColor = !moyenneAuto ? '#9CA3AF'
+    : moyenneAuto < 4 ? '#EF4444'
+    : moyenneAuto < 6 ? '#F97316'
+    : moyenneAuto < 8 ? '#EAB308'
+    : '#16824E'
 
   return (
     <div className="flex flex-col gap-5">
       <div className="rounded-2xl overflow-hidden" style={{ background: section.bg, border: `1.5px solid ${section.color}22` }}>
-        <div
-          className="flex items-center gap-3 px-5 py-4"
-          style={{ background: section.color }}
-        >
+        <div className="flex items-center gap-3 px-5 py-4" style={{ background: section.color }}>
           <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center flex-shrink-0">
             <Icon size={20} color="white" />
           </div>
@@ -117,73 +119,93 @@ function SectionCard({ section, data, onChange, index, total, readOnly }) {
           </div>
         </div>
         <div className="h-1 bg-white/30">
-          <div
-            className="h-1 transition-all duration-500"
-            style={{ width: `${donePct}%`, background: 'white' }}
-          />
+          <div className="h-1 transition-all duration-500" style={{ width: `${donePct}%`, background: 'white' }} />
         </div>
       </div>
 
-      <div>
-        <p className="text-xs font-bold text-gris-500 uppercase tracking-widest mb-3">
-          Appréciation
-        </p>
-        <div className="grid grid-cols-3 gap-2">
-          {APPRECIATIONS.map(a => {
-            const selected = data.appreciation === a.value
-            if (readOnly) {
-              return selected ? (
-                <div key={a.value} className="py-3 px-2 rounded-xl text-sm font-semibold border-2 text-center"
-                  style={{ borderColor: a.active, background: a.active, color: 'white' }}>
-                  {a.label}
-                </div>
-              ) : null
-            }
-            return (
-              <button
-                key={a.value}
-                type="button"
-                onClick={() => onChange({ appreciation: a.value, note: a.mid })}
-                className="py-3 px-2 rounded-xl text-sm font-semibold border-2 transition-all duration-150 active:scale-95"
-                style={{
-                  borderColor: selected ? a.active : '#E5E7EB',
-                  background: selected ? a.active : 'white',
-                  color: selected ? 'white' : a.color,
-                }}
-              >
-                {a.label}
-              </button>
-            )
-          })}
-        </div>
-      </div>
-
-      <div>
-        <p className="text-xs font-bold text-gris-500 uppercase tracking-widest mb-3">
-          Note
-        </p>
-        <div className="bg-gris-50 rounded-2xl py-5 px-4">
-          <NoteSelector
-            value={data.note}
-            onChange={v => onChange({ note: v, appreciation: getAppreciationFromNote(v) })}
-            readOnly={readOnly}
-          />
-        </div>
-      </div>
-
-      <div>
-        <p className="text-xs font-bold text-gris-500 uppercase tracking-widest mb-2">
-          Remarques <span className="font-normal normal-case text-gris-400">(optionnel)</span>
-        </p>
-        <textarea
-          value={data.remarques}
-          onChange={e => onChange({ remarques: e.target.value })}
-          rows={3}
-          placeholder="Vos observations sur cette section…"
-          disabled={readOnly}
-          className="w-full px-4 py-3 text-sm border border-gris-200 rounded-xl focus:border-vert-700 focus:outline-none resize-none bg-white placeholder:text-gris-400 disabled:bg-gris-50 disabled:cursor-not-allowed"
-        />
-      </div>
+      {isGenerale ? (
+        <>
+          <div className="bg-gris-50 rounded-2xl px-5 py-5 flex flex-col items-center gap-3">
+            <p className="text-xs font-bold text-gris-400 uppercase tracking-widest">Moyenne générale (auto-calculée)</p>
+            <div className="flex flex-col items-center">
+              <div className="w-24 h-24 rounded-full flex items-center justify-center border-4"
+                style={{ borderColor: noteColor, background: moyenneAuto ? noteColor + '15' : '#F9FAFB' }}>
+                <span className="text-3xl font-black leading-none" style={{ color: noteColor }}>
+                  {moyenneAuto != null ? Number(moyenneAuto).toFixed(1) : '—'}
+                </span>
+              </div>
+              <span className="text-[10px] text-gris-400 mt-1">/10</span>
+            </div>
+            {moyenneAuto != null && (
+              <div className="w-full bg-gris-200 rounded-full h-1.5">
+                <div className="h-1.5 rounded-full transition-all" style={{ width: `${(moyenneAuto / 10) * 100}%`, background: noteColor }} />
+              </div>
+            )}
+            <p className="text-[11px] text-gris-400 text-center">Cette note est calculée automatiquement à partir de vos évaluations précédentes.</p>
+          </div>
+          <div>
+            <p className="text-xs font-bold text-gris-500 uppercase tracking-widest mb-2">
+              Conclusion générale <span className="font-normal normal-case text-gris-400">(optionnel)</span>
+            </p>
+            <textarea
+              value={data.remarques}
+              onChange={e => onChange({ remarques: e.target.value })}
+              rows={4}
+              placeholder="Votre conclusion globale sur cet événement…"
+              disabled={readOnly}
+              className="w-full px-4 py-3 text-sm border border-gris-200 rounded-xl focus:border-vert-700 focus:outline-none resize-none bg-white placeholder:text-gris-400 disabled:bg-gris-50 disabled:cursor-not-allowed"
+            />
+          </div>
+        </>
+      ) : (
+        <>
+          <div>
+            <p className="text-xs font-bold text-gris-500 uppercase tracking-widest mb-3">Appréciation</p>
+            <div className="grid grid-cols-3 gap-2">
+              {APPRECIATIONS.map(a => {
+                const sel = data.appreciation === a.value
+                if (readOnly) {
+                  return sel ? (
+                    <div key={a.value} className="py-3 px-2 rounded-xl text-sm font-semibold border-2 text-center"
+                      style={{ borderColor: a.active, background: a.active, color: 'white' }}>{a.label}</div>
+                  ) : null
+                }
+                return (
+                  <button key={a.value} type="button"
+                    onClick={() => onChange({ appreciation: a.value, note: a.mid })}
+                    className="py-3 px-2 rounded-xl text-sm font-semibold border-2 transition-all duration-150 active:scale-95"
+                    style={{ borderColor: sel ? a.active : '#E5E7EB', background: sel ? a.active : 'white', color: sel ? 'white' : a.color }}>
+                    {a.label}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+          <div>
+            <p className="text-xs font-bold text-gris-500 uppercase tracking-widest mb-3">Note</p>
+            <div className="bg-gris-50 rounded-2xl py-5 px-4">
+              <NoteSelector
+                value={data.note}
+                onChange={v => onChange({ note: v, appreciation: getAppreciationFromNote(v) })}
+                readOnly={readOnly}
+              />
+            </div>
+          </div>
+          <div>
+            <p className="text-xs font-bold text-gris-500 uppercase tracking-widest mb-2">
+              Remarques <span className="font-normal normal-case text-gris-400">(optionnel)</span>
+            </p>
+            <textarea
+              value={data.remarques}
+              onChange={e => onChange({ remarques: e.target.value })}
+              rows={3}
+              placeholder="Vos observations sur cette section…"
+              disabled={readOnly}
+              className="w-full px-4 py-3 text-sm border border-gris-200 rounded-xl focus:border-vert-700 focus:outline-none resize-none bg-white placeholder:text-gris-400 disabled:bg-gris-50 disabled:cursor-not-allowed"
+            />
+          </div>
+        </>
+      )}
     </div>
   )
 }
@@ -297,15 +319,10 @@ export default function EvaluationMembre() {
     if (!codeParam || criteres.length === 0) return
     const cUpper = codeParam.toUpperCase().trim()
     if (!cUpper) { navigate('/', { replace: true }); return }
-    fetch('/api/valider-code-acces', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ code: cUpper }),
-    })
-      .then(r => r.json())
-      .then(json => {
-        if (json.success) {
-          setCodeValide(json.data)
+    validerCodeAcces(cUpper)
+      .then(data => {
+        if (data) {
+          setCodeValide(data)
           setEtape(1)
         } else {
           setCodeError(true)
@@ -349,10 +366,23 @@ export default function EvaluationMembre() {
     }))
   }
 
+  const sectionGeneraleId = SECTIONS.find(s =>
+    s.label.toLowerCase().includes('générale') || s.label.toLowerCase().includes('generale')
+  )?.id
+
   const getMoyenne = () => {
     const vals = SECTIONS.map(s => evalData.notes[s.id]?.note).filter(v => v != null)
     if (!vals.length) return null
     return (vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(1)
+  }
+
+  const getMoyenneSansGenerale = () => {
+    const vals = SECTIONS
+      .filter(s => s.id !== sectionGeneraleId)
+      .map(s => evalData.notes[s.id]?.note)
+      .filter(v => v != null)
+    if (!vals.length) return null
+    return parseFloat((vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(2))
   }
 
   const sectionComplete = (id) => {
@@ -660,14 +690,28 @@ export default function EvaluationMembre() {
               </div>
             </div>
 
-            <SectionCard
-              section={SECTIONS[sectionIdx]}
-              data={evalData.notes[SECTIONS[sectionIdx].id] || sectionVide()}
-              onChange={(changes) => updateSection(SECTIONS[sectionIdx].id, changes)}
-              index={sectionIdx + 1}
-              total={SECTIONS.length}
-              readOnly={readOnly}
-            />
+            {(() => {
+              const sec = SECTIONS[sectionIdx]
+              const isGenerale = sec.id === sectionGeneraleId
+              const moyAuto = isGenerale ? getMoyenneSansGenerale() : null
+              if (isGenerale && moyAuto != null) {
+                const appr = getAppreciationFromNote(moyAuto)
+                const cur = evalData.notes[sec.id]
+                if (cur?.note !== moyAuto) updateSection(sec.id, { note: moyAuto, appreciation: appr })
+              }
+              return (
+                <SectionCard
+                  section={sec}
+                  data={evalData.notes[sec.id] || sectionVide()}
+                  onChange={(changes) => updateSection(sec.id, changes)}
+                  index={sectionIdx + 1}
+                  total={SECTIONS.length}
+                  readOnly={readOnly}
+                  isGenerale={isGenerale}
+                  moyenneAuto={moyAuto}
+                />
+              )
+            })()}
 
             <div className="flex gap-3 mt-6">
               <button
