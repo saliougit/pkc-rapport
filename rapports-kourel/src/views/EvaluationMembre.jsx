@@ -309,10 +309,16 @@ export default function EvaluationMembre() {
   const [readOnly, setReadOnly] = useState(false)
   const [popup, setPopup] = useState(null)
   const [codeError, setCodeError] = useState(false)
+  const [loadError, setLoadError] = useState(null)
 
   useEffect(() => {
     if (!codeParam) { navigate('/', { replace: true }); return }
-    fetchCriteres().then(setCriteres).catch(console.error)
+    fetchCriteres()
+      .then(data => {
+        if (!data?.length) setLoadError('Impossible de charger les critères. Vérifiez votre connexion.')
+        else setCriteres(data)
+      })
+      .catch(err => setLoadError(err?.message || 'Erreur de connexion au serveur.'))
   }, [])
 
   useEffect(() => {
@@ -441,7 +447,13 @@ export default function EvaluationMembre() {
   if (!codeValide) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-white">
-        {codeError ? (
+        {loadError ? (
+          <div className="text-center px-6 max-w-sm">
+            <p className="text-lg font-bold text-rouge mb-2">Erreur de chargement</p>
+            <p className="text-sm text-gris-500 mb-4">{loadError}</p>
+            <button onClick={() => window.location.reload()} className="text-vert-700 font-semibold underline text-sm">Réessayer</button>
+          </div>
+        ) : codeError ? (
           <div className="text-center px-6">
             <p className="text-lg font-bold text-gris-700 mb-2">Code invalide</p>
             <p className="text-sm text-gris-500 mb-4">Le code saisi n'est pas reconnu.</p>
