@@ -325,7 +325,9 @@ export default function EvaluationMembre() {
         setEvaluationId(ev.id)
         const alreadySubmitted = ev.soumis === true
         const eventClosed = codeValide.evenement_kourel?.evenement?.statut === 'terminé'
-        setReadOnly(alreadySubmitted || eventClosed)
+        const ro = alreadySubmitted || eventClosed
+        setReadOnly(ro)
+        if (ro) setEtape(3)
         if (ev.notes?.length) {
           const loaded = {}
           SECTIONS.forEach(s => {
@@ -594,7 +596,10 @@ export default function EvaluationMembre() {
                 </div>
                 <div className="px-4 py-3">
                   <p className="text-xs text-gris-500 leading-relaxed">
-                    Évaluez chaque section en choisissant une <span className="font-semibold text-gris-700">appréciation</span> et une <span className="font-semibold text-gris-700">note sur 10</span>. Les remarques sont facultatives.
+                    Vous devez évaluer : <span className="font-semibold text-gris-700">{SECTIONS.map(s => s.label).join(', ')}</span>.
+                  </p>
+                  <p className="text-xs text-gris-400 mt-1">
+                    Pour chaque section, choisissez une appréciation et une note sur 10 (les remarques sont facultatives).
                   </p>
                 </div>
               </div>
@@ -822,9 +827,12 @@ export default function EvaluationMembre() {
         )}
 
         {etape === 3 && readOnly && (
-          <p className="text-center text-xs text-gris-400 font-semibold py-2">
-            Évaluation en lecture seule
-          </p>
+          <a href="/"
+            className="flex items-center justify-center gap-2 w-full h-13 py-3.5 rounded-2xl font-bold text-white text-sm transition-all"
+            style={{ background: '#6B7280' }}
+          >
+            Retour à l'accueil
+          </a>
         )}
       </div>
     </div>

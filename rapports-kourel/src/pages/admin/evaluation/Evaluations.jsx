@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react'
-import { Calendar, MapPin, Star, ChevronRight, ChevronDown, Users, CheckCircle2, Clock, AlertCircle, Save, Loader, X, Search, SlidersHorizontal, ChevronLeft, ChevronFirst, ChevronLast } from 'lucide-react'
+import { Calendar, MapPin, ChevronRight, ChevronDown, Users, CheckCircle2, Clock, AlertCircle, Save, Loader, X, Search, SlidersHorizontal, ChevronLeft, ChevronFirst, ChevronLast } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -71,101 +71,96 @@ function getNoteFinaleAvg(notesObj) {
 }
 
 function EventCard({ event, onClick }) {
-  const moy = getMoyenneGlobale(event.notes)
+  const moy = getNoteFinaleAvg(event.notes)
+  const apprGen = getModeAppreciation(event.notes, 'generale')
   const soumis = Object.keys(event.notes).length
   const total = event.evaluateurs.length
   const progres = total > 0 ? Math.round((soumis / total) * 100) : 0
 
+  const isValidated = event.statut === 'terminé' && (event.conclusion || moy != null)
+  const ac = apprGen ? APPREC_COLORS[apprGen] : null
+
+  const accentColor = event.statut === 'terminé' ? 'bg-vert-500'
+    : event.statut === 'en cours' ? 'bg-blue-500' : 'bg-amber-400'
+
   return (
-    <Card
+    <button
       onClick={() => onClick(event)}
-      className="group border-gris-200 shadow-sm hover:border-vert-400 hover:shadow-lg cursor-pointer transition-all duration-200 overflow-hidden"
+      className="group w-full text-left rounded-2xl border border-gris-200 bg-gradient-to-br from-white to-gris-50 shadow-sm hover:shadow-lg hover:border-vert-300 transition-all duration-200 overflow-hidden hover:scale-[1.02] relative"
     >
-      <div className={`h-1.5 w-full ${
-        event.statut === 'terminé' ? 'bg-vert-500' :
-        event.statut === 'en cours' ? 'bg-blue-500' :
-        'bg-amber-500'
-      }`} />
+      {/* Animated blob decorations - positioned outside content flow */}
+      <div 
+        className="absolute -top-12 -right-12 w-28 h-28 rounded-full opacity-0 group-hover:opacity-20 transition-opacity duration-300 pointer-events-none animate-pulse" 
+        style={{ background: accentColor.replace('bg-', '') === 'vert-500' ? '#16824E' : accentColor.replace('bg-', '') === 'blue-500' ? '#3B82F6' : '#FBBF24' }} 
+      />
+      <div 
+        className="absolute -bottom-10 -left-10 w-24 h-24 rounded-full opacity-0 group-hover:opacity-15 transition-opacity duration-500 pointer-events-none animate-pulse" 
+        style={{ background: accentColor.replace('bg-', '') === 'vert-500' ? '#16824E' : accentColor.replace('bg-', '') === 'blue-500' ? '#3B82F6' : '#FBBF24', animationDelay: '0.3s' }} 
+      />
 
-      <CardContent className="p-0">
-        <div className="p-4 pb-3">
-          <div className="flex items-start justify-between gap-2 mb-2">
-            <div className="flex items-center gap-2 min-w-0">
-              <div className="w-9 h-9 rounded-lg bg-gris-100 flex items-center justify-center flex-shrink-0 group-hover:bg-vert-100 transition-colors">
-                <Calendar size={16} className="text-gris-500 group-hover:text-vert-700 transition-colors" />
-              </div>
-              <div className="min-w-0">
-                <p className="text-sm font-bold text-gris-950 truncate">{event.type_nom}</p>
-                <p className="text-[11px] text-gris-500 truncate">{formatDate(event.date_evenement)}</p>
-              </div>
-            </div>
-            <Badge className={`text-[10px] font-semibold px-2 py-0.5 border ${STATUS_STYLES[event.statut] || ''}`}>
-              {event.statut}
-            </Badge>
-          </div>
+      <div className={`h-1 w-full flex-shrink-0 ${accentColor}`} />
 
-          <div className="space-y-1">
-            <div className="flex items-center gap-1.5 text-xs text-gris-600">
-              <MapPin size={11} className="text-gris-400 flex-shrink-0" />
-              <span>{event.lieu_nom}</span>
-            </div>
-            <div className="flex items-center gap-1.5 text-xs text-gris-700 font-medium">
-              <Users size={11} className="text-gris-400 flex-shrink-0" />
-              <span className="truncate">{event.kourel?.nom || '—'}</span>
-            </div>
+      <div className="p-4 space-y-2.5 relative z-10">
+        <div className="flex items-start justify-between gap-2">
+          <h3 className="text-sm font-bold text-gris-950 leading-tight flex-1 min-w-0 group-hover:text-vert-700 transition-colors">{event.type_nom}</h3>
+          <Badge className={`text-[8px] font-semibold px-1.5 py-0 border flex-shrink-0 ${STATUS_STYLES[event.statut] || ''}`}>
+            {event.statut}
+          </Badge>
+        </div>
+
+        <div className="flex flex-col gap-0.5 text-xs">
+          <span className="text-gris-500 flex items-center gap-1.5">
+            <Calendar size={11} className="flex-shrink-0 text-gris-400" />
+            {formatDate(event.date_evenement)}
+          </span>
+          <div className="flex items-center gap-1.5 min-w-0">
+            <span className="text-gris-500 flex items-center gap-1 truncate">
+              <MapPin size={11} className="flex-shrink-0 text-gris-400" />{event.lieu_nom}
+            </span>
+            <span className="text-gris-300 flex-shrink-0">·</span>
+            <span className="font-medium text-gris-700 truncate">{event.kourel?.nom || '—'}</span>
           </div>
         </div>
 
-        <Separator />
-
-        <div className="p-4 pt-3">
-          {moy != null ? (
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-1">
-                {Array.from({ length: 5 }, (_, i) => (
-                  <Star key={i} size={12}
-                    className={i < Math.round((moy / 10) * 5) ? 'fill-amber-400 text-amber-400' : 'text-gris-200'}
-                  />
-                ))}
-                <span className="text-sm font-bold text-gris-950 ml-1">{moy}</span>
-                <span className="text-[10px] text-gris-400 font-medium">/10</span>
-              </div>
+        {isValidated ? (
+          <div className="rounded-lg bg-vert-50 border border-vert-100 px-2 py-1.5 flex items-center justify-between gap-2">
+            <div className="flex items-center gap-1">
+              <CheckCircle2 size={12} className="text-vert-600 flex-shrink-0" />
+              {apprGen && ac ? (
+                <span className="text-[10px] font-bold px-1.5 py-0 rounded-full" style={{ color: ac.color, background: ac.bg }}>
+                  {apprGen}
+                </span>
+              ) : (
+                <span className="text-xs text-vert-600 font-semibold">Validé</span>
+              )}
             </div>
-          ) : (
-            <p className="text-[11px] text-gris-400 italic mb-2">Pas encore noté</p>
-          )}
-
+            {moy != null && (
+              <div className="text-right flex-shrink-0">
+                <span className="text-base font-black text-vert-700 leading-none">{moy}</span>
+                <span className="text-[9px] text-vert-500">/10</span>
+              </div>
+            )}
+          </div>
+        ) : (
           <div className="flex items-center gap-2">
             <div className="flex-1 bg-gris-100 rounded-full h-1.5 overflow-hidden">
               <div
-                className={`h-full rounded-full transition-all duration-300 ${
-                  progres === 100 ? 'bg-vert-500' : progres > 0 ? 'bg-blue-500' : 'bg-gris-300'
-                }`}
+                className={`h-full rounded-full transition-all ${progres === 100 ? 'bg-vert-500' : progres > 0 ? 'bg-blue-400' : 'bg-gris-200'}`}
                 style={{ width: `${progres}%` }}
               />
             </div>
-            <span className="text-[10px] font-semibold text-gris-500 flex-shrink-0">
-              {soumis}/{total}
+            <span className="text-[9px] font-semibold text-gris-500 flex-shrink-0 flex items-center gap-1">
+              <Users size={8} />{soumis}/{total}
             </span>
           </div>
+        )}
 
-          {event.conclusion && (
-            <div className="mt-2 pt-2 border-t border-dashed border-gris-100">
-              <p className="text-[10px] text-gris-500 line-clamp-1 leading-relaxed">
-                <span className="font-semibold text-vert-700">Note : </span>
-                {event.conclusion}
-              </p>
-            </div>
-          )}
-
-          <div className="flex justify-end mt-2">
-            <span className="text-[10px] font-semibold text-vert-700 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-              Voir détails <ChevronRight size={11} />
-            </span>
-          </div>
+        <div className="flex items-center justify-end gap-1.5 pt-1 group-hover:text-vert-700 transition-colors">
+          <span className="text-xs font-semibold text-gris-600 group-hover:text-vert-700">Détails</span>
+          <ChevronRight size={13} className="text-gris-400 group-hover:text-vert-600 group-hover:translate-x-0.5 transition-all" />
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </button>
   )
 }
 
@@ -468,7 +463,7 @@ export function EvaluationsPage() {
                 )}
               </p>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 flex-1 overflow-y-auto pb-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 flex-1 overflow-y-auto pb-3">
               {pagines.map(e => (
                 <EventCard key={e.id} event={e} onClick={ouvrirDetail} />
               ))}

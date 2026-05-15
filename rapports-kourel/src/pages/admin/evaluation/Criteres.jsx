@@ -103,13 +103,13 @@ function SectionCard({ section, onEdit, onDelete }) {
             >
               <Plus size={13} /> Ajouter un critère
             </Button>
-            <Button size="sm" ok="ghost"
-              className="text-xs text-rouge hover:text-rouge hover:bg-rouge-bg rounded-lg h-8 gap-1.5"
+            <Button size="sm" variant="ghost"
+              className="text-xs bg-rouge/30 text-rouge hover:bg-rouge hover:text-white rounded-lg h-8 gap-1.5 transition-all duration-200"
               onClick={(e) => { e.stopPropagation(); onDelete(section.id) }}
             >
               <Trash2 size={13} /> Supprimer
             </Button>
-          </div>
+          </div>m
         </div>
       )}
     </div>
