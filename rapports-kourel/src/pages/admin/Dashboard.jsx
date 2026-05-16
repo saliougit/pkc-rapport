@@ -2,9 +2,10 @@ import { useEffect, useState } from 'react'
 import {
   Users, FileText, BookOpen, Bell, ArrowRight,
   Calendar, Star, ClipboardCheck, ExternalLink,
-  TrendingUp, Clock,
+  TrendingUp, Clock, RefreshCw,
 } from 'lucide-react'
 import { Link } from 'react-router-dom'
+import { Button } from '@/components/ui/button'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { fetchKourels, fetchMembres, fetchEvenements } from '@/lib/supabase'
 
@@ -70,7 +71,8 @@ export function Dashboard() {
   const [evenements, setEvenements] = useState([])
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
+  const loadData = () => {
+    setLoading(true)
     Promise.all([
       fetchKourels(),
       fetchMembres(),
@@ -83,7 +85,9 @@ export function Dashboard() {
       })
       .catch(() => {})
       .finally(() => setLoading(false))
-  }, [])
+  }
+
+  useEffect(loadData, [])
 
   const today = new Date().toLocaleDateString('fr-FR', {
     weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
@@ -103,6 +107,11 @@ export function Dashboard() {
       <PageHeader
         title="Tableau de bord"
         subtitle={today.charAt(0).toUpperCase() + today.slice(1)}
+        action={
+          <Button variant="ghost" size="sm" onClick={loadData} disabled={loading} className="gap-1.5">
+            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+          </Button>
+        }
       />
 
       {/* Stats */}

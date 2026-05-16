@@ -295,7 +295,7 @@ function TopBar({ user, profile, onLogout }) {
 function filterNavByRole(nav, role) {
   if (role === 'admin') return nav
   if (role === 'dieuwrigne') {
-    return nav.filter(g => g.title === 'Comité suivi & Évaluation')
+    return nav.filter(g => g.title === 'Comité suivi & Évaluation' || g.title === 'Tableau de bord' || g.title === 'Paramètres')
   }
   if (role === 'membre') {
     return nav.filter(g => g.title === 'Comité suivi & Évaluation')

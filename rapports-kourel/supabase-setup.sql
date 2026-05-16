@@ -46,13 +46,15 @@ CREATE POLICY "profiles_read_own"
 -- 2. KOURELS
 -- =============================================
 CREATE TABLE IF NOT EXISTS kourels (
-  id          SERIAL PRIMARY KEY,
-  nom         TEXT NOT NULL UNIQUE,
-  responsable TEXT NOT NULL,
-  actif       BOOLEAN DEFAULT true,
-  telephone   TEXT,
+  id              SERIAL PRIMARY KEY,
+  nom             TEXT NOT NULL UNIQUE,
+  responsable     TEXT NOT NULL,
+  actif           BOOLEAN DEFAULT true,
+  telephone       TEXT,
   callmebot_apikey TEXT,
-  created_at  TIMESTAMPTZ DEFAULT now()
+  effectif_total  INTEGER DEFAULT 0,
+  effectif_actif  INTEGER DEFAULT 0,
+  created_at      TIMESTAMPTZ DEFAULT now()
 );
 
 DO $$ BEGIN
@@ -177,12 +179,13 @@ CREATE TABLE IF NOT EXISTS evaluations (
 
 -- Détail : note par critère
 CREATE TABLE IF NOT EXISTS evaluation_notes (
-  id            SERIAL PRIMARY KEY,
-  evaluation_id INTEGER NOT NULL REFERENCES evaluations(id) ON DELETE CASCADE,
-  critere_id    INTEGER NOT NULL REFERENCES criteres(id) ON DELETE CASCADE,
-  appreciation  TEXT,
-  note          DECIMAL(3,1) CHECK (note IS NULL OR (note >= 0 AND note <= 10)),
-  remarques     TEXT,
+  id              SERIAL PRIMARY KEY,
+  evaluation_id   INTEGER NOT NULL REFERENCES evaluations(id) ON DELETE CASCADE,
+  critere_id      INTEGER NOT NULL REFERENCES criteres(id) ON DELETE CASCADE,
+  appreciation    TEXT,
+  note            DECIMAL(3,1) CHECK (note IS NULL OR (note >= 0 AND note <= 10)),
+  remarques       TEXT,
+  nombre_present  INTEGER,
   UNIQUE(evaluation_id, critere_id)
 );
 
@@ -352,10 +355,11 @@ INSERT INTO lieux (nom) VALUES
 ON CONFLICT (nom) DO NOTHING;
 
 INSERT INTO criteres (section_nom, description, ordre) VALUES
-  ('Maitrise de la mélodie',    'Qualité de la restitution mélodique',     1),
-  ('Phonétique "Hourouf"',      'Qualité de la prononciation et justesse',  2),
-  ('Temps de prestation',       'Respect du timing moyen attendu',          3),
-  ('Discipline',                'Comportement et respect des règles',       4),
-  ('Ponctualité / Présence',    'Assiduité et ponctualité des membres',     5),
-  ('Appréciation générale',     'Évaluation globale de la prestation',      6)
+  ('Maitrise de la mélodie',    'Qualité de la restitution mélodique',       1),
+  ('Phonétique "Hourouf"',      'Qualité de la prononciation et justesse',    2),
+  ('Temps de prestation',       'Respect du timing moyen attendu',            3),
+  ('Discipline',                'Comportement et respect des règles',         4),
+  ('Présence',                  'Nombre de membres présents à l\'événement',  5),
+  ('Ponctualité',               'Ponctualité des membres à l\'événement',     6),
+  ('Appréciation générale',     'Évaluation globale de la prestation',        7)
 ON CONFLICT (section_nom) DO NOTHING;

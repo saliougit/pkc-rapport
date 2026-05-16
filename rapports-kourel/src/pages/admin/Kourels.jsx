@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import {
   Plus, Edit2, Trash2, BookOpen, Send, Save, X,
-  Loader, Phone, Key, Users, ChevronLeft,
+  Loader, Phone, Key, Users, ChevronLeft, RefreshCw,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -174,6 +174,22 @@ function KourelForm({ data, onChange }) {
         <label className="text-xs font-semibold text-gris-500 uppercase tracking-wider">Responsable</label>
         <Input value={data.responsable} onChange={e => onChange({ ...data, responsable: e.target.value })} placeholder="Prénom Nom" />
       </div>
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-1.5">
+          <label className="text-xs font-semibold text-gris-500 uppercase tracking-wider">Effectif total</label>
+          <Input type="number" min="0" value={data.effectif_total}
+            onChange={e => onChange({ ...data, effectif_total: parseInt(e.target.value) || 0 })}
+            placeholder="0" />
+          <p className="text-xs text-gris-400">Tous les membres </p>
+        </div>
+        <div className="space-y-1.5">
+          <label className="text-xs font-semibold text-gris-500 uppercase tracking-wider">Effectif actif</label>
+          <Input type="number" min="0" value={data.effectif_actif}
+            onChange={e => onChange({ ...data, effectif_actif: parseInt(e.target.value) || 0 })}
+            placeholder="0" />
+          <p className="text-xs text-gris-400">Membres actifs (Hors membres exterieurs)</p>
+        </div>
+      </div>
       <div className="pt-3 border-t border-gris-200">
         <p className="text-xs font-semibold text-gris-500 uppercase tracking-wider mb-4">Notifications WhatsApp</p>
         <div className="space-y-4">
@@ -195,7 +211,7 @@ function KourelForm({ data, onChange }) {
   )
 }
 
-const FORM_VIDE = { nom: '', responsable: '', telephone: '', callmebot_apikey: '' }
+const FORM_VIDE = { nom: '', responsable: '', telephone: '', callmebot_apikey: '', effectif_total: 0, effectif_actif: 0 }
 
 export function KourelsPage() {
   const [data, setData] = useState([])
@@ -211,12 +227,15 @@ export function KourelsPage() {
   const [fetchError, setFetchError] = useState(null)
   const [deleteDialog, setDeleteDialog] = useState({ open: false, item: null, loading: false })
 
-  useEffect(() => {
+  const loadData = () => {
+    setLoading(true)
     fetchKourels()
       .then(setData)
       .catch((err) => { console.error('[Kourels] Erreur fetch:', err); setFetchError(err?.message || String(err)); setData([]) })
       .finally(() => setLoading(false))
-  }, [])
+  }
+
+  useEffect(loadData, [])
 
   const columns = useMemo(() => [
     {
@@ -294,7 +313,7 @@ export function KourelsPage() {
 
   const ouvrirAjout = () => { setForm(FORM_VIDE); setEditingId(null); setSheetOpen(true) }
   const ouvrirEdition = (k) => {
-    setForm({ nom: k.nom, responsable: k.responsable, telephone: k.telephone || '', callmebot_apikey: k.callmebot_apikey || '' })
+    setForm({ nom: k.nom, responsable: k.responsable, telephone: k.telephone || '', callmebot_apikey: k.callmebot_apikey || '', effectif_total: k.effectif_total || 0, effectif_actif: k.effectif_actif || 0 })
     setEditingId(k.id); setSheetOpen(true)
   }
   const sauvegarder = async () => {
@@ -302,10 +321,10 @@ export function KourelsPage() {
     setSaving(true)
     try {
       if (editingId) {
-        await modifierKourel(editingId, form.nom, form.responsable, form.telephone, form.callmebot_apikey)
+        await modifierKourel(editingId, form.nom, form.responsable, form.telephone, form.callmebot_apikey, form.effectif_total, form.effectif_actif)
         setData(list => list.map(k => k.id === editingId ? { ...k, ...form } : k))
       } else {
-        const k = await ajouterKourel(form.nom, form.responsable)
+        const k = await ajouterKourel(form.nom, form.responsable, form.effectif_total, form.effectif_actif)
         setData(list => [...list, k])
       }
       setSheetOpen(false)
@@ -358,6 +377,9 @@ export function KourelsPage() {
         subtitle={`${data.length} kourel${data.length > 1 ? 's' : ''} actifs`}
         action={
           <div className="flex items-center gap-2">
+            <Button variant="ghost" size="sm" onClick={loadData} disabled={loading} className="gap-1.5 text-xs">
+              <RefreshCw size={13} className={loading ? 'animate-spin' : ''} />
+            </Button>
             {selectedCount > 0 && (
               <span className="text-xs font-medium text-gris-500 px-2 py-1 bg-gris-100 rounded">
                 {selectedCount} sélectionné{selectedCount > 1 ? 's' : ''}

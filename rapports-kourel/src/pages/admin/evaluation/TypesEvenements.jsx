@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react'
-import { Plus, Edit2, Trash2, Save, X, Loader, ListChecks } from 'lucide-react'
+import { Plus, Edit2, Trash2, Save, X, Loader, ListChecks, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -39,6 +39,7 @@ export function TypesEvenementsPage() {
   }, [])
 
   async function loadData() {
+    setLoading(true)
     try {
       const types = await fetchTypesEvenements()
       setData(types)
@@ -143,9 +144,14 @@ export function TypesEvenementsPage() {
         title="Types d'événements"
         subtitle=""
         action={
-          <Button onClick={ouvrirAjout} className="gap-1.5">
-            <Plus size={15} /> Ajouter un type
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="sm" onClick={loadData} disabled={loading} className="gap-1.5">
+              <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+            </Button>
+            <Button onClick={ouvrirAjout} className="gap-1.5">
+              <Plus size={15} /> Ajouter un type
+            </Button>
+          </div>
         }
       />
 

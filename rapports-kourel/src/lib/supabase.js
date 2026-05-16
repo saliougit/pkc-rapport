@@ -86,20 +86,20 @@ export async function fetchKourels() {
   return data
 }
 
-export async function ajouterKourel(nom, responsable) {
+export async function ajouterKourel(nom, responsable, effectif_total = 0, effectif_actif = 0) {
   const { data, error } = await supabase
     .from('kourels')
-    .insert({ nom, responsable })
+    .insert({ nom, responsable, effectif_total, effectif_actif })
     .select()
     .single()
   if (error) throw error
   return data
 }
 
-export async function modifierKourel(id, nom, responsable, telephone, callmebot_apikey) {
+export async function modifierKourel(id, nom, responsable, telephone, callmebot_apikey, effectif_total = 0, effectif_actif = 0) {
   const { error } = await supabase
     .from('kourels')
-    .update({ nom, responsable, telephone, callmebot_apikey })
+    .update({ nom, responsable, telephone, callmebot_apikey, effectif_total, effectif_actif })
     .eq('id', id)
   if (error) throw error
 }
@@ -444,18 +444,17 @@ export async function getOrCreateEvaluation(evenementId, membreId) {
   return data
 }
 
-export async function saveEvaluationNote(evaluationId, critereId, appreciation, note, remarques) {
+export async function saveEvaluationNote(evaluationId, critereId, appreciation, note, remarques, nombre_present) {
   const { data, error } = await supabase
     .from('evaluation_notes')
     .upsert({
-      evaluation_id: evaluationId,
-      critere_id: critereId,
+      evaluation_id: evaluationId, critere_id: critereId,
       appreciation: appreciation || null,
       note: note != null ? note : null,
       remarques: remarques || null,
+      nombre_present: nombre_present != null ? nombre_present : null,
     }, { onConflict: 'evaluation_id, critere_id' })
-    .select()
-    .single()
+    .select().single()
   if (error) throw error
   return data
 }
@@ -473,7 +472,7 @@ export async function soumettreEvaluation(evaluationId, commentaire) {
 export async function validerCodeAcces(code) {
   const { data, error } = await supabase
     .from('eval_membres')
-    .select('*, evenement_kourel:evenement_kourel_id(*, evenement:evenement_id(*, type:type_id(id, nom), lieu:lieu_id(id, nom)), kourel:kourel_id(id, nom)), membre:membre_id(*)')
+    .select('*, evenement_kourel:evenement_kourel_id(*, evenement:evenement_id(*, type:type_id(id, nom), lieu:lieu_id(id, nom)), kourel:kourel_id(id, nom, effectif_actif, effectif_total)), membre:membre_id(*)')
     .eq('code_acces', code.toUpperCase().trim())
     .maybeSingle()
   if (error) throw error

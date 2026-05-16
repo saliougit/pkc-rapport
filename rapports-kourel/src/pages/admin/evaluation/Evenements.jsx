@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from 'react'
-import { Plus, Edit2, Trash2, Save, X, Loader, Calendar, MapPin, Users, ChevronRight, ChevronDown, Eye, CheckCircle2, Clock, AlertCircle, ToggleLeft, Copy, KeyRound } from 'lucide-react'
+import { Plus, Edit2, Trash2, Save, X, Loader, Calendar, MapPin, Users, ChevronRight, ChevronDown, Eye, CheckCircle2, Clock, AlertCircle, ToggleLeft, Copy, KeyRound, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -59,7 +59,8 @@ const SECTIONS = [
   { id: 'hourouf', label: 'Phonétique "Hourouf"' },
   { id: 'timing', label: 'Temps de prestation' },
   { id: 'discipline', label: 'Discipline' },
-  { id: 'ponctualite', label: 'Ponctualité / Présence' },
+  { id: 'presence', label: 'Présence' },
+  { id: 'ponctualite', label: 'Ponctualité' },
   { id: 'generale', label: 'Appréciation générale' },
 ]
 
@@ -152,7 +153,12 @@ function EvaluateurDetail({ evaluateur, note, code, onCopyCode }) {
         <div className="px-4 pb-4 border-t border-gris-100 pt-3 space-y-3">
           {SECTIONS.map(section => (
             <div key={section.id} className="bg-gris-50 rounded-lg p-3">
-              <p className="text-xs font-semibold text-gris-700 mb-2">{section.label}</p>
+              <p className="text-xs font-semibold text-gris-700 mb-2">
+                {section.label}
+                {effectiveNote.notes?.[section.id]?.nombre_present != null && (
+                  <span className="ml-1.5 font-normal text-gris-400">({effectiveNote.notes[section.id].nombre_present} présent(s))</span>
+                )}
+              </p>
               <div className="grid grid-cols-3 gap-3 text-xs">
                 <div>
                   <span className="text-gris-500">Appréciation : </span>
@@ -217,6 +223,7 @@ export function EvenementsPage() {
   const [eventNotes, setEventNotes] = useState({})
   const [criteresData, setCriteresData] = useState([])
   const dateInputRef = useRef(null)
+  const [refreshingNotes, setRefreshingNotes] = useState(false)
 
   useEffect(() => { loadData() }, [])
 
@@ -229,6 +236,7 @@ export function EvenementsPage() {
   }, [data.length, criteresData.length])
 
   async function loadData() {
+    setLoading(true)
     try {
       const [evts, tps, lxs, mbrs, kls, crits] = await Promise.all([
         fetchEvenements(), fetchTypesEvenements(), fetchLieux(), fetchMembres(), fetchKourels(), fetchCriteres()
@@ -245,6 +253,16 @@ export function EvenementsPage() {
 
   const getEvaluateurNote = (eventId, evaluateurId) => {
     return eventNotes[eventId]?.[evaluateurId] || null
+  }
+
+  const handleRefreshNotes = async () => {
+    if (!detailEvent) return
+    setRefreshingNotes(true)
+    try {
+      await chargerNotesEvaluation(detailEvent.id)
+    } finally {
+      setRefreshingNotes(false)
+    }
   }
 
   async function chargerNotesEvaluation(eventId) {
@@ -515,9 +533,14 @@ export function EvenementsPage() {
         title="Événements"
         subtitle=""
         action={
-          <Button onClick={ouvrirAjout} className="gap-1.5">
-            <Plus size={15} /> Créer un événement
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="sm" onClick={loadData} disabled={loading} className="gap-1.5">
+              <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+            </Button>
+            <Button onClick={ouvrirAjout} className="gap-1.5">
+              <Plus size={15} /> Créer un événement
+            </Button>
+          </div>
         }
       />
 
@@ -710,11 +733,17 @@ export function EvenementsPage() {
               </div>
 
               <SheetFooter className="px-6 py-4 border-t border-gris-100 flex-shrink-0">
-                <SheetClose asChild>
-                  <Button variant="outline" className="rounded-lg">
-                    Fermer
+                <div className="flex items-center gap-2 w-full">
+                  <Button variant="ghost" size="sm" onClick={handleRefreshNotes} disabled={refreshingNotes} className="gap-1.5">
+                    <RefreshCw size={14} className={refreshingNotes ? 'animate-spin' : ''} /> Actualiser
                   </Button>
-                </SheetClose>
+                  <div className="flex-1" />
+                  <SheetClose asChild>
+                    <Button variant="outline" className="rounded-lg">
+                      Fermer
+                    </Button>
+                  </SheetClose>
+                </div>
               </SheetFooter>
             </>
           )}

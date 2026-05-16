@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react'
-import { Plus, Edit2, Trash2, Save, X, Loader, Search, Users } from 'lucide-react'
+import { Plus, Edit2, Trash2, Save, X, Loader, Search, Users, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -42,6 +42,7 @@ export function MembresPage() {
   }, [])
 
   async function loadData() {
+    setLoading(true)
     try {
       const [membres, kourelData] = await Promise.all([fetchMembres(), fetchKourels()])
       setData(membres)
@@ -185,14 +186,6 @@ export function MembresPage() {
     }
   }
 
-  if (loading) {
-    return (
-      <div className="h-full flex items-center justify-center">
-        <Loader size={24} className="animate-spin text-gris-400" />
-      </div>
-    )
-  }
-
   return (
     <div className="h-full flex flex-col">
       <PageHeader
@@ -200,9 +193,14 @@ export function MembresPage() {
         title="Membres du comité"
         subtitle={`${data.length} membre${data.length > 1 ? 's' : ''}`}
         action={
-          <Button onClick={ouvrirAjout} className="gap-1.5">
-            <Plus size={15} /> Ajouter un membre
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="sm" onClick={loadData} disabled={loading} className="gap-1.5">
+              <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+            </Button>
+            <Button onClick={ouvrirAjout} className="gap-1.5">
+              <Plus size={15} /> Ajouter un membre
+            </Button>
+          </div>
         }
       />
 
@@ -230,7 +228,11 @@ export function MembresPage() {
 
       {/* Table + pagination dans un container fixe */}
       <div className="flex-1 min-h-0 flex flex-col rounded-lg border border-gris-200 overflow-hidden bg-white">
-        {filteredData.length === 0 ? (
+        {loading ? (
+          <div className="flex-1 flex items-center justify-center">
+            <Loader size={24} className="animate-spin text-gris-400" />
+          </div>
+        ) : filteredData.length === 0 ? (
           <div className="flex-1 flex flex-col items-center justify-center">
             <Users size={36} className="mb-3 text-gris-300" />
             <p className="text-sm font-semibold text-gris-700">Aucun membre trouvé</p>

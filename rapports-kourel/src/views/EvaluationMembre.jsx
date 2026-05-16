@@ -29,7 +29,18 @@ function formatDate(d) {
   return new Date(d).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
 }
 
-const sectionVide = () => ({ appreciation: '', note: null, remarques: '' })
+const sectionVide = () => ({ appreciation: '', note: null, remarques: '', nombre_present: null })
+
+function calcPresence(present, effectif) {
+  if (!present || present <= 0 || !effectif || effectif <= 0) return { appreciation: 'Mauvais', note: 1 }
+  const ratio = Math.min(present / effectif, 1)
+  if (ratio >= 0.9) return { appreciation: 'Excellent', note: 10 }
+  if (ratio >= 0.75) return { appreciation: 'Très bien', note: 8.5 }
+  if (ratio >= 0.6) return { appreciation: 'Bien', note: 7 }
+  if (ratio >= 0.4) return { appreciation: 'Passable', note: 5 }
+  if (ratio >= 0.2) return { appreciation: 'Médiocre', note: 3 }
+  return { appreciation: 'Mauvais', note: 1 }
+}
 
 // ─── Composant NoteSelector ───────────────────────────────────────────────────
 
@@ -94,7 +105,7 @@ function NoteSelector({ value, onChange, readOnly }) {
 
 // ─── Carte section ──────────────────────────────────────────────────────────
 
-function SectionCard({ section, data, onChange, index, total, readOnly, isGenerale, moyenneAuto }) {
+function SectionCard({ section, data, onChange, index, total, readOnly, isGenerale, moyenneAuto, presenceEffectif }) {
   const Icon = section.icon
   const donePct = Math.round(((index) / total) * 100)
   const noteColor = !moyenneAuto ? '#9CA3AF'
@@ -102,6 +113,20 @@ function SectionCard({ section, data, onChange, index, total, readOnly, isGenera
     : moyenneAuto < 6 ? '#F97316'
     : moyenneAuto < 8 ? '#EAB308'
     : '#16824E'
+
+  const presencePct = data?.nombre_present != null && presenceEffectif > 0
+    ? (data.nombre_present / presenceEffectif) * 100
+    : 0
+  const presenceRatio = data?.nombre_present != null && presenceEffectif > 0
+    ? data.nombre_present / presenceEffectif
+    : 0
+  const presenceColor = data?.nombre_present == null ? '#9CA3AF'
+    : presenceRatio >= 0.9 ? '#16824E'
+    : presenceRatio >= 0.75 ? '#16824E'
+    : presenceRatio >= 0.6 ? '#22C55E'
+    : presenceRatio >= 0.4 ? '#EAB308'
+    : presenceRatio >= 0.2 ? '#F97316'
+    : '#EF4444'
 
   return (
     <div className="flex flex-col gap-5">
@@ -123,7 +148,94 @@ function SectionCard({ section, data, onChange, index, total, readOnly, isGenera
         </div>
       </div>
 
-      {isGenerale ? (
+      {presenceEffectif != null ? (
+        <div className="bg-gris-50 rounded-2xl px-5 py-5 space-y-4">
+          <div className="flex items-center justify-between bg-vert-50 border border-vert-200 rounded-xl px-4 py-3">
+            <span className="text-xs font-semibold text-gris-600">Effectif actif</span>
+            <span className="text-lg font-black text-vert-700">{presenceEffectif}</span>
+          </div>
+          <div className="flex flex-col items-center gap-3">
+            <p className="text-xs font-bold text-gris-500 uppercase tracking-widest">Nombre de présents</p>
+            {readOnly ? (
+              <div className="flex flex-col items-center gap-3">
+                <div className="flex flex-col items-center">
+                  <div className="w-20 h-20 rounded-full flex items-center justify-center border-4"
+                    style={{ borderColor: presenceColor, background: data.nombre_present ? presenceColor + '15' : '#F9FAFB' }}>
+                    <span className="text-2xl font-black leading-none" style={{ color: presenceColor }}>
+                      {data.nombre_present != null ? data.nombre_present : '—'}
+                    </span>
+                  </div>
+                  <span className="text-[10px] text-gris-400 mt-1">/{presenceEffectif}</span>
+                </div>
+                <div className="w-full bg-gris-100 rounded-full h-1.5">
+                  <div className="h-1.5 rounded-full transition-all" style={{ width: `${presencePct}%`, background: presenceColor }} />
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center gap-3">
+                <div className="flex items-center gap-5">
+                  <button type="button"
+                    onClick={() => onChange({ nombre_present: Math.max(0, (data.nombre_present ?? 0) - 1) })}
+                    disabled={!data.nombre_present || data.nombre_present <= 0}
+                    className="w-12 h-12 rounded-full border-2 border-gris-200 flex items-center justify-center text-xl font-bold text-gris-600 disabled:opacity-30 hover:border-gris-400 active:scale-95 transition-all">−</button>
+                  <div className="flex flex-col items-center">
+                    <div className="w-20 h-20 rounded-full flex items-center justify-center border-4 transition-all duration-300"
+                      style={{ borderColor: presenceColor, background: data.nombre_present ? presenceColor + '15' : '#F9FAFB' }}>
+                      <span className="text-2xl font-black leading-none" style={{ color: presenceColor }}>
+                        {data.nombre_present != null ? data.nombre_present : '—'}
+                      </span>
+                    </div>
+                    <span className="text-[10px] text-gris-400 mt-1">/{presenceEffectif}</span>
+                  </div>
+                  <button type="button"
+                    onClick={() => onChange({ nombre_present: Math.min(presenceEffectif, (data.nombre_present ?? 0) + 1) })}
+                    disabled={data.nombre_present >= presenceEffectif}
+                    className="w-12 h-12 rounded-full border-2 border-gris-200 flex items-center justify-center text-xl font-bold text-gris-600 disabled:opacity-30 hover:border-gris-400 active:scale-95 transition-all">+</button>
+                </div>
+                <div className="w-full bg-gris-100 rounded-full h-1.5">
+                  <div className="h-1.5 rounded-full transition-all duration-300" style={{ width: `${presencePct}%`, background: presenceColor }} />
+                </div>
+              </div>
+            )}
+          </div>
+          <div className="bg-white rounded-xl border border-gris-200 p-4">
+            <p className="text-xs font-bold text-gris-500 uppercase tracking-widest mb-3 text-center">Appréciation</p>
+            <div className="flex items-center justify-center gap-6">
+              {APPRECIATIONS.map(a => (
+                <div key={a.value} className="flex flex-col items-center gap-1">
+                  <div className={`w-8 h-8 rounded-full border-2 flex items-center justify-center text-[9px] font-bold ${data.appreciation === a.value ? 'text-white' : 'text-gris-300 border-gris-200'}`}
+                    style={data.appreciation === a.value ? { borderColor: a.active, background: a.active } : {}}>
+                    {a.label[0]}
+                  </div>
+                    <span className={`text-[9px] font-semibold whitespace-nowrap ${data.appreciation === a.value ? 'text-gris-800' : 'text-gris-300'}`}>
+                      {a.label}
+                    </span>
+                </div>
+              ))}
+            </div>
+            {data.note != null && (
+              <div className="mt-3 flex items-center justify-center gap-2">
+                <span className="text-xs text-gris-400">Note</span>
+                <span className="text-xl font-black text-vert-700">{data.note}</span>
+                <span className="text-xs text-gris-400">/10</span>
+              </div>
+            )}
+          </div>
+          <div>
+            <p className="text-xs font-bold text-gris-500 uppercase tracking-widest mb-2">
+              Remarques <span className="font-normal normal-case text-gris-400">(optionnel)</span>
+            </p>
+            <textarea
+              value={data.remarques}
+              onChange={e => onChange({ remarques: e.target.value })}
+              rows={3}
+              placeholder="Vos observations sur la présence…"
+              disabled={readOnly}
+              className="w-full px-4 py-3 text-sm border border-gris-200 rounded-xl focus:border-vert-700 focus:outline-none resize-none bg-white placeholder:text-gris-400 disabled:bg-gris-50 disabled:cursor-not-allowed"
+            />
+          </div>
+        </div>
+      ) : isGenerale ? (
         <div className="bg-gris-50 rounded-2xl px-5 py-5 flex flex-col items-center gap-3">
           <div className="flex flex-col items-center">
             <div className="w-24 h-24 rounded-full flex items-center justify-center border-4"
@@ -201,7 +313,9 @@ function Toast({ manque, onClose }) {
     return () => clearTimeout(t)
   }, [])
 
-  const msg = manque.includes('appreciation') && manque.includes('note')
+  const msg = manque.includes('nombre_present')
+    ? 'Indiquez le nombre de présents'
+    : manque.includes('appreciation') && manque.includes('note')
     ? 'Choisissez une appréciation et une note'
     : manque.includes('appreciation')
     ? 'Choisissez une appréciation'
@@ -361,7 +475,7 @@ export default function EvaluationMembre() {
           SECTIONS.forEach(s => {
             const found = ev.notes.find(n => n.critere_id === s.critereId)
             loaded[s.id] = found
-              ? { appreciation: found.appreciation || '', note: found.note, remarques: found.remarques || '' }
+              ? { appreciation: found.appreciation || '', note: found.note, remarques: found.remarques || '', nombre_present: found.nombre_present }
               : sectionVide()
           })
           setEvalData(prev => ({ ...prev, notes: loaded, commentaire: ev.commentaire || '' }))
@@ -371,10 +485,19 @@ export default function EvaluationMembre() {
   }, [codeValide, SECTIONS.length])
 
   const updateSection = (sectionId, changes) => {
-    setEvalData(prev => ({
-      ...prev,
-      notes: { ...prev.notes, [sectionId]: { ...prev.notes[sectionId], ...changes } },
-    }))
+    setEvalData(prev => {
+      const updated = { ...(prev.notes[sectionId] || sectionVide()), ...changes }
+      if (changes.nombre_present !== undefined) {
+        const effectif = codeValide?.evenement_kourel?.kourel?.effectif_actif || 0
+        const auto = calcPresence(changes.nombre_present, effectif)
+        updated.appreciation = auto.appreciation
+        updated.note = auto.note
+      }
+      return {
+        ...prev,
+        notes: { ...prev.notes, [sectionId]: updated },
+      }
+    })
   }
 
   const sectionGeneraleId = SECTIONS.find(s =>
@@ -396,8 +519,15 @@ export default function EvaluationMembre() {
     return parseFloat((vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(2))
   }
 
+  const sectionPresenceId = SECTIONS.find(s =>
+    s.label.toLowerCase().includes('présence') || s.label.toLowerCase().includes('presence')
+  )?.id
+
   const sectionComplete = (id) => {
     if (id === sectionGeneraleId) return true
+    if (id === sectionPresenceId) {
+      return evalData.notes[id]?.nombre_present != null
+    }
     const n = evalData.notes[id]
     return n?.appreciation && n.note != null
   }
@@ -407,6 +537,13 @@ export default function EvaluationMembre() {
   const validerEtAvancer = (cible) => {
     const section = SECTIONS[sectionIdx]
     if (section.id === sectionGeneraleId) { cible(); return }
+    if (section.id === sectionPresenceId) {
+      if (evalData.notes[section.id]?.nombre_present == null) {
+        setPopup({ sectionLabel: section.label, manque: ['nombre_present'] })
+        return
+      }
+      cible(); return
+    }
     const n = evalData.notes[section.id]
     const manque = []
     if (!n?.appreciation) manque.push('appreciation')
@@ -430,12 +567,18 @@ export default function EvaluationMembre() {
     const premiere = SECTIONS.find(s => s.id !== sectionGeneraleId && !sectionComplete(s.id))
     if (premiere) {
       const n = evalData.notes[premiere.id]
-      const manque = []
-      if (!n?.appreciation) manque.push('appreciation')
-      if (n?.note == null) manque.push('note')
-      setSectionIdx(SECTIONS.indexOf(premiere))
-      setPopup({ sectionLabel: premiere.label, manque })
-      return
+      const manque = premiere.id === sectionPresenceId
+        ? (n?.nombre_present == null ? ['nombre_present'] : [])
+        : []
+      if (manque.length === 0) {
+        if (!n?.appreciation) manque.push('appreciation')
+        if (n?.note == null) manque.push('note')
+      }
+      if (manque.length > 0) {
+        setSectionIdx(SECTIONS.indexOf(premiere))
+        setPopup({ sectionLabel: premiere.label, manque })
+        return
+      }
     }
     allerEtape3()
   }
@@ -446,8 +589,8 @@ export default function EvaluationMembre() {
     try {
       for (const section of SECTIONS) {
         const d = evalData.notes[section.id]
-        if (d?.appreciation || d?.note != null || d?.remarques) {
-          await saveEvaluationNote(evaluationId, section.critereId, d.appreciation, d.note, d.remarques)
+        if (d?.appreciation || d?.note != null || d?.remarques || d?.nombre_present != null) {
+          await saveEvaluationNote(evaluationId, section.critereId, d.appreciation, d.note, d.remarques, d.nombre_present)
         }
       }
       await soumettreEvaluation(evaluationId, evalData.commentaire)
@@ -739,6 +882,7 @@ export default function EvaluationMembre() {
                   readOnly={readOnly}
                   isGenerale={isGenerale}
                   moyenneAuto={moyAuto}
+                  presenceEffectif={sec.id === sectionPresenceId ? codeValide?.evenement_kourel?.kourel?.effectif_actif : null}
                 />
               )
             })()}
@@ -799,9 +943,11 @@ export default function EvaluationMembre() {
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-xs font-semibold text-gris-700 truncate">{s.label}</p>
-                        {n.appreciation && (
+                        {s.id === sectionPresenceId && n.nombre_present != null ? (
+                          <p className="text-[11px] text-gris-500">{n.nombre_present} présent(s) — {n.appreciation}</p>
+                        ) : n.appreciation ? (
                           <p className="text-[11px] text-gris-500">{n.appreciation}</p>
-                        )}
+                        ) : null}
                       </div>
                       <div className="flex-shrink-0">
                         {n.note != null ? (

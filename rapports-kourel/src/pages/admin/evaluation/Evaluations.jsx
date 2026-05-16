@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react'
-import { Calendar, MapPin, ChevronRight, ChevronDown, Users, CheckCircle2, Clock, AlertCircle, Save, Loader, X, Search, SlidersHorizontal, ChevronLeft, ChevronFirst, ChevronLast } from 'lucide-react'
+import { Calendar, MapPin, ChevronRight, ChevronDown, Users, CheckCircle2, Clock, AlertCircle, Save, Loader, X, Search, SlidersHorizontal, ChevronLeft, ChevronFirst, ChevronLast, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
@@ -230,7 +230,12 @@ function EvaluateurPanel({ evaluateur, notes, sections }) {
                   return (
                     <div key={section.id} className="border-t border-gris-100">
                       <div className="grid grid-cols-[1fr_60px_80px] items-center px-3.5 py-2 bg-white">
-                        <span className="text-xs font-semibold text-gris-800 truncate">{section.label}</span>
+                        <span className="text-xs font-semibold text-gris-800 truncate">
+                          {section.label}
+                          {s.nombre_present != null && (
+                            <span className="ml-1.5 text-[10px] font-normal text-gris-400">({s.nombre_present} présent(s))</span>
+                          )}
+                        </span>
                         <span className="text-xs font-black text-gris-900 text-right">
                           {s.note != null
                             ? <>{Number(s.note).toFixed(1)}<span className="text-[9px] text-gris-400">/10</span></>
@@ -316,6 +321,7 @@ export function EvaluationsPage() {
   const [noteGlobale, setNoteGlobale] = useState('')
   const [openKourels, setOpenKourels] = useState({})
   const [saving, setSaving] = useState(false)
+  const [refreshing, setRefreshing] = useState(false)
 
   const [search, setSearch] = useState('')
   const [filterStatut, setFilterStatut] = useState('tous')
@@ -332,6 +338,7 @@ export function EvaluationsPage() {
   useEffect(() => { loadData() }, [])
 
   async function loadData() {
+    setLoading(true)
     try {
       const [evts, tps, mbrs, crits] = await Promise.all([
         fetchEvenements(), fetchTypesEvenements(), fetchMembres(), fetchCriteres()
@@ -423,6 +430,37 @@ export function EvaluationsPage() {
     setConclusionsKourel(ck)
   }
 
+  const refreshSelected = async () => {
+    if (!selected) return
+    setRefreshing(true)
+    try {
+      const allEvalMembres = await fetchEvalMembres(selected.id)
+      const evals = await fetchEvaluations(selected.id)
+      const evaluateurs = (allEvalMembres || []).filter(em => em.role === 'evaluateur').map(em => em.membre_id)
+      const notes = {}
+      ;(evals || []).forEach(ev => {
+        const sectionNotes = {}
+        ;(ev.notes || []).forEach(n => {
+          const key = String(n.critere_id)
+          sectionNotes[key] = { appreciation: n.appreciation || '', note: n.note, remarques: n.remarques || '' }
+        })
+        const vals = Object.values(sectionNotes).filter(v => v.note != null)
+        notes[ev.membre_id] = {
+          notes: sectionNotes,
+          note_finale: vals.length ? (vals.reduce((a, b) => a + b.note, 0) / vals.length) : null,
+          commentaire: ev.commentaire || '',
+          soumis: ev.soumis,
+        }
+      })
+      setSelected(s => ({ ...s, evaluateurs, notes }))
+      setEvenements(list => list.map(e => {
+        if (e.id !== selected.id) return e
+        return { ...e, evaluateurs, notes }
+      }))
+    } catch (e) { console.error(e) }
+    finally { setRefreshing(false) }
+  }
+
   const sauvegarderConclusion = async () => {
     if (!selected) return
     setSaving(true)
@@ -469,6 +507,11 @@ export function EvaluationsPage() {
         breadcrumb={['Comité suivi & Évaluation', 'Évaluations']}
         title="Évaluations"
         subtitle={`${evenements.length} événement${evenements.length > 1 ? 's' : ''}`}
+        action={
+          <Button variant="ghost" size="sm" onClick={loadData} disabled={loading} className="gap-1.5">
+            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+          </Button>
+        }
       />
 
       <div className="flex flex-col sm:flex-row gap-3 mb-5 flex-shrink-0">
@@ -775,6 +818,10 @@ export function EvaluationsPage() {
               </div>
 
               <SheetFooter className="flex-row gap-3 px-6 py-4 border-t border-gris-100 flex-shrink-0">
+                <Button variant="ghost" size="sm" onClick={refreshSelected} disabled={refreshing} className="gap-1.5">
+                  <RefreshCw size={14} className={refreshing ? 'animate-spin' : ''} /> Actualiser
+                </Button>
+                <div className="flex-1" />
                 <SheetClose asChild>
                   <Button variant="outline" className="flex-1 rounded-lg">
                     Fermer

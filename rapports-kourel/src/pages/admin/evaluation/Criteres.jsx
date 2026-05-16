@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react'
 import { fetchCriteres, ajouterCritere, modifierCritere, supprimerCritere } from '@/lib/supabase'
-import { Plus, Edit2, Trash2, Save, X, Loader, GripVertical, ChevronDown, ChevronRight, Info } from 'lucide-react'
+import { Plus, Edit2, Trash2, Save, X, Loader, GripVertical, ChevronDown, ChevronRight, Info, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -130,6 +130,7 @@ export function CriteresPage() {
   useEffect(() => { loadData() }, [])
 
   async function loadData() {
+    setLoading(true)
     try {
       const crits = await fetchCriteres()
       setSections(crits.map((c, i) => ({
@@ -209,9 +210,14 @@ export function CriteresPage() {
         title="Sections et critères d'évaluation"
         subtitle={`${sections.length} sections`}
         action={
-          <Button onClick={ouvrirAjout} className="gap-1.5">
-            <Plus size={15} /> Ajouter une section
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="sm" onClick={loadData} disabled={loading} className="gap-1.5">
+              <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+            </Button>
+            <Button onClick={ouvrirAjout} className="gap-1.5">
+              <Plus size={15} /> Ajouter une section
+            </Button>
+          </div>
         }
       />
 
