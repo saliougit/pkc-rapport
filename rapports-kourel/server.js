@@ -212,6 +212,363 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'OK', message: 'Serveur API rapports-kourel actif' })
 })
 
+// ── DATA ROUTES (proxy Supabase → Express, connexion persistante) ──────────
+
+// ── Kourels ──────────────────────────────────────────────────────────────────
+app.get('/api/data/kourels', async (req, res) => {
+  try {
+    const { data, error } = await supabaseServer.from('kourels').select('*').eq('actif', true).order('id')
+    if (error) throw error
+    res.json({ success: true, data: data || [] })
+  } catch (e) { res.status(500).json({ success: false, error: e.message }) }
+})
+
+app.post('/api/data/kourels', async (req, res) => {
+  try {
+    const { nom, responsable, effectif_total, effectif_actif } = req.body
+    const { data, error } = await supabaseServer.from('kourels').insert({ nom, responsable, effectif_total, effectif_actif }).select().single()
+    if (error) throw error
+    res.json({ success: true, data })
+  } catch (e) { res.status(500).json({ success: false, error: e.message }) }
+})
+
+app.put('/api/data/kourels/:id', async (req, res) => {
+  try {
+    const { nom, responsable, telephone, callmebot_apikey, effectif_total, effectif_actif } = req.body
+    const { error } = await supabaseServer.from('kourels').update({ nom, responsable, telephone, callmebot_apikey, effectif_total, effectif_actif }).eq('id', req.params.id)
+    if (error) throw error
+    res.json({ success: true })
+  } catch (e) { res.status(500).json({ success: false, error: e.message }) }
+})
+
+app.delete('/api/data/kourels/:id', async (req, res) => {
+  try {
+    const { error } = await supabaseServer.from('kourels').update({ actif: false }).eq('id', req.params.id)
+    if (error) throw error
+    res.json({ success: true })
+  } catch (e) { res.status(500).json({ success: false, error: e.message }) }
+})
+
+// ── Programme annuel ─────────────────────────────────────────────────────────
+app.get('/api/data/programme/:kourelId', async (req, res) => {
+  try {
+    const { data, error } = await supabaseServer.from('programme_annuel').select('*').eq('kourel_id', req.params.kourelId).order('ordre')
+    if (error) throw error
+    res.json({ success: true, data: data || [] })
+  } catch (e) { res.status(500).json({ success: false, error: e.message }) }
+})
+
+app.post('/api/data/programme', async (req, res) => {
+  try {
+    const { kourel_id, nom, melodie, ordre } = req.body
+    const { data, error } = await supabaseServer.from('programme_annuel').insert({ kourel_id, nom, melodie, ordre }).select().single()
+    if (error) throw error
+    res.json({ success: true, data })
+  } catch (e) { res.status(500).json({ success: false, error: e.message }) }
+})
+
+app.put('/api/data/programme/:id', async (req, res) => {
+  try {
+    const { nom, melodie } = req.body
+    const { error } = await supabaseServer.from('programme_annuel').update({ nom, melodie }).eq('id', req.params.id)
+    if (error) throw error
+    res.json({ success: true })
+  } catch (e) { res.status(500).json({ success: false, error: e.message }) }
+})
+
+app.delete('/api/data/programme/:id', async (req, res) => {
+  try {
+    const { error } = await supabaseServer.from('programme_annuel').delete().eq('id', req.params.id)
+    if (error) throw error
+    res.json({ success: true })
+  } catch (e) { res.status(500).json({ success: false, error: e.message }) }
+})
+
+// ── Membres du comité ────────────────────────────────────────────────────────
+app.get('/api/data/membres', async (req, res) => {
+  try {
+    const { data, error } = await supabaseServer.from('membres').select('*').order('id')
+    if (error) throw error
+    res.json({ success: true, data: data || [] })
+  } catch (e) { res.status(500).json({ success: false, error: e.message }) }
+})
+
+app.post('/api/data/membres', async (req, res) => {
+  try {
+    const { prenom, nom, kourel, telephone, statut } = req.body
+    const { data, error } = await supabaseServer.from('membres').insert({ prenom, nom, kourel, telephone, statut: statut || 'actif' }).select().single()
+    if (error) throw error
+    res.json({ success: true, data })
+  } catch (e) { res.status(500).json({ success: false, error: e.message }) }
+})
+
+app.put('/api/data/membres/:id', async (req, res) => {
+  try {
+    const { error } = await supabaseServer.from('membres').update(req.body).eq('id', req.params.id)
+    if (error) throw error
+    res.json({ success: true })
+  } catch (e) { res.status(500).json({ success: false, error: e.message }) }
+})
+
+app.delete('/api/data/membres/:id', async (req, res) => {
+  try {
+    const { error } = await supabaseServer.from('membres').delete().eq('id', req.params.id)
+    if (error) throw error
+    res.json({ success: true })
+  } catch (e) { res.status(500).json({ success: false, error: e.message }) }
+})
+
+// ── Types d'événements ───────────────────────────────────────────────────────
+app.get('/api/data/types-evenements', async (req, res) => {
+  try {
+    const { data, error } = await supabaseServer.from('types_evenements').select('*').order('id')
+    if (error) throw error
+    res.json({ success: true, data: data || [] })
+  } catch (e) { res.status(500).json({ success: false, error: e.message }) }
+})
+
+app.post('/api/data/types-evenements', async (req, res) => {
+  try {
+    const { nom, description } = req.body
+    const { data, error } = await supabaseServer.from('types_evenements').insert({ nom, description }).select().single()
+    if (error) throw error
+    res.json({ success: true, data })
+  } catch (e) { res.status(500).json({ success: false, error: e.message }) }
+})
+
+app.put('/api/data/types-evenements/:id', async (req, res) => {
+  try {
+    const { error } = await supabaseServer.from('types_evenements').update(req.body).eq('id', req.params.id)
+    if (error) throw error
+    res.json({ success: true })
+  } catch (e) { res.status(500).json({ success: false, error: e.message }) }
+})
+
+app.delete('/api/data/types-evenements/:id', async (req, res) => {
+  try {
+    const { error } = await supabaseServer.from('types_evenements').delete().eq('id', req.params.id)
+    if (error) throw error
+    res.json({ success: true })
+  } catch (e) { res.status(500).json({ success: false, error: e.message }) }
+})
+
+// ── Lieux ────────────────────────────────────────────────────────────────────
+app.get('/api/data/lieux', async (req, res) => {
+  try {
+    const { data, error } = await supabaseServer.from('lieux').select('*').order('id')
+    if (error) throw error
+    res.json({ success: true, data: data || [] })
+  } catch (e) { res.status(500).json({ success: false, error: e.message }) }
+})
+
+app.post('/api/data/lieux', async (req, res) => {
+  try {
+    const { nom } = req.body
+    const { data, error } = await supabaseServer.from('lieux').insert({ nom }).select().single()
+    if (error) throw error
+    res.json({ success: true, data })
+  } catch (e) { res.status(500).json({ success: false, error: e.message }) }
+})
+
+// ── Critères d'évaluation ────────────────────────────────────────────────────
+app.get('/api/data/criteres', async (req, res) => {
+  try {
+    const { data, error } = await supabaseServer.from('criteres').select('*').eq('actif', true).order('ordre')
+    if (error) throw error
+    res.json({ success: true, data: data || [] })
+  } catch (e) { res.status(500).json({ success: false, error: e.message }) }
+})
+
+app.post('/api/data/criteres', async (req, res) => {
+  try {
+    const { section_nom, description } = req.body
+    const { data, error } = await supabaseServer.from('criteres').insert({ section_nom, description }).select().single()
+    if (error) throw error
+    res.json({ success: true, data })
+  } catch (e) { res.status(500).json({ success: false, error: e.message }) }
+})
+
+app.put('/api/data/criteres/:id', async (req, res) => {
+  try {
+    const { error } = await supabaseServer.from('criteres').update(req.body).eq('id', req.params.id)
+    if (error) throw error
+    res.json({ success: true })
+  } catch (e) { res.status(500).json({ success: false, error: e.message }) }
+})
+
+app.delete('/api/data/criteres/:id', async (req, res) => {
+  try {
+    const { error } = await supabaseServer.from('criteres').delete().eq('id', req.params.id)
+    if (error) throw error
+    res.json({ success: true })
+  } catch (e) { res.status(500).json({ success: false, error: e.message }) }
+})
+
+// ── Événements (avec enrichissement kourels/evaluateurs) ──────────────────────
+app.get('/api/data/evenements', async (req, res) => {
+  try {
+    const { data, error } = await supabaseServer
+      .from('evenements')
+      .select('*, type:type_id(id, nom), lieu:lieu_id(id, nom), kourels:evenement_kourels(id, note_definitive, conclusion, kourel:kourel_id(id, nom), eval_membres:eval_membres(id, membre_id, role, code_acces))')
+      .order('date_evenement', { ascending: false })
+    if (error) throw error
+    const enriched = (data || []).map(ev => {
+      const allEvalIds = []
+      const kourels = (ev.kourels || []).map(ek => {
+        const evaluateurs = (ek.eval_membres || []).filter(em => em.role === 'evaluateur').map(em => em.membre_id)
+        const paginateurs = (ek.eval_membres || []).filter(em => em.role === 'paginateur').map(em => em.membre_id)
+        const codes = (ek.eval_membres || []).filter(em => em.code_acces).reduce((acc, em) => ({ ...acc, [em.membre_id]: em.code_acces }), {})
+        allEvalIds.push(...evaluateurs)
+        return { ...ek, evaluateurs, paginateurs, codes }
+      })
+      return { ...ev, kourels, evaluateurs: allEvalIds }
+    })
+    res.json({ success: true, data: enriched })
+  } catch (e) { res.status(500).json({ success: false, error: e.message }) }
+})
+
+app.post('/api/data/evenements', async (req, res) => {
+  try {
+    const { type_id, date_evenement, lieu_id, statut } = req.body
+    const { data, error } = await supabaseServer.from('evenements').insert({ type_id, date_evenement, lieu_id, statut }).select().single()
+    if (error) throw error
+    res.json({ success: true, data })
+  } catch (e) { res.status(500).json({ success: false, error: e.message }) }
+})
+
+app.put('/api/data/evenements/:id', async (req, res) => {
+  try {
+    const { error } = await supabaseServer.from('evenements').update(req.body).eq('id', req.params.id)
+    if (error) throw error
+    res.json({ success: true })
+  } catch (e) { res.status(500).json({ success: false, error: e.message }) }
+})
+
+app.delete('/api/data/evenements/:id', async (req, res) => {
+  try {
+    const { error } = await supabaseServer.from('evenements').delete().eq('id', req.params.id)
+    if (error) throw error
+    res.json({ success: true })
+  } catch (e) { res.status(500).json({ success: false, error: e.message }) }
+})
+
+// ── Événement ↔ Kourels ──────────────────────────────────────────────────────
+app.post('/api/data/evenement-kourels', async (req, res) => {
+  try {
+    const { evenement_id, kourel_id } = req.body
+    const { data, error } = await supabaseServer.from('evenement_kourels').insert({ evenement_id, kourel_id }).select().single()
+    if (error) throw error
+    res.json({ success: true, data })
+  } catch (e) { res.status(500).json({ success: false, error: e.message }) }
+})
+
+app.delete('/api/data/evenements/:eventId/kourels', async (req, res) => {
+  try {
+    const { error } = await supabaseServer.from('evenement_kourels').delete().eq('evenement_id', req.params.eventId)
+    if (error) throw error
+    res.json({ success: true })
+  } catch (e) { res.status(500).json({ success: false, error: e.message }) }
+})
+
+app.put('/api/data/evenement-kourels/:id', async (req, res) => {
+  try {
+    const { error } = await supabaseServer.from('evenement_kourels').update(req.body).eq('id', req.params.id)
+    if (error) throw error
+    res.json({ success: true })
+  } catch (e) { res.status(500).json({ success: false, error: e.message }) }
+})
+
+// ── Eval Membres (évaluateurs/paginateurs) ───────────────────────────────────
+app.get('/api/data/eval-membres/:evenementId', async (req, res) => {
+  try {
+    const { data: ekList, error: ekError } = await supabaseServer.from('evenement_kourels').select('id').eq('evenement_id', req.params.evenementId)
+    if (ekError) throw ekError
+    const ids = (ekList || []).map(ek => ek.id)
+    if (!ids.length) return res.json({ success: true, data: [] })
+    const { data, error } = await supabaseServer.from('eval_membres').select('*, evenement_kourel:evenement_kourel_id(id, kourel:kourel_id(id, nom)), membre:membre_id(id, prenom, nom, kourel)').in('evenement_kourel_id', ids)
+    if (error) throw error
+    res.json({ success: true, data: data || [] })
+  } catch (e) { res.status(500).json({ success: false, error: e.message }) }
+})
+
+app.post('/api/data/eval-membres', async (req, res) => {
+  try {
+    const { evenement_kourel_id, membre_id, role, code_acces } = req.body
+    const { data, error } = await supabaseServer.from('eval_membres').insert({ evenement_kourel_id, membre_id, role, code_acces }).select().single()
+    if (error) throw error
+    res.json({ success: true, data })
+  } catch (e) { res.status(500).json({ success: false, error: e.message }) }
+})
+
+app.delete('/api/data/eval-membres/:id', async (req, res) => {
+  try {
+    const { error } = await supabaseServer.from('eval_membres').delete().eq('id', req.params.id)
+    if (error) throw error
+    res.json({ success: true })
+  } catch (e) { res.status(500).json({ success: false, error: e.message }) }
+})
+
+// ── Évaluations ──────────────────────────────────────────────────────────────
+app.get('/api/data/evaluations/:evenementId', async (req, res) => {
+  try {
+    const { data, error } = await supabaseServer.from('evaluations').select('*, membre:membre_id(id, prenom, nom, kourel), notes:evaluation_notes(*)').eq('evenement_id', req.params.evenementId)
+    if (error) throw error
+    res.json({ success: true, data: data || [] })
+  } catch (e) { res.status(500).json({ success: false, error: e.message }) }
+})
+
+app.get('/api/data/evaluations/get-or-create/:evenementId/:membreId', async (req, res) => {
+  try {
+    const { evenementId, membreId } = req.params
+    const { data: existing } = await supabaseServer.from('evaluations').select('*, notes:evaluation_notes(*)').eq('evenement_id', evenementId).eq('membre_id', membreId).maybeSingle()
+    if (existing) return res.json({ success: true, data: existing })
+    const { data, error } = await supabaseServer.from('evaluations').insert({ evenement_id: Number(evenementId), membre_id: Number(membreId) }).select('*, notes:evaluation_notes(*)').single()
+    if (error) throw error
+    res.json({ success: true, data })
+  } catch (e) { res.status(500).json({ success: false, error: e.message }) }
+})
+
+app.post('/api/data/evaluation-notes', async (req, res) => {
+  try {
+    const { evaluation_id, critere_id, appreciation, note, remarques, nombre_present } = req.body
+    const { data, error } = await supabaseServer.from('evaluation_notes').upsert({
+      evaluation_id, critere_id,
+      appreciation: appreciation || null,
+      note: note != null ? note : null,
+      remarques: remarques || null,
+      nombre_present: nombre_present != null ? nombre_present : null,
+    }, { onConflict: 'evaluation_id,critere_id' }).select().single()
+    if (error) throw error
+    res.json({ success: true, data })
+  } catch (e) { res.status(500).json({ success: false, error: e.message }) }
+})
+
+app.post('/api/data/evaluations/soumettre', async (req, res) => {
+  try {
+    const { evaluation_id, commentaire } = req.body
+    const { error } = await supabaseServer.from('evaluations').update({ soumis: true, commentaire }).eq('id', evaluation_id)
+    if (error) throw error
+    res.json({ success: true })
+  } catch (e) { res.status(500).json({ success: false, error: e.message }) }
+})
+
+// ── Profils ───────────────────────────────────────────────────────────────────
+app.get('/api/data/profiles/:userId', async (req, res) => {
+  try {
+    const { data, error } = await supabaseServer.from('profiles').select('*').eq('id', req.params.userId).single()
+    if (error) throw error
+    res.json({ success: true, data })
+  } catch (e) { res.status(500).json({ success: false, error: e.message }) }
+})
+
+app.put('/api/data/profiles/:userId', async (req, res) => {
+  try {
+    const { error } = await supabaseServer.from('profiles').update(req.body).eq('id', req.params.userId)
+    if (error) throw error
+    res.json({ success: true })
+  } catch (e) { res.status(500).json({ success: false, error: e.message }) }
+})
+
 // ── Validation de code d'accès pour évaluation ──────────────────────────────
 app.post('/api/valider-code-acces', async (req, res) => {
   try {
@@ -234,341 +591,6 @@ app.post('/api/valider-code-acces', async (req, res) => {
   }
 })
 
-// ── Générer des codes d'accès pour un (événement × kourel) ────────────────
-app.post('/api/generer-codes-evenement', async (req, res) => {
-  try {
-    const { evenement_id, kourel_id, evaluateurs = [], paginateurs = [] } = req.body
-    if (!evenement_id || !kourel_id || (!evaluateurs.length && !paginateurs.length)) {
-      return res.status(400).json({ success: false, error: 'Paramètres manquants' })
-    }
-
-    // 1. Créer/récupérer le lien événement × kourel
-    const { data: ek, error: ekError } = await supabaseServer
-      .from('evenement_kourels')
-      .upsert({ evenement_id, kourel_id }, { onConflict: 'evenement_id,kourel_id' })
-      .select()
-      .single()
-    if (ekError) throw ekError
-
-    const results = []
-
-    // 2. Créer les évaluateurs (avec codes)
-    for (const membre_id of evaluateurs) {
-      const code = req.body.codes?.[membre_id] || genererCodeAcces()
-      const { data, error } = await supabaseServer
-        .from('eval_membres')
-        .insert({
-          evenement_kourel_id: ek.id,
-          membre_id,
-          role: 'evaluateur',
-          code_acces: code,
-        })
-        .select('*, membre:membre_id(*)')
-        .single()
-      if (error) { if (error.code !== '23505') throw error; continue }
-      results.push(data)
-    }
-
-    // 3. Créer les paginateurs (sans code)
-    for (const membre_id of paginateurs) {
-      const { data, error } = await supabaseServer
-        .from('eval_membres')
-        .insert({
-          evenement_kourel_id: ek.id,
-          membre_id,
-          role: 'paginateur',
-          code_acces: null,
-        })
-        .select('*, membre:membre_id(*)')
-        .single()
-      if (error) { if (error.code !== '23505') throw error; continue }
-      results.push(data)
-    }
-
-    res.json({ success: true, data: results, evenement_kourel: ek })
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message })
-  }
-})
-
-// ── Mettre à jour les kourels d'un événement ─────────────────────────────────
-app.put('/api/evenements/:id/kourels', async (req, res) => {
-  try {
-    const eventId = parseInt(req.params.id)
-    const { kourels } = req.body
-    if (!eventId) return res.status(400).json({ success: false, error: 'ID requis' })
-
-    // Supprimer les anciens liens
-    await supabaseServer.from('evenement_kourels').delete().eq('evenement_id', eventId)
-
-    // Recréer
-    for (const k of (kourels || [])) {
-      const { data: ek } = await supabaseServer
-        .from('evenement_kourels')
-        .insert({ evenement_id: eventId, kourel_id: Number(k.kourel_id) })
-        .select()
-        .single()
-      if (!ek) continue
-
-      const evalIds = k.evaluateurs || []
-      const pagIds = k.paginateurs || []
-      for (const membre_id of evalIds) {
-        const code = k.codes?.[membre_id] || genererCodeAcces()
-        await supabaseServer.from('eval_membres').insert({
-          evenement_kourel_id: ek.id, membre_id, role: 'evaluateur', code_acces: code,
-        }).select().single().catch(e => { if (e.code !== '23505') throw e })
-      }
-      for (const membre_id of pagIds) {
-        await supabaseServer.from('eval_membres').insert({
-          evenement_kourel_id: ek.id, membre_id, role: 'paginateur', code_acces: null,
-        }).select().single().catch(e => { if (e.code !== '23505') throw e })
-      }
-    }
-
-    res.json({ success: true })
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message })
-  }
-})
-
-// ── CRUD Membres ────────────────────────────────────────────────────────────
-app.get('/api/membres', async (req, res) => {
-  try {
-    const { data, error } = await supabaseServer.from('membres').select('*').order('id')
-    if (error) throw error
-    res.json({ success: true, data })
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message })
-  }
-})
-
-app.post('/api/membres', async (req, res) => {
-  try {
-    const { prenom, nom, kourel, telephone, statut } = req.body
-    const { data, error } = await supabaseServer.from('membres').insert({ prenom, nom, kourel, telephone, statut: statut || 'actif' }).select().single()
-    if (error) throw error
-    res.json({ success: true, data })
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message })
-  }
-})
-
-app.put('/api/membres/:id', async (req, res) => {
-  try {
-    const { error } = await supabaseServer.from('membres').update(req.body).eq('id', req.params.id)
-    if (error) throw error
-    res.json({ success: true })
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message })
-  }
-})
-
-app.delete('/api/membres/:id', async (req, res) => {
-  try {
-    const { error } = await supabaseServer.from('membres').delete().eq('id', req.params.id)
-    if (error) throw error
-    res.json({ success: true })
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message })
-  }
-})
-
-// ── CRUD Types d'événements ─────────────────────────────────────────────────
-app.get('/api/types-evenements', async (req, res) => {
-  try {
-    const { data, error } = await supabaseServer.from('types_evenements').select('*').order('id')
-    if (error) throw error
-    res.json({ success: true, data })
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message })
-  }
-})
-
-app.post('/api/types-evenements', async (req, res) => {
-  try {
-    const { nom, description } = req.body
-    const { data, error } = await supabaseServer.from('types_evenements').insert({ nom, description }).select().single()
-    if (error) throw error
-    res.json({ success: true, data })
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message })
-  }
-})
-
-app.put('/api/types-evenements/:id', async (req, res) => {
-  try {
-    const { error } = await supabaseServer.from('types_evenements').update(req.body).eq('id', req.params.id)
-    if (error) throw error
-    res.json({ success: true })
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message })
-  }
-})
-
-app.delete('/api/types-evenements/:id', async (req, res) => {
-  try {
-    const { error } = await supabaseServer.from('types_evenements').delete().eq('id', req.params.id)
-    if (error) throw error
-    res.json({ success: true })
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message })
-  }
-})
-
-// ── CRUD Lieux ──────────────────────────────────────────────────────────────
-app.get('/api/lieux', async (req, res) => {
-  try {
-    const { data, error } = await supabaseServer.from('lieux').select('*').order('id')
-    if (error) throw error
-    res.json({ success: true, data })
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message })
-  }
-})
-
-app.post('/api/lieux', async (req, res) => {
-  try {
-    const { nom } = req.body
-    const { data, error } = await supabaseServer.from('lieux').insert({ nom }).select().single()
-    if (error) throw error
-    res.json({ success: true, data })
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message })
-  }
-})
-
-// ── CRUD Événements ─────────────────────────────────────────────────────────
-app.get('/api/evenements', async (req, res) => {
-  try {
-    const { data, error } = await supabaseServer
-      .from('evenements')
-      .select('*, type:type_id(id, nom), lieu:lieu_id(id, nom)')
-      .order('date', { ascending: false })
-    if (error) throw error
-    res.json({ success: true, data })
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message })
-  }
-})
-
-app.post('/api/evenements', async (req, res) => {
-  try {
-    const { data, error } = await supabaseServer.from('evenements').insert(req.body).select().single()
-    if (error) throw error
-    res.json({ success: true, data })
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message })
-  }
-})
-
-app.put('/api/evenements/:id', async (req, res) => {
-  try {
-    const { error } = await supabaseServer.from('evenements').update(req.body).eq('id', req.params.id)
-    if (error) throw error
-    res.json({ success: true })
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message })
-  }
-})
-
-app.delete('/api/evenements/:id', async (req, res) => {
-  try {
-    const { error } = await supabaseServer.from('evenements').delete().eq('id', req.params.id)
-    if (error) throw error
-    res.json({ success: true })
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message })
-  }
-})
-
-// ── CRUD Critères ───────────────────────────────────────────────────────────
-app.get('/api/criteres', async (req, res) => {
-  try {
-    const { data, error } = await supabaseServer.from('criteres').select('*').eq('actif', true).order('ordre')
-    if (error) throw error
-    res.json({ success: true, data })
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message })
-  }
-})
-
-app.post('/api/criteres', async (req, res) => {
-  try {
-    const { data, error } = await supabaseServer.from('criteres').insert(req.body).select().single()
-    if (error) throw error
-    res.json({ success: true, data })
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message })
-  }
-})
-
-app.put('/api/criteres/:id', async (req, res) => {
-  try {
-    const { error } = await supabaseServer.from('criteres').update(req.body).eq('id', req.params.id)
-    if (error) throw error
-    res.json({ success: true })
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message })
-  }
-})
-
-app.delete('/api/criteres/:id', async (req, res) => {
-  try {
-    const { error } = await supabaseServer.from('criteres').delete().eq('id', req.params.id)
-    if (error) throw error
-    res.json({ success: true })
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message })
-  }
-})
-
-// ── Évaluations ─────────────────────────────────────────────────────────────
-app.get('/api/evaluations/evenement/:evenementId', async (req, res) => {
-  try {
-    const { data, error } = await supabaseServer
-      .from('evaluations')
-      .select('*, membre:membre_id(id, prenom, nom, kourel), notes:evaluation_notes(*)')
-      .eq('evenement_id', req.params.evenementId)
-    if (error) throw error
-    res.json({ success: true, data })
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message })
-  }
-})
-
-app.post('/api/evaluations/save-note', async (req, res) => {
-  try {
-    const { evaluation_id, critere_id, appreciation, note, remarques } = req.body
-    const { data, error } = await supabaseServer
-      .from('evaluation_notes')
-      .upsert({
-        evaluation_id, critere_id,
-        appreciation: appreciation || null,
-        note: note != null ? note : null,
-        remarques: remarques || null,
-      }, { onConflict: 'evaluation_id, critere_id' })
-      .select()
-      .single()
-    if (error) throw error
-    res.json({ success: true, data })
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message })
-  }
-})
-
-app.post('/api/evaluations/soumettre', async (req, res) => {
-  try {
-    const { evaluation_id, commentaire } = req.body
-    const { error } = await supabaseServer
-      .from('evaluations')
-      .update({ soumis: true, commentaire })
-      .eq('id', evaluation_id)
-    if (error) throw error
-    res.json({ success: true })
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message })
-  }
-})
 
 // Middleware erreur global
 app.use((err, req, res, next) => {

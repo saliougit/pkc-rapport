@@ -4,11 +4,14 @@ const url = import.meta.env.VITE_SUPABASE_URL
 const key = import.meta.env.VITE_SUPABASE_ANON_KEY
 
 if (!url || !key) {
-  console.error('[Supabase] Variables manquantes — VITE_SUPABASE_URL:', url, '| VITE_SUPABASE_ANON_KEY:', key)
+  console.error('[Supabase] Variables manquantes')
 }
 
 const fetchWithTimeout = (input, init) => {
-  return fetch(input, { ...init, signal: AbortSignal.timeout(15000) })
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), 30000)
+  return fetch(input, { ...init, signal: init?.signal ? (() => { const s = new AbortController(); init.signal.addEventListener('abort', () => s.abort()); controller.signal.addEventListener('abort', () => s.abort()); return s.signal })() : controller.signal })
+    .finally(() => clearTimeout(timeoutId))
 }
 
 export const supabase = createClient(url, key, {
@@ -16,7 +19,18 @@ export const supabase = createClient(url, key, {
   global: { fetch: fetchWithTimeout },
 })
 
-// ── Profil / Auth ────────────────────────────────────────────────────────────
+// Helper : appelle une route Express /api/data/* et retourne le JSON
+async function api(endpoint, options = {}) {
+  const res = await fetch(`/api/data${endpoint}`, {
+    headers: { 'Content-Type': 'application/json' },
+    ...options,
+  })
+  const json = await res.json()
+  if (!json.success) throw new Error(json.error || 'Erreur serveur')
+  return json
+}
+
+// ── Auth ──────────────────────────────────────────────────────────────────────
 
 export async function loginAdmin(email, password) {
   const { data, error } = await supabase.auth.signInWithPassword({ email, password })
@@ -60,425 +74,277 @@ export async function getSession() {
   return data.session
 }
 
+// ── Profils ───────────────────────────────────────────────────────────────────
+
 export async function fetchProfile(userId) {
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('id', userId)
-    .single()
-  if (error) throw error
-  return data
+  const json = await api(`/profiles/${userId}`)
+  return json.data
 }
 
 export async function updateProfile(userId, updates) {
-  const { error } = await supabase
-    .from('profiles')
-    .update(updates)
-    .eq('id', userId)
-  if (error) throw error
+  await api(`/profiles/${userId}`, {
+    method: 'PUT',
+    body: JSON.stringify(updates),
+  })
 }
 
 // ── Kourels ──────────────────────────────────────────────────────────────────
 
 export async function fetchKourels() {
-  const { data, error } = await supabase
-    .from('kourels')
-    .select('*')
-    .eq('actif', true)
-    .order('id')
-  if (error) throw error
-  return data
+  const json = await api('/kourels')
+  return json.data
 }
 
 export async function ajouterKourel(nom, responsable, effectif_total = 0, effectif_actif = 0) {
-  const { data, error } = await supabase
-    .from('kourels')
-    .insert({ nom, responsable, effectif_total, effectif_actif })
-    .select()
-    .single()
-  if (error) throw error
-  return data
+  const json = await api('/kourels', {
+    method: 'POST',
+    body: JSON.stringify({ nom, responsable, effectif_total, effectif_actif }),
+  })
+  return json.data
 }
 
 export async function modifierKourel(id, nom, responsable, telephone, callmebot_apikey, effectif_total = 0, effectif_actif = 0) {
-  const { error } = await supabase
-    .from('kourels')
-    .update({ nom, responsable, telephone, callmebot_apikey, effectif_total, effectif_actif })
-    .eq('id', id)
-  if (error) throw error
+  await api(`/kourels/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify({ nom, responsable, telephone, callmebot_apikey, effectif_total, effectif_actif }),
+  })
 }
 
 export async function supprimerKourel(id) {
-  const { error } = await supabase
-    .from('kourels')
-    .update({ actif: false })
-    .eq('id', id)
-  if (error) throw error
+  await api(`/kourels/${id}`, { method: 'DELETE' })
 }
 
 // ── Programme Annuel ─────────────────────────────────────────────────────────
 
 export async function fetchProgramme(kourelId) {
-  const { data, error } = await supabase
-    .from('programme_annuel')
-    .select('*')
-    .eq('kourel_id', kourelId)
-    .order('ordre')
-  if (error) throw error
-  return data
+  const json = await api(`/programme/${kourelId}`)
+  return json.data
 }
 
 export async function ajouterKhassida(kourelId, nom, melodie, ordre) {
-  const { data, error } = await supabase
-    .from('programme_annuel')
-    .insert({ kourel_id: kourelId, nom, melodie, ordre })
-    .select()
-    .single()
-  if (error) throw error
-  return data
+  const json = await api('/programme', {
+    method: 'POST',
+    body: JSON.stringify({ kourel_id: kourelId, nom, melodie, ordre }),
+  })
+  return json.data
 }
 
 export async function modifierKhassida(id, nom, melodie) {
-  const { error } = await supabase
-    .from('programme_annuel')
-    .update({ nom, melodie })
-    .eq('id', id)
-  if (error) throw error
+  await api(`/programme/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify({ nom, melodie }),
+  })
 }
 
 export async function supprimerKhassida(id) {
-  const { error } = await supabase
-    .from('programme_annuel')
-    .delete()
-    .eq('id', id)
-  if (error) throw error
+  await api(`/programme/${id}`, { method: 'DELETE' })
 }
 
 // ── Membres du comité ────────────────────────────────────────────────────────
 
 export async function fetchMembres() {
-  const { data, error } = await supabase
-    .from('membres')
-    .select('*')
-    .order('id')
-  if (error) throw error
-  return data
+  const json = await api('/membres')
+  return json.data
 }
 
 export async function ajouterMembre(prenom, nom, kourel, telephone, statut) {
-  const { data, error } = await supabase
-    .from('membres')
-    .insert({ prenom, nom, kourel, telephone, statut: statut || 'actif' })
-    .select()
-    .single()
-  if (error) throw error
-  return data
+  const json = await api('/membres', {
+    method: 'POST',
+    body: JSON.stringify({ prenom, nom, kourel, telephone, statut: statut || 'actif' }),
+  })
+  return json.data
 }
 
 export async function modifierMembre(id, updates) {
-  const { error } = await supabase
-    .from('membres')
-    .update(updates)
-    .eq('id', id)
-  if (error) throw error
+  await api(`/membres/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(updates),
+  })
 }
 
 export async function supprimerMembre(id) {
-  const { error } = await supabase
-    .from('membres')
-    .delete()
-    .eq('id', id)
-  if (error) throw error
+  await api(`/membres/${id}`, { method: 'DELETE' })
 }
 
 // ── Types d'événements ──────────────────────────────────────────────────────
 
 export async function fetchTypesEvenements() {
-  const { data, error } = await supabase
-    .from('types_evenements')
-    .select('*')
-    .order('id')
-  if (error) throw error
-  return data
+  const json = await api('/types-evenements')
+  return json.data
 }
 
 export async function ajouterTypeEvenement(nom, description) {
-  const { data, error } = await supabase
-    .from('types_evenements')
-    .insert({ nom, description })
-    .select()
-    .single()
-  if (error) throw error
-  return data
+  const json = await api('/types-evenements', {
+    method: 'POST',
+    body: JSON.stringify({ nom, description }),
+  })
+  return json.data
 }
 
 export async function modifierTypeEvenement(id, nom, description) {
-  const { error } = await supabase
-    .from('types_evenements')
-    .update({ nom, description })
-    .eq('id', id)
-  if (error) throw error
+  await api(`/types-evenements/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify({ nom, description }),
+  })
 }
 
 export async function supprimerTypeEvenement(id) {
-  const { error } = await supabase
-    .from('types_evenements')
-    .delete()
-    .eq('id', id)
-  if (error) throw error
+  await api(`/types-evenements/${id}`, { method: 'DELETE' })
 }
 
 // ── Lieux ────────────────────────────────────────────────────────────────────
 
 export async function fetchLieux() {
-  const { data, error } = await supabase
-    .from('lieux')
-    .select('*')
-    .order('id')
-  if (error) throw error
-  return data
+  const json = await api('/lieux')
+  return json.data
 }
 
 export async function ajouterLieu(nom) {
-  const { data, error } = await supabase
-    .from('lieux')
-    .insert({ nom })
-    .select()
-    .single()
-  if (error) throw error
-  return data
+  const json = await api('/lieux', {
+    method: 'POST',
+    body: JSON.stringify({ nom }),
+  })
+  return json.data
 }
 
 // ── Événements ───────────────────────────────────────────────────────────────
 
 export async function fetchEvenements() {
-  const { data, error } = await supabase
-    .from('evenements')
-    .select('*, type:type_id(id, nom), lieu:lieu_id(id, nom), kourels:evenement_kourels(id, note_definitive, conclusion, kourel:kourel_id(id, nom), eval_membres:eval_membres(id, membre_id, role, code_acces))')
-    .order('date_evenement', { ascending: false })
-  if (error) throw error
-
-  return (data || []).map(ev => {
-    const allEvalIds = []
-    const allPagIds = []
-    const kourels = (ev.kourels || []).map(ek => {
-      const evaluateurs = (ek.eval_membres || [])
-        .filter(em => em.role === 'evaluateur')
-        .map(em => em.membre_id)
-      const paginateurs = (ek.eval_membres || [])
-        .filter(em => em.role === 'paginateur')
-        .map(em => em.membre_id)
-      const codes = (ek.eval_membres || [])
-        .filter(em => em.code_acces)
-        .reduce((acc, em) => ({ ...acc, [em.membre_id]: em.code_acces }), {})
-      allEvalIds.push(...evaluateurs)
-      allPagIds.push(...paginateurs)
-      return { ...ek, evaluateurs, paginateurs, codes }
-    })
-    return { ...ev, kourels, evaluateurs: allEvalIds, paginateurs: allPagIds }
-  })
+  const json = await api('/evenements')
+  return json.data
 }
 
 export async function ajouterEvenement(evenement) {
-  const { data, error } = await supabase
-    .from('evenements')
-    .insert({
+  const json = await api('/evenements', {
+    method: 'POST',
+    body: JSON.stringify({
       type_id: evenement.type_id,
       date_evenement: evenement.date_evenement,
       lieu_id: evenement.lieu_id || null,
       statut: evenement.statut || 'à venir',
-    })
-    .select()
-    .single()
-  if (error) throw error
-  return data
+    }),
+  })
+  return json.data
 }
 
 export async function ajouterEvenementKourel(evenementId, kourelId) {
-  const { data, error } = await supabase
-    .from('evenement_kourels')
-    .insert({ evenement_id: evenementId, kourel_id: kourelId })
-    .select()
-    .single()
-  if (error) throw error
-  return data
+  const json = await api('/evenement-kourels', {
+    method: 'POST',
+    body: JSON.stringify({ evenement_id: evenementId, kourel_id: kourelId }),
+  })
+  return json.data
 }
 
 export async function supprimerEvenementKourels(evenementId) {
-  const { error } = await supabase
-    .from('evenement_kourels')
-    .delete()
-    .eq('evenement_id', evenementId)
-  if (error) throw error
+  await api(`/evenements/${evenementId}/kourels`, { method: 'DELETE' })
 }
 
 export async function modifierEvenement(id, updates) {
-  const { error } = await supabase
-    .from('evenements')
-    .update(updates)
-    .eq('id', id)
-  if (error) throw error
+  await api(`/evenements/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(updates),
+  })
 }
 
 export async function modifierNoteDefinitive(evenementKourelId, note) {
-  const { error } = await supabase
-    .from('evenement_kourels')
-    .update({ note_definitive: note })
-    .eq('id', evenementKourelId)
-  if (error) throw error
+  await api(`/evenement-kourels/${evenementKourelId}`, {
+    method: 'PUT',
+    body: JSON.stringify({ note_definitive: note }),
+  })
 }
 
 export async function modifierEvenementKourel(evenementKourelId, updates) {
-  const { error } = await supabase
-    .from('evenement_kourels')
-    .update(updates)
-    .eq('id', evenementKourelId)
-  if (error) throw error
+  await api(`/evenement-kourels/${evenementKourelId}`, {
+    method: 'PUT',
+    body: JSON.stringify(updates),
+  })
 }
 
 export async function supprimerEvenement(id) {
-  const { error } = await supabase
-    .from('evenements')
-    .delete()
-    .eq('id', id)
-  if (error) throw error
+  await api(`/evenements/${id}`, { method: 'DELETE' })
 }
 
 // ── Évaluateurs / Paginateurs par événement ─────────────────────────────────
 
 export async function fetchEvalMembres(evenementId) {
-  const { data: ekList, error: ekError } = await supabase
-    .from('evenement_kourels')
-    .select('id')
-    .eq('evenement_id', evenementId)
-  if (ekError) throw ekError
-  const ids = (ekList || []).map(ek => ek.id)
-  if (!ids.length) return []
-  const { data, error } = await supabase
-    .from('eval_membres')
-    .select('*, evenement_kourel:evenement_kourel_id(id, kourel:kourel_id(id, nom)), membre:membre_id(id, prenom, nom, kourel)')
-    .in('evenement_kourel_id', ids)
-  if (error) throw error
-  return data
+  const json = await api(`/eval-membres/${evenementId}`)
+  return json.data
 }
 
 export async function assignerEvalMembre(evenementKourelId, membreId, role, codeAcces) {
-  const { data, error } = await supabase
-    .from('eval_membres')
-    .insert({ evenement_kourel_id: evenementKourelId, membre_id: membreId, role, code_acces: codeAcces })
-    .select()
-    .single()
-  if (error) throw error
-  return data
+  const json = await api('/eval-membres', {
+    method: 'POST',
+    body: JSON.stringify({ evenement_kourel_id: evenementKourelId, membre_id: membreId, role, code_acces: codeAcces }),
+  })
+  return json.data
 }
 
 export async function supprimerEvalMembre(id) {
-  const { error } = await supabase
-    .from('eval_membres')
-    .delete()
-    .eq('id', id)
-  if (error) throw error
+  await api(`/eval-membres/${id}`, { method: 'DELETE' })
 }
 
 // ── Critères d'évaluation ────────────────────────────────────────────────────
 
 export async function fetchCriteres() {
-  const { data, error } = await supabase
-    .from('criteres')
-    .select('*')
-    .eq('actif', true)
-    .order('ordre')
-  if (error) throw error
-  return data
+  const json = await api('/criteres')
+  return json.data
 }
 
 export async function ajouterCritere(section_nom, description) {
-  const { data, error } = await supabase
-    .from('criteres')
-    .insert({ section_nom, description })
-    .select()
-    .single()
-  if (error) throw error
-  return data
+  const json = await api('/criteres', {
+    method: 'POST',
+    body: JSON.stringify({ section_nom, description }),
+  })
+  return json.data
 }
 
 export async function modifierCritere(id, updates) {
-  const { error } = await supabase
-    .from('criteres')
-    .update(updates)
-    .eq('id', id)
-  if (error) throw error
+  await api(`/criteres/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(updates),
+  })
 }
 
 export async function supprimerCritere(id) {
-  const { error } = await supabase
-    .from('criteres')
-    .delete()
-    .eq('id', id)
-  if (error) throw error
+  await api(`/criteres/${id}`, { method: 'DELETE' })
 }
 
 // ── Évaluations ──────────────────────────────────────────────────────────────
 
 export async function fetchEvaluations(evenementId) {
-  const { data, error } = await supabase
-    .from('evaluations')
-    .select('*, membre:membre_id(id, prenom, nom, kourel), notes:evaluation_notes(*)')
-    .eq('evenement_id', evenementId)
-  if (error) throw error
-  return data
+  const json = await api(`/evaluations/${evenementId}`)
+  return json.data
 }
 
 export async function getOrCreateEvaluation(evenementId, membreId) {
-  const { data: existing } = await supabase
-    .from('evaluations')
-    .select('*, notes:evaluation_notes(*)')
-    .eq('evenement_id', evenementId)
-    .eq('membre_id', membreId)
-    .maybeSingle()
-
-  if (existing) return existing
-
-  const { data, error } = await supabase
-    .from('evaluations')
-    .insert({ evenement_id: evenementId, membre_id: membreId })
-    .select('*, notes:evaluation_notes(*)')
-    .single()
-  if (error) throw error
-  return data
+  const json = await api(`/evaluations/get-or-create/${evenementId}/${membreId}`)
+  return json.data
 }
 
 export async function saveEvaluationNote(evaluationId, critereId, appreciation, note, remarques, nombre_present) {
-  const { data, error } = await supabase
-    .from('evaluation_notes')
-    .upsert({
-      evaluation_id: evaluationId, critere_id: critereId,
-      appreciation: appreciation || null,
-      note: note != null ? note : null,
-      remarques: remarques || null,
-      nombre_present: nombre_present != null ? nombre_present : null,
-    }, { onConflict: 'evaluation_id, critere_id' })
-    .select().single()
-  if (error) throw error
-  return data
+  const json = await api('/evaluation-notes', {
+    method: 'POST',
+    body: JSON.stringify({ evaluation_id: evaluationId, critere_id: critereId, appreciation, note, remarques, nombre_present }),
+  })
+  return json.data
 }
 
 export async function soumettreEvaluation(evaluationId, commentaire) {
-  const { error } = await supabase
-    .from('evaluations')
-    .update({ soumis: true, commentaire })
-    .eq('id', evaluationId)
-  if (error) throw error
+  await api('/evaluations/soumettre', {
+    method: 'POST',
+    body: JSON.stringify({ evaluation_id: evaluationId, commentaire }),
+  })
 }
 
-// ── Validation de code d'accès (côté client) ────────────────────────────────
+// ── Validation de code d'accès ──────────────────────────────────────────────
 
 export async function validerCodeAcces(code) {
-  const { data, error } = await supabase
-    .from('eval_membres')
-    .select('*, evenement_kourel:evenement_kourel_id(*, evenement:evenement_id(*, type:type_id(id, nom), lieu:lieu_id(id, nom)), kourel:kourel_id(id, nom, effectif_actif, effectif_total)), membre:membre_id(*)')
-    .eq('code_acces', code.toUpperCase().trim())
-    .maybeSingle()
-  if (error) throw error
-  return data
+  const res = await fetch('/api/valider-code-acces', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ code }),
+  })
+  const json = await res.json()
+  if (!json.success) throw new Error(json.error || 'Code invalide')
+  return json.data
 }
