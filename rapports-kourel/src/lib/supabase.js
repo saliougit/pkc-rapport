@@ -7,7 +7,14 @@ if (!url || !key) {
   console.error('[Supabase] Variables manquantes — VITE_SUPABASE_URL:', url, '| VITE_SUPABASE_ANON_KEY:', key)
 }
 
-export const supabase = createClient(url, key)
+const fetchWithTimeout = (input, init) => {
+  return fetch(input, { ...init, signal: AbortSignal.timeout(15000) })
+}
+
+export const supabase = createClient(url, key, {
+  auth: { persistSession: true },
+  global: { fetch: fetchWithTimeout },
+})
 
 // ── Profil / Auth ────────────────────────────────────────────────────────────
 
@@ -74,14 +81,11 @@ export async function updateProfile(userId, updates) {
 // ── Kourels ──────────────────────────────────────────────────────────────────
 
 export async function fetchKourels() {
-  console.log('[DEBUG] URL:', import.meta.env.VITE_SUPABASE_URL)
-  console.log('[DEBUG] KEY:', import.meta.env.VITE_SUPABASE_ANON_KEY?.slice(0, 20) + '...')
   const { data, error } = await supabase
     .from('kourels')
     .select('*')
     .eq('actif', true)
     .order('id')
-  console.log('[DEBUG] data:', data, '| error:', error)
   if (error) throw error
   return data
 }

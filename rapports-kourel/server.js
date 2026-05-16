@@ -66,7 +66,17 @@ app.use(bodyParser.json({ limit: '50mb' }))
 // En production : servir le frontend Vite buildé
 if (isProd) {
   const distPath = join(__dirname, 'dist')
-  app.use(express.static(distPath))
+  app.use(express.static(distPath, {
+    setHeaders(res, path) {
+      if (path.endsWith('sw.js')) {
+        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate')
+      } else if (path.endsWith('.html')) {
+        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate')
+      } else if (path.endsWith('.js') || path.endsWith('.css')) {
+        res.setHeader('Cache-Control', 'public, max-age=31536000, immutable')
+      }
+    }
+  }))
 }
 
 // Log toutes les requêtes

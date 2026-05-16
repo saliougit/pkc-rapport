@@ -15,7 +15,7 @@ if (!import.meta.env.DEV) {
   import('virtual:pwa-register').then(({ registerSW }) => {
     registerSW({
       onNeedRefresh() {
-        console.log('PWA: Une mise à jour est disponible')
+        location.reload()
       },
       onOfflineReady() {
         console.log('PWA: Prêt pour une utilisation hors ligne')
