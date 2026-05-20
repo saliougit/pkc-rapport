@@ -200,14 +200,14 @@ function SectionCard({ section, data, onChange, index, total, readOnly, isGenera
           </div>
           <div className="bg-white rounded-xl border border-gris-200 p-4">
             <p className="text-xs font-bold text-gris-500 uppercase tracking-widest mb-3 text-center">Appréciation</p>
-            <div className="flex items-center justify-center gap-6">
+            <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3 md:gap-6">
               {APPRECIATIONS.map(a => (
-                <div key={a.value} className="flex flex-col items-center gap-1">
-                  <div className={`w-8 h-8 rounded-full border-2 flex items-center justify-center text-[9px] font-bold ${data.appreciation === a.value ? 'text-white' : 'text-gris-300 border-gris-200'}`}
+                <div key={a.value} className="flex flex-col items-center gap-1 min-w-fit">
+                  <div className={`w-8 h-8 rounded-full border-2 flex items-center justify-center text-[8px] sm:text-[9px] font-bold ${data.appreciation === a.value ? 'text-white' : 'text-gris-300 border-gris-200'}`}
                     style={data.appreciation === a.value ? { borderColor: a.active, background: a.active } : {}}>
                     {a.label[0]}
                   </div>
-                    <span className={`text-[9px] font-semibold whitespace-nowrap ${data.appreciation === a.value ? 'text-gris-800' : 'text-gris-300'}`}>
+                    <span className={`text-[7px] sm:text-[9px] font-semibold whitespace-nowrap ${data.appreciation === a.value ? 'text-gris-800' : 'text-gris-300'}`}>
                       {a.label}
                     </span>
                 </div>

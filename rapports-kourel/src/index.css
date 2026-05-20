@@ -50,6 +50,13 @@
   }
 }
 
+html {
+  touch-action: manipulation;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
 body {
   margin: 0;
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
@@ -57,6 +64,10 @@ body {
   -moz-osx-font-smoothing: grayscale;
   background-color: #F5F3EE;
   color: #111714;
+  touch-action: manipulation;
+  -webkit-user-select: none;
+  -webkit-user-zoom: fixed;
+  user-zoom: fixed;
 }
 
 * {
