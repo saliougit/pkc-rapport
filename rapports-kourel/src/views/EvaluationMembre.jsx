@@ -105,7 +105,7 @@ function NoteSelector({ value, onChange, readOnly }) {
 
 // ─── Carte section ──────────────────────────────────────────────────────────
 
-function SectionCard({ section, data, onChange, index, total, readOnly, isGenerale, moyenneAuto, presenceEffectif }) {
+function SectionCard({ section, data, onChange, index, total, readOnly, isGenerale, moyenneAuto, isPresence, presenceEffectif }) {
   const Icon = section.icon
   const donePct = Math.round(((index) / total) * 100)
   const noteColor = !moyenneAuto ? '#9CA3AF'
@@ -148,7 +148,7 @@ function SectionCard({ section, data, onChange, index, total, readOnly, isGenera
         </div>
       </div>
 
-      {presenceEffectif != null ? (
+      {isPresence ? (
         <div className="bg-gris-50 rounded-2xl px-5 py-5 space-y-4">
           <div className="flex items-center justify-between bg-vert-50 border border-vert-200 rounded-xl px-4 py-3">
             <span className="text-xs font-semibold text-gris-600">Effectif actif</span>
@@ -882,7 +882,8 @@ export default function EvaluationMembre() {
                   readOnly={readOnly}
                   isGenerale={isGenerale}
                   moyenneAuto={moyAuto}
-                  presenceEffectif={sec.id === sectionPresenceId ? codeValide?.evenement_kourel?.kourel?.effectif_actif : null}
+                  isPresence={sec.id === sectionPresenceId}
+                  presenceEffectif={codeValide?.evenement_kourel?.kourel?.effectif_actif ?? 0}
                 />
               )
             })()}

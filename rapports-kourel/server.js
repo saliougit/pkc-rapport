@@ -577,7 +577,7 @@ app.post('/api/valider-code-acces', async (req, res) => {
 
     const { data, error } = await supabaseServer
       .from('eval_membres')
-      .select('*, evenement_kourel:evenement_kourel_id(*, evenement:evenement_id(*, type:type_id(id, nom), lieu:lieu_id(id, nom)), kourel:kourel_id(id, nom)), membre:membre_id(*)')
+      .select('*, evenement_kourel:evenement_kourel_id(*, evenement:evenement_id(*, type:type_id(id, nom), lieu:lieu_id(id, nom)), kourel:kourel_id(id, nom, effectif_actif)), membre:membre_id(*)')
       .eq('code_acces', code.toUpperCase().trim())
       .maybeSingle()
 
@@ -626,7 +626,7 @@ if (isProd) {
   })
 }
 
-const PORT = process.env.PORT || 3001
+const PORT = process.env.PORT || 3002
 const server = app.listen(PORT, () => {
   console.log(`✅ Serveur lancé sur http://localhost:${PORT}`)
   if (!isProd) {
