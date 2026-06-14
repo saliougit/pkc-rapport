@@ -511,7 +511,7 @@ app.delete('/api/data/eval-membres/:id', async (req, res) => {
 // ── Évaluations ──────────────────────────────────────────────────────────────
 app.get('/api/data/evaluations/:evenementId', async (req, res) => {
   try {
-    const { data, error } = await supabaseServer.from('evaluations').select('*, membre:membre_id(id, prenom, nom, kourel), notes:evaluation_notes(*)').eq('evenement_id', req.params.evenementId)
+    const { data, error } = await supabaseServer.from('evaluations').select('*, membre:membre_id(id, prenom, nom, kourel), notes:evaluation_notes(*), programme:evaluation_programme(*, notes:evaluation_programme_notes(*))').eq('evenement_id', req.params.evenementId)
     if (error) throw error
     res.json({ success: true, data: data || [] })
   } catch (e) { res.status(500).json({ success: false, error: e.message }) }
@@ -520,9 +520,9 @@ app.get('/api/data/evaluations/:evenementId', async (req, res) => {
 app.get('/api/data/evaluations/get-or-create/:evenementId/:membreId', async (req, res) => {
   try {
     const { evenementId, membreId } = req.params
-    const { data: existing } = await supabaseServer.from('evaluations').select('*, notes:evaluation_notes(*)').eq('evenement_id', evenementId).eq('membre_id', membreId).maybeSingle()
+    const { data: existing } = await supabaseServer.from('evaluations').select('*, notes:evaluation_notes(*), programme:evaluation_programme(*, notes:evaluation_programme_notes(*))').eq('evenement_id', evenementId).eq('membre_id', membreId).maybeSingle()
     if (existing) return res.json({ success: true, data: existing })
-    const { data, error } = await supabaseServer.from('evaluations').insert({ evenement_id: Number(evenementId), membre_id: Number(membreId) }).select('*, notes:evaluation_notes(*)').single()
+    const { data, error } = await supabaseServer.from('evaluations').insert({ evenement_id: Number(evenementId), membre_id: Number(membreId) }).select('*, notes:evaluation_notes(*), programme:evaluation_programme(*, notes:evaluation_programme_notes(*))').single()
     if (error) throw error
     res.json({ success: true, data })
   } catch (e) { res.status(500).json({ success: false, error: e.message }) }
@@ -549,6 +549,45 @@ app.post('/api/data/evaluations/soumettre', async (req, res) => {
     const { error } = await supabaseServer.from('evaluations').update({ soumis: true, commentaire }).eq('id', evaluation_id)
     if (error) throw error
     res.json({ success: true })
+  } catch (e) { res.status(500).json({ success: false, error: e.message }) }
+})
+
+// ── Évaluation Programme (khassidas évalués) ─────────────────────────────────
+app.get('/api/data/evaluation-programme/:evaluationId', async (req, res) => {
+  try {
+    const { data, error } = await supabaseServer.from('evaluation_programme').select('*, notes:evaluation_programme_notes(*)').eq('evaluation_id', req.params.evaluationId).order('ordre')
+    if (error) throw error
+    res.json({ success: true, data: data || [] })
+  } catch (e) { res.status(500).json({ success: false, error: e.message }) }
+})
+
+app.post('/api/data/evaluation-programme/:evaluationId', async (req, res) => {
+  try {
+    const evaluationId = Number(req.params.evaluationId)
+    const { items } = req.body
+    await supabaseServer.from('evaluation_programme').delete().eq('evaluation_id', evaluationId)
+    if (items?.length) {
+      const rows = items.map((item, i) => ({ evaluation_id: evaluationId, nom: item.nom, melodie: item.melodie || '', ordre: i }))
+      const { data, error } = await supabaseServer.from('evaluation_programme').insert(rows).select('*, notes:evaluation_programme_notes(*)')
+      if (error) throw error
+      return res.json({ success: true, data: data || [] })
+    }
+    res.json({ success: true, data: [] })
+  } catch (e) { res.status(500).json({ success: false, error: e.message }) }
+})
+
+// ── Programme Notes (per-khassida per-criteria) ──────────────────────────────
+app.post('/api/data/evaluation-programme-notes', async (req, res) => {
+  try {
+    const { programme_id, critere_id, appreciation, note, remarques } = req.body
+    const { data, error } = await supabaseServer.from('evaluation_programme_notes').upsert({
+      evaluation_programme_id: programme_id, critere_id,
+      appreciation: appreciation || null,
+      note: note != null ? note : null,
+      remarques: remarques || null,
+    }, { onConflict: 'evaluation_programme_id,critere_id' }).select().single()
+    if (error) throw error
+    res.json({ success: true, data })
   } catch (e) { res.status(500).json({ success: false, error: e.message }) }
 })
 

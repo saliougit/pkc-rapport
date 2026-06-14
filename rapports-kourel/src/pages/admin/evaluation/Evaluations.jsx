@@ -179,6 +179,25 @@ function EvaluateurPanel({ evaluateur, notes, sections }) {
   const status = getStatusEval(notes)
   const noteFinale = notes?.note_finale != null ? Number(notes.note_finale).toFixed(2) : null
 
+  const sectionMelodieId = sections.find(s => s.label.toLowerCase().includes('mélodie') || s.label.toLowerCase().includes('melodie'))?.id
+  const sectionHouroufId = sections.find(s => s.label.toLowerCase().includes('hourouf'))?.id
+  const isPerKhassidaSection = (sectionId) => sectionId === sectionMelodieId || sectionId === sectionHouroufId
+
+  const progNotes = {}
+  if (notes?.programme) {
+    notes.programme.forEach(p => {
+      ;(p.notes || []).forEach(n => {
+        if (!progNotes[n.critere_id]) progNotes[n.critere_id] = []
+        progNotes[n.critere_id].push({ khassida: p.nom, melodie: p.melodie, note: n.note, appreciation: n.appreciation })
+      })
+    })
+  }
+
+  const getPerKhassidaMoy = (critereId) => {
+    const vals = (progNotes[critereId] || []).map(n => n.note).filter(v => v != null)
+    return vals.length ? (vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(1) : null
+  }
+
   return (
     <div className="rounded-xl border border-gris-200 bg-white overflow-hidden shadow-sm">
       <button
@@ -212,55 +231,87 @@ function EvaluateurPanel({ evaluateur, notes, sections }) {
       {open && (
         <div className="border-t border-gris-100 px-4 py-3.5 space-y-2.5">
           {notes ? (
-            sections.filter(s => {
-              const sec = notes.notes?.[s.key || s.id]
-              return sec && (sec.note != null || sec.appreciation || sec.remarques)
-            }).length > 0 ? (
-              <div className="rounded-lg border border-gris-200 overflow-hidden">
-                <div className="grid grid-cols-[1fr_60px_80px] bg-gris-100 px-3.5 py-1.5">
-                  <span className="text-[9px] font-bold text-gris-400 uppercase">Critère</span>
-                  <span className="text-[9px] font-bold text-gris-400 uppercase text-right">Note</span>
-                  <span className="text-[9px] font-bold text-gris-400 uppercase text-right">Appréciation</span>
-                </div>
-                {sections.map(section => {
-                  const s = notes.notes?.[section.key || section.id]
-                  if (!s || (s.note == null && !s.appreciation && !s.remarques)) return null
-                  const appr = s.appreciation || noteVersAppreciation(s.note)
-                  const ac = appr ? APPREC_COLORS[appr] : null
-                  return (
-                    <div key={section.id} className="border-t border-gris-100">
-                      <div className="grid grid-cols-[1fr_60px_80px] items-center px-3.5 py-2 bg-white">
-                        <span className="text-xs font-semibold text-gris-800 truncate">
-                          {section.label}
-                          {s.nombre_present != null && (
-                            <span className="ml-1.5 text-[10px] font-normal text-gris-400">({s.nombre_present} présent(s))</span>
+            <>
+              {sections.filter(s => {
+                const sec = notes.notes?.[s.key || s.id]
+                const hasPerKhassida = isPerKhassidaSection(s.id) && (progNotes[s.key || s.id]?.length > 0)
+                return hasPerKhassida || (sec && (sec.note != null || sec.appreciation || sec.remarques))
+              }).length > 0 ? (
+                <div className="rounded-lg border border-gris-200 overflow-hidden">
+                  <div className="grid grid-cols-[1fr_60px_80px] bg-gris-100 px-3.5 py-1.5">
+                    <span className="text-[9px] font-bold text-gris-400 uppercase">Critère</span>
+                    <span className="text-[9px] font-bold text-gris-400 uppercase text-right">Note</span>
+                    <span className="text-[9px] font-bold text-gris-400 uppercase text-right">Appréciation</span>
+                  </div>
+                  {sections.map(section => {
+                    const s = notes.notes?.[section.key || section.id]
+                    const isPerKhassida = isPerKhassidaSection(section.id)
+                    const khassidaNotes = progNotes[section.key || section.id]
+                    const hasPerKhassida = isPerKhassida && khassidaNotes?.length > 0
+                    const perKhassidaMoy = getPerKhassidaMoy(section.key || section.id)
+
+                    if (!hasPerKhassida && (!s || (s.note == null && !s.appreciation && !s.remarques))) return null
+
+                    const appr = hasPerKhassida && perKhassidaMoy
+                      ? noteVersAppreciation(parseFloat(perKhassidaMoy))
+                      : s?.appreciation || noteVersAppreciation(s?.note)
+                    const ac = appr ? APPREC_COLORS[appr] : null
+                    const noteDisplay = hasPerKhassida && perKhassidaMoy ? perKhassidaMoy : s?.note
+
+                    return (
+                      <div key={section.id} className="border-t border-gris-100">
+                        <div className="grid items-center px-3.5 py-2 bg-white" style={{ gridTemplateColumns: hasPerKhassida ? '1fr' : '1fr 60px 80px' }}>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-semibold text-gris-800">{section.label}</span>
+                              {isPerKhassida && perKhassidaMoy && (
+                                <span className="text-[10px] font-black text-vert-700">moy {perKhassidaMoy}/10</span>
+                              )}
+                              {s?.nombre_present != null && (
+                                <span className="text-[10px] font-normal text-gris-400">
+                                  ({s.nombre_present} présent(s)
+                                  {s.nombre_retards > 0 ? `, ${s.nombre_retards} retard(s)` : ''}
+                                  )
+                                </span>
+                              )}
+                            </div>
+                            {hasPerKhassida && khassidaNotes.map((kn, ki) => (
+                              <div key={ki} className="flex items-center justify-between ml-3 mt-1 text-[11px]">
+                                <span className="text-gris-600 truncate">#{ki+1} {kn.khassida}{kn.melodie ? ` — ${kn.melodie}` : ''}</span>
+                                <span className="font-semibold text-gris-800 ml-2">{kn.note != null ? `${kn.note}/10` : '—'}</span>
+                              </div>
+                            ))}
+                          </div>
+                          {!hasPerKhassida && (
+                            <>
+                              <span className="text-xs font-black text-gris-900 text-right">
+                                {noteDisplay != null
+                                  ? <>{Number(noteDisplay).toFixed(1)}<span className="text-[9px] text-gris-400">/10</span></>
+                                  : <span className="text-gris-300">—</span>
+                                }
+                              </span>
+                              <span className="text-right">
+                                {appr && ac
+                                  ? <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full whitespace-nowrap" style={{ color: ac.color, background: ac.bg }}>{appr}</span>
+                                  : <span className="text-[10px] text-gris-300">—</span>
+                                }
+                              </span>
+                            </>
                           )}
-                        </span>
-                        <span className="text-xs font-black text-gris-900 text-right">
-                          {s.note != null
-                            ? <>{Number(s.note).toFixed(1)}<span className="text-[9px] text-gris-400">/10</span></>
-                            : <span className="text-gris-300">—</span>
-                          }
-                        </span>
-                        <span className="text-right">
-                          {appr && ac
-                            ? <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full whitespace-nowrap" style={{ color: ac.color, background: ac.bg }}>{appr}</span>
-                            : <span className="text-[10px] text-gris-300">—</span>
-                          }
-                        </span>
-                      </div>
-                      {s.remarques && (
-                        <div className="px-3.5 pb-2 bg-gris-50/50">
-                          <p className="text-[10px] text-gris-500 italic truncate">"{s.remarques}"</p>
                         </div>
-                      )}
-                    </div>
-                  )
-                })}
-              </div>
-            ) : (
-              <p className="text-xs text-gris-400 italic text-center py-2">Évaluation en cours, aucune note saisie.</p>
-            )
+                        {s?.remarques && (
+                          <div className="px-3.5 pb-2 bg-gris-50/50">
+                            <p className="text-[10px] text-gris-500 italic truncate">"{s.remarques}"</p>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              ) : (
+                <p className="text-xs text-gris-400 italic text-center py-2">Évaluation en cours, aucune note saisie.</p>
+              )}
+            </>
           ) : (
             <p className="text-xs text-gris-400 italic text-center py-2">Évaluation non soumise.</p>
           )}
@@ -357,11 +408,14 @@ export function EvaluationsPage() {
               appreciation: n.appreciation || '',
               note: n.note,
               remarques: n.remarques || '',
+              nombre_present: n.nombre_present,
+              nombre_retards: n.nombre_retards ?? 0,
             }
           })
           const vals = Object.values(sectionNotes).filter(v => v.note != null)
           notes[ev.membre_id] = {
             notes: sectionNotes,
+            programme: ev.programme || [],
             note_finale: vals.length ? (vals.reduce((a, b) => a + b.note, 0) / vals.length) : null,
             commentaire: ev.commentaire || '',
             soumis: ev.soumis,
@@ -442,11 +496,12 @@ export function EvaluationsPage() {
         const sectionNotes = {}
         ;(ev.notes || []).forEach(n => {
           const key = String(n.critere_id)
-          sectionNotes[key] = { appreciation: n.appreciation || '', note: n.note, remarques: n.remarques || '' }
+          sectionNotes[key] = { appreciation: n.appreciation || '', note: n.note, remarques: n.remarques || '', nombre_present: n.nombre_present, nombre_retards: n.nombre_retards ?? 0 }
         })
         const vals = Object.values(sectionNotes).filter(v => v.note != null)
         notes[ev.membre_id] = {
           notes: sectionNotes,
+          programme: ev.programme || [],
           note_finale: vals.length ? (vals.reduce((a, b) => a + b.note, 0) / vals.length) : null,
           commentaire: ev.commentaire || '',
           soumis: ev.soumis,

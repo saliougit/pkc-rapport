@@ -4,8 +4,9 @@ import {
   ChevronRight, ChevronLeft, CheckCircle2, Clock,
   Calendar, MapPin, Users, Music, FileText,
   ArrowLeft, ArrowRight, AlertCircle, Star, Loader,
+  Plus, X, GripVertical, ListOrdered,
 } from 'lucide-react'
-import { fetchCriteres, getOrCreateEvaluation, saveEvaluationNote, soumettreEvaluation, validerCodeAcces } from '@/lib/supabase'
+import { fetchCriteres, getOrCreateEvaluation, saveEvaluationNote, soumettreEvaluation, validerCodeAcces, fetchProgramme, saveEvaluationProgramme, saveEvaluationProgrammeNote } from '@/lib/supabase'
 
 const APPRECIATIONS = [
   { label: 'Mauvais',   value: 'Mauvais',   color: '#ee6161', bg: '#FEF2F2', active: '#EF4444', min: 0,   max: 2,   mid: 1   },
@@ -29,20 +30,26 @@ function formatDate(d) {
   return new Date(d).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
 }
 
-const sectionVide = () => ({ appreciation: '', note: null, remarques: '', nombre_present: null })
+const sectionVide = () => ({ appreciation: '', note: null, remarques: '', nombre_present: null, nombre_retards: 0 })
 
-function calcPresence(present, effectif) {
-  if (!present || present <= 0 || !effectif || effectif <= 0) return { appreciation: 'Mauvais', note: 1 }
-  const ratio = Math.min(present / effectif, 1)
-  if (ratio >= 0.9) return { appreciation: 'Excellent', note: 10 }
-  if (ratio >= 0.75) return { appreciation: 'Très bien', note: 8.5 }
-  if (ratio >= 0.6) return { appreciation: 'Bien', note: 7 }
-  if (ratio >= 0.4) return { appreciation: 'Passable', note: 5 }
-  if (ratio >= 0.2) return { appreciation: 'Médiocre', note: 3 }
-  return { appreciation: 'Mauvais', note: 1 }
+function calcPresence(present, retards, effectif) {
+  const p = present || 0
+  const r = retards || 0
+  if (p <= 0 || !effectif || effectif <= 0) return { appreciation: 'Mauvais', note: 1 }
+  const ratio = Math.min(p / effectif, 1)
+  const retardPenalty = r > 0 ? r * 0.3 : 0
+  let raw = 0
+  if (ratio >= 0.9) raw = 10
+  else if (ratio >= 0.75) raw = 8.5
+  else if (ratio >= 0.6) raw = 7
+  else if (ratio >= 0.4) raw = 5
+  else if (ratio >= 0.2) raw = 3
+  else raw = 1
+  const finalNote = Math.max(0, Math.round((raw - retardPenalty) * 10) / 10)
+  return { appreciation: getAppreciationFromNote(finalNote) || 'Mauvais', note: finalNote }
 }
 
-// ─── Composant NoteSelector ───────────────────────────────────────────────────
+// ─── NoteSelector ─────────────────────────────────────────────────────────────
 
 function NoteSelector({ value, onChange, readOnly }) {
   const pct = ((value ?? 0) / 10) * 100
@@ -103,9 +110,39 @@ function NoteSelector({ value, onChange, readOnly }) {
   )
 }
 
+// ─── Mini NoteSelector for per-khassida ───────────────────────────────────────
+
+function MiniNoteSelector({ value, onChange }) {
+  const noteColor = value == null ? '#9CA3AF'
+    : value < 4 ? '#EF4444'
+    : value < 6 ? '#F97316'
+    : value < 8 ? '#EAB308'
+    : '#16824E'
+
+  const dec = () => onChange(Math.max(0, (value ?? 0) - 0.5))
+  const inc = () => onChange(Math.min(10, (value ?? 0) + 0.5))
+
+  return (
+    <div className="flex items-center gap-2">
+      <button type="button" onClick={dec} disabled={!value || value <= 0}
+        className="w-8 h-8 rounded-full border border-gris-200 flex items-center justify-center text-sm font-bold text-gris-500 disabled:opacity-30 hover:border-gris-400 active:scale-95 transition-all">−</button>
+      <div className="flex flex-col items-center">
+        <div className="w-12 h-12 rounded-full flex items-center justify-center border-3"
+          style={{ borderColor: noteColor, background: value ? noteColor + '15' : '#F9FAFB' }}>
+          <span className="text-base font-black leading-none" style={{ color: noteColor }}>
+            {value != null ? value : '—'}
+          </span>
+        </div>
+      </div>
+      <button type="button" onClick={inc} disabled={value >= 10}
+        className="w-8 h-8 rounded-full border border-gris-200 flex items-center justify-center text-sm font-bold text-gris-500 disabled:opacity-30 hover:border-gris-400 active:scale-95 transition-all">+</button>
+    </div>
+  )
+}
+
 // ─── Carte section ──────────────────────────────────────────────────────────
 
-function SectionCard({ section, data, onChange, index, total, readOnly, isGenerale, moyenneAuto, isPresence, presenceEffectif }) {
+function SectionCard({ section, data, onChange, index, total, readOnly, isGenerale, moyenneAuto, isPresence, presenceEffectif, isPerKhassida, programme, programmeNotes, onProgrammeNoteChange }) {
   const Icon = section.icon
   const donePct = Math.round(((index) / total) * 100)
   const noteColor = !moyenneAuto ? '#9CA3AF'
@@ -114,9 +151,6 @@ function SectionCard({ section, data, onChange, index, total, readOnly, isGenera
     : moyenneAuto < 8 ? '#EAB308'
     : '#16824E'
 
-  const presencePct = data?.nombre_present != null && presenceEffectif > 0
-    ? (data.nombre_present / presenceEffectif) * 100
-    : 0
   const presenceRatio = data?.nombre_present != null && presenceEffectif > 0
     ? data.nombre_present / presenceEffectif
     : 0
@@ -127,6 +161,9 @@ function SectionCard({ section, data, onChange, index, total, readOnly, isGenera
     : presenceRatio >= 0.4 ? '#EAB308'
     : presenceRatio >= 0.2 ? '#F97316'
     : '#EF4444'
+
+  const noteExtreme = data?.note != null && (data.note <= 5 || data.note >= 9)
+  const doitJustifier = noteExtreme && !data?.remarques?.trim()
 
   return (
     <div className="flex flex-col gap-5">
@@ -154,6 +191,7 @@ function SectionCard({ section, data, onChange, index, total, readOnly, isGenera
             <span className="text-xs font-semibold text-gris-600">Effectif actif</span>
             <span className="text-lg font-black text-vert-700">{presenceEffectif}</span>
           </div>
+
           <div className="flex flex-col items-center gap-3">
             <p className="text-xs font-bold text-gris-500 uppercase tracking-widest">Nombre de présents</p>
             {readOnly ? (
@@ -166,9 +204,6 @@ function SectionCard({ section, data, onChange, index, total, readOnly, isGenera
                     </span>
                   </div>
                   <span className="text-[10px] text-gris-400 mt-1">/{presenceEffectif}</span>
-                </div>
-                <div className="w-full bg-gris-100 rounded-full h-1.5">
-                  <div className="h-1.5 rounded-full transition-all" style={{ width: `${presencePct}%`, background: presenceColor }} />
                 </div>
               </div>
             ) : (
@@ -192,12 +227,44 @@ function SectionCard({ section, data, onChange, index, total, readOnly, isGenera
                     disabled={data.nombre_present >= presenceEffectif}
                     className="w-12 h-12 rounded-full border-2 border-gris-200 flex items-center justify-center text-xl font-bold text-gris-600 disabled:opacity-30 hover:border-gris-400 active:scale-95 transition-all">+</button>
                 </div>
-                <div className="w-full bg-gris-100 rounded-full h-1.5">
-                  <div className="h-1.5 rounded-full transition-all duration-300" style={{ width: `${presencePct}%`, background: presenceColor }} />
-                </div>
               </div>
             )}
           </div>
+
+          <div className="flex flex-col items-center gap-3">
+            <p className="text-xs font-bold text-gris-500 uppercase tracking-widest">Nombre de retards</p>
+            {readOnly ? (
+              <div className="w-16 h-16 rounded-full border-4 border-amber-300 flex items-center justify-center bg-amber-50">
+                <span className="text-xl font-black text-amber-600">{data.nombre_retards ?? 0}</span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-5">
+                <button type="button"
+                  onClick={() => onChange({ nombre_retards: Math.max(0, (data.nombre_retards ?? 0) - 1) })}
+                  disabled={!data.nombre_retards || data.nombre_retards <= 0}
+                  className="w-12 h-12 rounded-full border-2 border-gris-200 flex items-center justify-center text-xl font-bold text-gris-600 disabled:opacity-30 hover:border-gris-400 active:scale-95 transition-all">−</button>
+                <div className="flex flex-col items-center">
+                  <div className="w-16 h-16 rounded-full flex items-center justify-center border-4 border-amber-300 transition-all duration-300"
+                    style={{ background: data.nombre_retards ? '#FFFBEB' : '#F9FAFB' }}>
+                    <span className="text-xl font-black leading-none text-amber-600">
+                      {data.nombre_retards != null ? data.nombre_retards : '—'}
+                    </span>
+                  </div>
+                </div>
+                <button type="button"
+                  onClick={() => onChange({ nombre_retards: Math.min(presenceEffectif, (data.nombre_retards ?? 0) + 1) })}
+                  className="w-12 h-12 rounded-full border-2 border-gris-200 flex items-center justify-center text-xl font-bold text-gris-600 disabled:opacity-30 hover:border-gris-400 active:scale-95 transition-all">+</button>
+              </div>
+            )}
+          </div>
+
+          {data.nombre_present != null && (
+            <div className="flex items-center justify-between bg-rouge-bg border border-rouge/20 rounded-xl px-4 py-2">
+              <span className="text-xs font-semibold text-gris-600">Absents</span>
+              <span className="text-lg font-black text-rouge">{Math.max(0, presenceEffectif - data.nombre_present)}</span>
+            </div>
+          )}
+
           <div className="bg-white rounded-xl border border-gris-200 p-4">
             <p className="text-xs font-bold text-gris-500 uppercase tracking-widest mb-3 text-center">Appréciation</p>
             <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3 md:gap-6">
@@ -221,6 +288,7 @@ function SectionCard({ section, data, onChange, index, total, readOnly, isGenera
               </div>
             )}
           </div>
+
           <div>
             <p className="text-xs font-bold text-gris-500 uppercase tracking-widest mb-2">
               Remarques <span className="font-normal normal-case text-gris-400">(optionnel)</span>
@@ -234,6 +302,60 @@ function SectionCard({ section, data, onChange, index, total, readOnly, isGenera
               className="w-full px-4 py-3 text-sm border border-gris-200 rounded-xl focus:border-vert-700 focus:outline-none resize-none bg-white placeholder:text-gris-400 disabled:bg-gris-50 disabled:cursor-not-allowed"
             />
           </div>
+        </div>
+      ) : isPerKhassida && programme?.length > 0 ? (
+        <div className="bg-gris-50 rounded-2xl px-5 py-5 space-y-4">
+          <p className="text-xs font-bold text-gris-500 uppercase tracking-widest text-center">
+            Évaluez chaque khassida individuellement
+          </p>
+          {programme.map((item, idx) => {
+            const pn = programmeNotes?.[item.tempId || item.id]?.[section.critereId] || {}
+            return (
+              <div key={item.tempId || item.id} className="bg-white rounded-xl border border-gris-200 p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-bold text-gris-800 truncate">{item.nom}</p>
+                    {item.melodie && <p className="text-[11px] text-gris-500 truncate">{item.melodie}</p>}
+                  </div>
+                  <span className="text-[10px] text-gris-400 font-mono ml-2">#{idx + 1}</span>
+                </div>
+                <div className="flex flex-col items-center">
+                  <MiniNoteSelector
+                    value={pn.note}
+                    onChange={v => onProgrammeNoteChange?.(item.tempId || item.id, { note: v, appreciation: getAppreciationFromNote(v) })}
+                  />
+                </div>
+                <div className="grid grid-cols-3 gap-1.5">
+                  {APPRECIATIONS.map(a => {
+                    const sel = pn.appreciation === a.value
+                    return (
+                      <button key={a.value} type="button"
+                        onClick={() => onProgrammeNoteChange?.(item.tempId || item.id, { appreciation: a.value, note: a.mid })}
+                        className="py-2 px-1 rounded-lg text-[10px] font-semibold border transition-all active:scale-95"
+                        style={{ borderColor: sel ? a.active : '#E5E7EB', background: sel ? a.active : 'white', color: sel ? 'white' : a.color }}>
+                        {a.label}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            )
+          })}
+          {(() => {
+            const vals = programme.map(item => programmeNotes?.[item.tempId || item.id]?.[section.critereId]?.note).filter(v => v != null)
+            if (!vals.length) return null
+            const avg = (vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(1)
+            const avgColor = avg < 4 ? '#EF4444' : avg < 6 ? '#F97316' : avg < 8 ? '#EAB308' : '#16824E'
+            return (
+              <div className="bg-white rounded-xl border border-vert-200 p-4 flex items-center justify-between">
+                <span className="text-xs font-bold text-gris-600">Moyenne des khassidas</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-2xl font-black" style={{ color: avgColor }}>{avg}</span>
+                  <span className="text-[10px] text-gris-400">/10</span>
+                </div>
+              </div>
+            )
+          })()}
         </div>
       ) : isGenerale ? (
         <div className="bg-gris-50 rounded-2xl px-5 py-5 flex flex-col items-center gap-3">
@@ -288,16 +410,28 @@ function SectionCard({ section, data, onChange, index, total, readOnly, isGenera
           </div>
           <div>
             <p className="text-xs font-bold text-gris-500 uppercase tracking-widest mb-2">
-              Remarques <span className="font-normal normal-case text-gris-400">(optionnel)</span>
+              Remarques
+              {noteExtreme ? (
+                <span className="font-bold normal-case text-rouge ml-1">(obligatoire - note critique)</span>
+              ) : (
+                <span className="font-normal normal-case text-gris-400">(optionnel)</span>
+              )}
             </p>
             <textarea
               value={data.remarques}
               onChange={e => onChange({ remarques: e.target.value })}
               rows={3}
-              placeholder="Vos observations sur cette section…"
+              placeholder={noteExtreme ? "Veuillez justifier cette note critique…" : "Vos observations sur cette section…"}
               disabled={readOnly}
-              className="w-full px-4 py-3 text-sm border border-gris-200 rounded-xl focus:border-vert-700 focus:outline-none resize-none bg-white placeholder:text-gris-400 disabled:bg-gris-50 disabled:cursor-not-allowed"
+              className={`w-full px-4 py-3 text-sm border rounded-xl focus:outline-none resize-none bg-white placeholder:text-gris-400 disabled:bg-gris-50 disabled:cursor-not-allowed ${
+                doitJustifier ? 'border-rouge focus:border-rouge' : 'border-gris-200 focus:border-vert-700'
+              }`}
             />
+            {doitJustifier && (
+              <p className="text-[11px] text-rouge font-semibold mt-1.5 flex items-center gap-1">
+                <AlertCircle size={12} /> Cette note nécessite une justification
+              </p>
+            )}
           </div>
         </>
       )}
@@ -315,6 +449,8 @@ function Toast({ manque, onClose }) {
 
   const msg = manque.includes('nombre_present')
     ? 'Indiquez le nombre de présents'
+    : manque.includes('remarques')
+    ? 'Veuillez justifier cette note critique'
     : manque.includes('appreciation') && manque.includes('note')
     ? 'Choisissez une appréciation et une note'
     : manque.includes('appreciation')
@@ -334,42 +470,109 @@ function Toast({ manque, onClose }) {
 // ─── Dots stepper ─────────────────────────────────────────────────────────────
 
 function DotsStep({ etape }) {
-  const steps = ['Identification', 'Évaluation', 'Finalisation']
+  const steps = ['Ident.', 'Programme', 'Évaluation', 'Finalisation']
   return (
-    <div className="flex items-center justify-center gap-2 py-2">
+    <div className="flex items-center justify-center gap-1 py-2">
       {steps.map((s, i) => {
         const n = i + 1
         const done = n < etape
         const actif = n === etape
         return (
-          <div key={s} className="flex items-center gap-2">
-            <div className="flex flex-col items-center gap-1">
+          <div key={s} className="flex items-center gap-1">
+            <div className="flex flex-col items-center gap-0.5">
               <div
                 className="rounded-full transition-all duration-300 flex items-center justify-center"
                 style={{
-                  width: actif ? 32 : 24,
-                  height: actif ? 32 : 24,
+                  width: actif ? 28 : 20,
+                  height: actif ? 28 : 20,
                   background: done ? '#16824E' : actif ? '#014421' : '#E5E7EB',
                 }}
               >
                 {done ? (
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={3}>
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={3}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                   </svg>
                 ) : (
-                  <span className="text-xs font-bold" style={{ color: actif ? 'white' : '#9CA3AF' }}>{n}</span>
+                  <span className="text-[9px] font-bold" style={{ color: actif ? 'white' : '#9CA3AF' }}>{n}</span>
                 )}
               </div>
-              <span className="text-[10px] font-semibold" style={{ color: done ? '#16824E' : actif ? '#014421' : '#9CA3AF' }}>
+              <span className="text-[8px] font-semibold" style={{ color: done ? '#16824E' : actif ? '#014421' : '#9CA3AF' }}>
                 {s}
               </span>
             </div>
             {i < steps.length - 1 && (
-              <div className="w-8 h-0.5 rounded mb-4" style={{ background: done ? '#16824E' : '#E5E7EB' }} />
+              <div className="w-5 h-0.5 rounded mb-3" style={{ background: done ? '#16824E' : '#E5E7EB' }} />
             )}
           </div>
         )
       })}
+    </div>
+  )
+}
+
+// ─── Programme Item Row ────────────────────────────────────────────────────────
+
+function ProgrammeRow({ item, index, onChange, onRemove, onMoveUp, onMoveDown, isFirst, isLast, onDragStart, onDragOver, onDrop, isDragging }) {
+  return (
+    <div
+      className="bg-white rounded-xl border border-gris-200 p-3 space-y-2 transition-all"
+      draggable
+      onDragStart={onDragStart}
+      onDragOver={onDragOver}
+      onDrop={onDrop}
+      onDragEnd={() => {}}
+      style={{
+        opacity: isDragging ? 0.5 : 1,
+        cursor: 'grab',
+        borderColor: isDragging ? '#16824E' : '#E5E7EB',
+      }}
+    >
+      <div className="flex items-center gap-2">
+        {/* Drag Handle */}
+        <div className="flex flex-col gap-0.5 items-center flex-shrink-0">
+          <GripVertical size={16} className="text-gris-400 cursor-grab active:cursor-grabbing" />
+        </div>
+
+        <span className="text-[10px] font-mono text-gris-400 w-4">#{index + 1}</span>
+        
+        <div className="flex-1 min-w-0 grid grid-cols-2 gap-2">
+          <div>
+            <p className="text-[9px] font-semibold text-gris-400 uppercase">Khassida</p>
+            <input
+              value={item.nom}
+              onChange={e => onChange({ ...item, nom: e.target.value })}
+              placeholder="Nom du khassida"
+              className="w-full text-sm font-semibold text-gris-800 bg-transparent border-0 border-b border-gris-200 pb-0.5 focus:border-vert-700 focus:outline-none placeholder:text-gris-300"
+            />
+          </div>
+          <div>
+            <p className="text-[9px] font-semibold text-gris-400 uppercase">Mélodie</p>
+            <input
+              value={item.melodie}
+              onChange={e => onChange({ ...item, melodie: e.target.value })}
+              placeholder="Mélodie"
+              className="w-full text-sm font-semibold text-gris-800 bg-transparent border-0 border-b border-gris-200 pb-0.5 focus:border-vert-700 focus:outline-none placeholder:text-gris-300"
+            />
+          </div>
+        </div>
+
+        {/* Up/Down buttons as fallback */}
+        <div className="flex flex-col gap-0.5">
+          <button type="button" onClick={onMoveUp} disabled={isFirst}
+            className="w-5 h-4 flex items-center justify-center text-gris-400 hover:text-gris-700 disabled:opacity-20 transition-colors">
+            <svg width="10" height="6" viewBox="0 0 10 6" fill="none"><path d="M1 5L5 1L9 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
+          </button>
+          <button type="button" onClick={onMoveDown} disabled={isLast}
+            className="w-5 h-4 flex items-center justify-center text-gris-400 hover:text-gris-700 disabled:opacity-20 transition-colors">
+            <svg width="10" height="6" viewBox="0 0 10 6" fill="none"><path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
+          </button>
+        </div>
+
+        <button type="button" onClick={onRemove}
+          className="w-7 h-7 rounded-full flex items-center justify-center text-gris-400 hover:text-rouge hover:bg-rouge/5 transition-colors flex-shrink-0">
+          <X size={14} />
+        </button>
+      </div>
     </div>
   )
 }
@@ -386,6 +589,7 @@ export default function EvaluationMembre() {
   const [sectionIdx, setSectionIdx] = useState(0)
   const [criteres, setCriteres] = useState([])
   const [evaluationId, setEvaluationId] = useState(null)
+  const [kourelProgramme, setKourelProgramme] = useState([]) // preloaded from DB
 
   const SECTIONS = criteres.map((c, i) => ({
     id: c.id,
@@ -396,9 +600,24 @@ export default function EvaluationMembre() {
     critereId: c.id,
   }))
 
+  const sectionMelodieId = SECTIONS.find(s =>
+    s.label.toLowerCase().includes('mélodie') || s.label.toLowerCase().includes('melodie')
+  )?.id
+  const sectionHouroufId = SECTIONS.find(s =>
+    s.label.toLowerCase().includes('hourouf')
+  )?.id
+  const sectionGeneraleId = SECTIONS.find(s =>
+    s.label.toLowerCase().includes('générale') || s.label.toLowerCase().includes('generale')
+  )?.id
+  const sectionPresenceId = SECTIONS.find(s =>
+    s.label.toLowerCase().includes('présence') || s.label.toLowerCase().includes('presence')
+  )?.id
+
+  const isPerKhassidaSection = (sectionId) => sectionId === sectionMelodieId || sectionId === sectionHouroufId
+
   const [evalData, setEvalData] = useState(() => {
     const notes = {}
-    return { notes, note_finale: null, commentaire: '', soumis: false }
+    return { notes, programme: [], programmeNotes: {}, note_finale: null, commentaire: '', soumis: false }
   })
 
   const [saving, setSaving] = useState(false)
@@ -407,6 +626,10 @@ export default function EvaluationMembre() {
   const [popup, setPopup] = useState(null)
   const [codeError, setCodeError] = useState(false)
   const [loadError, setLoadError] = useState(null)
+  
+  // Drag-and-drop state
+  const [draggedIndex, setDraggedIndex] = useState(null)
+  const [, setDragOverIndex] = useState(null)
 
   useEffect(() => {
     if (!codeParam) { navigate('/', { replace: true }); return }
@@ -430,7 +653,6 @@ export default function EvaluationMembre() {
   useEffect(() => {
     if (!codeParam || criteres.length === 0) return
     const cUpper = codeParam.toUpperCase().trim()
-    console.log('[EVAL] 3. validerCodeAcces start, code=', cUpper)
 
     const timeout = new Promise((_, reject) =>
       setTimeout(() => reject(new Error('timeout')), 10000)
@@ -438,7 +660,6 @@ export default function EvaluationMembre() {
 
     Promise.race([validerCodeAcces(cUpper), timeout])
       .then(data => {
-        console.log('[EVAL] 4. validerCodeAcces result=', data)
         if (data) {
           setCodeValide(data)
           setEtape(1)
@@ -447,7 +668,7 @@ export default function EvaluationMembre() {
         }
       })
       .catch(err => {
-        console.error('[EVAL] 4. validerCodeAcces ERROR', err)
+        console.error('[EVAL] validerCodeAcces ERROR', err)
         if (err?.message === 'timeout') {
           setLoadError('Timeout : la vérification du code prend trop de temps.')
         } else {
@@ -462,6 +683,13 @@ export default function EvaluationMembre() {
     SECTIONS.forEach(s => { notes[s.id] = sectionVide() })
     setEvalData(prev => ({ ...prev, notes }))
 
+    const kourelId = codeValide.evenement_kourel?.kourel?.id
+    if (kourelId) {
+      fetchProgramme(kourelId).then(prog => {
+        setKourelProgramme(prog || [])
+      }).catch(() => {})
+    }
+
     getOrCreateEvaluation(codeValide.evenement_kourel.evenement.id, codeValide.membre.id)
       .then(ev => {
         setEvaluationId(ev.id)
@@ -469,16 +697,30 @@ export default function EvaluationMembre() {
         const eventClosed = codeValide.evenement_kourel?.evenement?.statut === 'terminé'
         const ro = alreadySubmitted || eventClosed
         setReadOnly(ro)
-        if (ro) setEtape(3)
+        if (ro) setEtape(4)
         if (ev.notes?.length) {
           const loaded = {}
           SECTIONS.forEach(s => {
             const found = ev.notes.find(n => n.critere_id === s.critereId)
             loaded[s.id] = found
-              ? { appreciation: found.appreciation || '', note: found.note, remarques: found.remarques || '', nombre_present: found.nombre_present }
+              ? { appreciation: found.appreciation || '', note: found.note, remarques: found.remarques || '', nombre_present: found.nombre_present, nombre_retards: found.nombre_retards ?? 0 }
               : sectionVide()
           })
           setEvalData(prev => ({ ...prev, notes: loaded, commentaire: ev.commentaire || '' }))
+        }
+        if (ev.programme?.length) {
+          const prog = ev.programme.map(p => ({ ...p, tempId: p.id }))
+          const pn = {}
+          prog.forEach(p => {
+            const pNotes = {}
+            if (p.notes?.length) {
+              p.notes.forEach(n => {
+                pNotes[n.critere_id] = { note: n.note, appreciation: n.appreciation || '', remarques: n.remarques || '' }
+              })
+            }
+            pn[p.tempId] = pNotes
+          })
+          setEvalData(prev => ({ ...prev, programme: prog, programmeNotes: pn }))
         }
       })
       .catch(console.error)
@@ -487,9 +729,9 @@ export default function EvaluationMembre() {
   const updateSection = (sectionId, changes) => {
     setEvalData(prev => {
       const updated = { ...(prev.notes[sectionId] || sectionVide()), ...changes }
-      if (changes.nombre_present !== undefined) {
+      if (changes.nombre_present !== undefined || changes.nombre_retards !== undefined) {
         const effectif = codeValide?.evenement_kourel?.kourel?.effectif_actif || 0
-        const auto = calcPresence(changes.nombre_present, effectif)
+        const auto = calcPresence(changes.nombre_present ?? updated.nombre_present, changes.nombre_retards ?? updated.nombre_retards, effectif)
         updated.appreciation = auto.appreciation
         updated.note = auto.note
       }
@@ -500,9 +742,18 @@ export default function EvaluationMembre() {
     })
   }
 
-  const sectionGeneraleId = SECTIONS.find(s =>
-    s.label.toLowerCase().includes('générale') || s.label.toLowerCase().includes('generale')
-  )?.id
+  const updateProgrammeNote = (itemId, critereId, changes) => {
+    setEvalData(prev => {
+      const itemNotes = { ...(prev.programmeNotes[itemId]?.[critereId] || {}), ...changes }
+      return {
+        ...prev,
+        programmeNotes: {
+          ...prev.programmeNotes,
+          [itemId]: { ...(prev.programmeNotes[itemId] || {}), [critereId]: itemNotes },
+        },
+      }
+    })
+  }
 
   const getMoyenne = () => {
     const vals = SECTIONS.map(s => evalData.notes[s.id]?.note).filter(v => v != null)
@@ -510,26 +761,36 @@ export default function EvaluationMembre() {
     return (vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(1)
   }
 
-  const getMoyenneSansGenerale = () => {
-    const vals = SECTIONS
-      .filter(s => s.id !== sectionGeneraleId)
-      .map(s => evalData.notes[s.id]?.note)
-      .filter(v => v != null)
+  const getPerKhassidaMoyenne = (sectionId) => {
+    const items = evalData.programme
+    if (!items.length) return null
+    const vals = items.map(item => evalData.programmeNotes?.[item.tempId || item.id]?.[sectionId]?.note).filter(v => v != null)
     if (!vals.length) return null
     return parseFloat((vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(2))
   }
 
-  const sectionPresenceId = SECTIONS.find(s =>
-    s.label.toLowerCase().includes('présence') || s.label.toLowerCase().includes('presence')
-  )?.id
+  const hasExtremeNote = (id) => {
+    const n = evalData.notes[id]?.note
+    return n != null && (n <= 5 || n >= 9) && !evalData.notes[id]?.remarques?.trim()
+  }
 
   const sectionComplete = (id) => {
     if (id === sectionGeneraleId) return true
     if (id === sectionPresenceId) {
       return evalData.notes[id]?.nombre_present != null
     }
+    if (isPerKhassidaSection(id)) {
+      const items = evalData.programme
+      if (!items.length) return false
+      return items.every(item => {
+        const n = evalData.programmeNotes?.[item.tempId || item.id]?.[id]?.note
+        return n != null
+      })
+    }
     const n = evalData.notes[id]
-    return n?.appreciation && n.note != null
+    if (!n?.appreciation || n.note == null) return false
+    if (n.note != null && (n.note <= 5 || n.note >= 9) && !n.remarques?.trim()) return false
+    return true
   }
 
   const sectionsCompletes = SECTIONS.filter(s => sectionComplete(s.id)).length
@@ -544,10 +805,24 @@ export default function EvaluationMembre() {
       }
       cible(); return
     }
+    if (isPerKhassidaSection(section.id)) {
+      const items = evalData.programme
+      if (!items.length) { setPopup({ sectionLabel: section.label, manque: ['programme'] }); return }
+      const missing = items.filter(item => {
+        const n = evalData.programmeNotes?.[item.tempId || item.id]?.[section.id]?.note
+        return n == null
+      })
+      if (missing.length > 0) {
+        setPopup({ sectionLabel: section.label, manque: ['appreciation'] })
+        return
+      }
+      cible(); return
+    }
     const n = evalData.notes[section.id]
     const manque = []
     if (!n?.appreciation) manque.push('appreciation')
     if (n?.note == null) manque.push('note')
+    else if (hasExtremeNote(section.id)) manque.push('remarques')
     if (manque.length > 0) {
       setPopup({ sectionLabel: section.label, manque })
       return
@@ -555,32 +830,44 @@ export default function EvaluationMembre() {
     cible()
   }
 
-  const allerEtape3 = () => {
+  const allerEtape4 = () => {
     if (sectionGeneraleId) {
-      const moy = getMoyenneSansGenerale()
+      const melAvg = sectionMelodieId ? getPerKhassidaMoyenne(sectionMelodieId) : null
+      const houAvg = sectionHouroufId ? getPerKhassidaMoyenne(sectionHouroufId) : null
+      const perKhassidaAvg = [melAvg, houAvg].filter(v => v != null)
+      const normalNotes = SECTIONS
+        .filter(s => s.id !== sectionGeneraleId && !isPerKhassidaSection(s.id))
+        .map(s => evalData.notes[s.id]?.note)
+        .filter(v => v != null)
+      const allVals = [...normalNotes, ...perKhassidaAvg]
+      const moy = allVals.length ? parseFloat((allVals.reduce((a, b) => a + b, 0) / allVals.length).toFixed(2)) : null
       if (moy != null) updateSection(sectionGeneraleId, { note: moy, appreciation: getAppreciationFromNote(moy) })
     }
-    setEtape(3)
+    setEtape(4)
   }
 
   const validerEtFinaliser = () => {
     const premiere = SECTIONS.find(s => s.id !== sectionGeneraleId && !sectionComplete(s.id))
     if (premiere) {
       const n = evalData.notes[premiere.id]
-      const manque = premiere.id === sectionPresenceId
-        ? (n?.nombre_present == null ? ['nombre_present'] : [])
-        : []
-      if (manque.length === 0) {
+      let manque = []
+      if (premiere.id === sectionPresenceId) {
+        manque = n?.nombre_present == null ? ['nombre_present'] : []
+      } else if (isPerKhassidaSection(premiere.id)) {
+        manque = evalData.programme.length === 0 ? ['programme'] : ['appreciation']
+      } else {
         if (!n?.appreciation) manque.push('appreciation')
         if (n?.note == null) manque.push('note')
+        else if (hasExtremeNote(premiere.id)) manque.push('remarques')
       }
       if (manque.length > 0) {
         setSectionIdx(SECTIONS.indexOf(premiere))
+        setEtape(3)
         setPopup({ sectionLabel: premiere.label, manque })
         return
       }
     }
-    allerEtape3()
+    allerEtape4()
   }
 
   const soumettre = async () => {
@@ -589,8 +876,25 @@ export default function EvaluationMembre() {
     try {
       for (const section of SECTIONS) {
         const d = evalData.notes[section.id]
-        if (d?.appreciation || d?.note != null || d?.remarques || d?.nombre_present != null) {
-          await saveEvaluationNote(evaluationId, section.critereId, d.appreciation, d.note, d.remarques, d.nombre_present)
+        if (d?.appreciation || d?.note != null || d?.remarques || d?.nombre_present != null || d?.nombre_retards) {
+          await saveEvaluationNote(evaluationId, section.critereId, d.appreciation, d.note, d.remarques, d.nombre_present, d.nombre_retards)
+        }
+      }
+      if (evalData.programme.length > 0) {
+        const progData = evalData.programme.map(item => ({ nom: item.nom, melodie: item.melodie }))
+        const savedProgramme = await saveEvaluationProgramme(evaluationId, progData)
+        for (const item of evalData.programme) {
+          const savedItem = savedProgramme.find((_, idx) => idx === evalData.programme.indexOf(item))
+          if (!savedItem) continue
+          const notes = evalData.programmeNotes[item.tempId || item.id]
+          if (notes) {
+            for (const [critereIdStr, n] of Object.entries(notes)) {
+              const critereId = Number(critereIdStr)
+              if (n?.note != null || n?.appreciation) {
+                await saveEvaluationProgrammeNote(savedItem.id, critereId, n.appreciation, n.note, n.remarques)
+              }
+            }
+          }
         }
       }
       await soumettreEvaluation(evaluationId, evalData.commentaire)
@@ -802,7 +1106,7 @@ export default function EvaluationMembre() {
                     Vous devez évaluer : <span className="font-semibold text-gris-700">{SECTIONS.map(s => s.label).join(', ')}</span>.
                   </p>
                   <p className="text-xs text-gris-400 mt-1">
-                    Pour chaque section, choisissez une appréciation et une note sur 10 (les remarques sont facultatives).
+                    D'abord, définissez le programme de prestation du kourel, puis évaluez chaque section.
                   </p>
                 </div>
               </div>
@@ -824,7 +1128,156 @@ export default function EvaluationMembre() {
           </div>
         )}
 
-        {etape === 2 && SECTIONS.length > 0 && (
+        {etape === 2 && (
+          <div className="px-4 py-5 space-y-4">
+            <div className="bg-white rounded-2xl p-4 shadow-sm">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: '#EFF6FF' }}>
+                  <ListOrdered size={18} style={{ color: '#3B82F6' }} />
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-gris-950">Programme de prestation</p>
+                  <p className="text-xs text-gris-500">Listez les khassidas présentés, dans l'ordre de passage</p>
+                </div>
+              </div>
+
+              {evalData.programme.length === 0 && (
+                <div className="text-center py-6 border-2 border-dashed border-gris-200 rounded-xl">
+                  <Music size={24} className="mx-auto mb-2 text-gris-300" />
+                  <p className="text-xs text-gris-400">Aucun khassida ajouté</p>
+                  <p className="text-[10px] text-gris-300 mt-1">Ajoutez depuis le programme ci-dessous ou saisissez manuellement</p>
+                </div>
+              )}
+
+              {evalData.programme.length > 0 && (
+                <div className="space-y-2 mb-4">
+                  {evalData.programme.map((item, idx) => (
+                    <ProgrammeRow
+                      key={item.tempId}
+                      item={item}
+                      index={idx}
+                      isDragging={draggedIndex === idx}
+                      onChange={(newItem) => {
+                        setEvalData(prev => {
+                          const prog = [...prev.programme]
+                          prog[idx] = newItem
+                          return { ...prev, programme: prog }
+                        })
+                      }}
+                      onRemove={() => {
+                        setEvalData(prev => ({
+                          ...prev,
+                          programme: prev.programme.filter((_, i) => i !== idx),
+                        }))
+                      }}
+                      onMoveUp={() => {
+                        if (idx === 0) return
+                        setEvalData(prev => {
+                          const prog = [...prev.programme]
+                          ;[prog[idx - 1], prog[idx]] = [prog[idx], prog[idx - 1]]
+                          return { ...prev, programme: prog }
+                        })
+                      }}
+                      onMoveDown={() => {
+                        if (idx >= evalData.programme.length - 1) return
+                        setEvalData(prev => {
+                          const prog = [...prev.programme]
+                          ;[prog[idx], prog[idx + 1]] = [prog[idx + 1], prog[idx]]
+                          return { ...prev, programme: prog }
+                        })
+                      }}
+                      isFirst={idx === 0}
+                      isLast={idx === evalData.programme.length - 1}
+                      onDragStart={(e) => {
+                        setDraggedIndex(idx)
+                        e.dataTransfer.effectAllowed = 'move'
+                      }}
+                      onDragOver={(e) => {
+                        e.preventDefault()
+                        e.dataTransfer.dropEffect = 'move'
+                        setDragOverIndex(idx)
+                      }}
+                      onDrop={(e) => {
+                        e.preventDefault()
+                        e.stopPropagation()
+                        if (draggedIndex === null || draggedIndex === idx) {
+                          setDraggedIndex(null)
+                          setDragOverIndex(null)
+                          return
+                        }
+                        setEvalData(prev => {
+                          const prog = [...prev.programme]
+                          const draggedItem = prog[draggedIndex]
+                          prog.splice(draggedIndex, 1)
+                          prog.splice(idx, 0, draggedItem)
+                          return { ...prev, programme: prog }
+                        })
+                        setDraggedIndex(null)
+                        setDragOverIndex(null)
+                      }}
+                    />
+                  ))}
+                </div>
+              )}
+
+              <div className="bg-gris-50 rounded-xl p-3">
+                <p className="text-[10px] font-semibold text-gris-500 uppercase tracking-wider mb-2">
+                  Ajouter depuis le programme du kourel
+                </p>
+                <div className="flex flex-wrap gap-1.5 mb-3">
+                  {kourelProgramme.filter(kp => !evalData.programme.some(p => p.nom === kp.nom)).map(kp => (
+                    <button key={kp.id} type="button"
+                      onClick={() => {
+                        setEvalData(prev => ({
+                          ...prev,
+                          programme: [...prev.programme, { tempId: Date.now() + Math.random(), nom: kp.nom, melodie: kp.melodie || '', ordre: prev.programme.length }],
+                        }))
+                      }}
+                      className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-vert-200 bg-white text-xs font-semibold text-vert-700 hover:bg-vert-50 transition-colors"
+                    >
+                      <Plus size={11} /> {kp.nom}
+                    </button>
+                  ))}
+                  {kourelProgramme.filter(kp => !evalData.programme.some(p => p.nom === kp.nom)).length === 0 && (
+                    <p className="text-[10px] text-gris-400 italic">Tous les khassidas du programme sont déjà ajoutés</p>
+                  )}
+                </div>
+              </div>
+
+              <div className="mt-3 flex items-center gap-2">
+                <input
+                  placeholder="Khassida libre…"
+                  className="flex-1 text-sm px-3 py-2 border border-gris-200 rounded-lg focus:border-vert-700 focus:outline-none"
+                  value={evalData._newProgrammeNom || ''}
+                  onChange={e => setEvalData(prev => ({ ...prev, _newProgrammeNom: e.target.value }))}
+                />
+                <input
+                  placeholder="Mélodie"
+                  className="flex-1 text-sm px-3 py-2 border border-gris-200 rounded-lg focus:border-vert-700 focus:outline-none"
+                  value={evalData._newProgrammeMelodie || ''}
+                  onChange={e => setEvalData(prev => ({ ...prev, _newProgrammeMelodie: e.target.value }))}
+                />
+                <button type="button"
+                  onClick={() => {
+                    const nom = (evalData._newProgrammeNom || '').trim()
+                    if (!nom) return
+                    setEvalData(prev => ({
+                      ...prev,
+                      programme: [...prev.programme, { tempId: Date.now() + Math.random(), nom, melodie: prev._newProgrammeMelodie?.trim() || '', ordre: prev.programme.length }],
+                      _newProgrammeNom: '',
+                      _newProgrammeMelodie: '',
+                    }))
+                  }}
+                  className="w-10 h-10 rounded-xl bg-vert-700 text-white flex items-center justify-center hover:bg-vert-800 transition-colors active:scale-95 flex-shrink-0"
+                >
+                  <Plus size={16} />
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {etape === 3 && SECTIONS.length > 0 && (
           <div className="px-4 py-5">
             {readOnly && (
               <div className="mb-4 flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
@@ -866,12 +1319,31 @@ export default function EvaluationMembre() {
             {(() => {
               const sec = SECTIONS[sectionIdx]
               const isGenerale = sec.id === sectionGeneraleId
-              const moyAuto = isGenerale ? getMoyenneSansGenerale() : null
-              if (isGenerale && moyAuto != null) {
+              const isPerKhassida = isPerKhassidaSection(sec.id)
+              const progMoy = isPerKhassida ? getPerKhassidaMoyenne(sec.critereId) : null
+
+              let moyAuto = null
+              if (isGenerale) {
+                const melAvg = sectionMelodieId ? getPerKhassidaMoyenne(sectionMelodieId) : null
+                const houAvg = sectionHouroufId ? getPerKhassidaMoyenne(sectionHouroufId) : null
+                const perKhassidaAvg = [melAvg, houAvg].filter(v => v != null)
+                const normalNotes = SECTIONS
+                  .filter(s => s.id !== sectionGeneraleId && !isPerKhassidaSection(s.id))
+                  .map(s => evalData.notes[s.id]?.note)
+                  .filter(v => v != null)
+                const allVals = [...normalNotes, ...perKhassidaAvg]
+                moyAuto = allVals.length ? parseFloat((allVals.reduce((a, b) => a + b, 0) / allVals.length).toFixed(2)) : null
                 const appr = getAppreciationFromNote(moyAuto)
                 const cur = evalData.notes[sec.id]
-                if (cur?.note !== moyAuto) updateSection(sec.id, { note: moyAuto, appreciation: appr })
+                if (moyAuto != null && cur?.note !== moyAuto) updateSection(sec.id, { note: moyAuto, appreciation: appr })
               }
+
+              if (isPerKhassida && progMoy != null) {
+                const appr = getAppreciationFromNote(progMoy)
+                const cur = evalData.notes[sec.id]
+                if (cur?.note !== progMoy) updateSection(sec.id, { note: progMoy, appreciation: appr })
+              }
+
               return (
                 <SectionCard
                   section={sec}
@@ -881,23 +1353,29 @@ export default function EvaluationMembre() {
                   total={SECTIONS.length}
                   readOnly={readOnly}
                   isGenerale={isGenerale}
-                  moyenneAuto={moyAuto}
+                  moyenneAuto={isPerKhassida ? progMoy : isGenerale ? moyAuto : null}
                   isPresence={sec.id === sectionPresenceId}
                   presenceEffectif={codeValide?.evenement_kourel?.kourel?.effectif_actif ?? 0}
+                  isPerKhassida={isPerKhassida}
+                  programme={evalData.programme}
+                  programmeNotes={evalData.programmeNotes}
+                  onProgrammeNoteChange={(itemId, changes) => {
+                    updateProgrammeNote(itemId, sec.critereId, changes)
+                  }}
                 />
               )
             })()}
 
             <div className="flex gap-3 mt-6">
               <button
-                onClick={() => sectionIdx === 0 ? setEtape(1) : setSectionIdx(i => i - 1)}
+                onClick={() => sectionIdx === 0 ? setEtape(2) : setSectionIdx(i => i - 1)}
                 className="flex-1 h-12 rounded-2xl border-2 border-gris-200 flex items-center justify-center gap-2 text-sm font-bold text-gris-700 transition-all active:scale-95"
               >
                 <ArrowLeft size={16} /> Préc.
               </button>
               {readOnly ? (
                 <button
-                  onClick={allerEtape3}
+                  onClick={allerEtape4}
                   className="flex-1 h-12 rounded-2xl flex items-center justify-center gap-2 text-sm font-bold text-white transition-all active:scale-95"
                   style={{ background: '#6B7280' }}
                 >
@@ -907,7 +1385,7 @@ export default function EvaluationMembre() {
                 <button
                   onClick={() => validerEtAvancer(() => {
                     const next = SECTIONS[sectionIdx + 1]
-                    if (next?.id === sectionGeneraleId) allerEtape3()
+                    if (next?.id === sectionGeneraleId) allerEtape4()
                     else setSectionIdx(i => i + 1)
                   })}
                   className="flex-1 h-12 rounded-2xl flex items-center justify-center gap-2 text-sm font-bold text-white transition-all active:scale-95"
@@ -928,14 +1406,32 @@ export default function EvaluationMembre() {
           </div>
         )}
 
-        {etape === 3 && (
+        {etape === 4 && (
           <div className="px-4 py-5 space-y-4">
             <div className="bg-white rounded-2xl p-5 shadow-sm">
               <p className="text-xs font-bold text-gris-400 uppercase tracking-widest mb-4">Récapitulatif</p>
+
+              {evalData.programme.length > 0 && (
+                <div className="mb-4 pb-3 border-b border-gris-100">
+                  <p className="text-[10px] font-bold text-gris-500 uppercase tracking-wider mb-2">Programme ({evalData.programme.length} khassidas)</p>
+                  <div className="space-y-1">
+                    {evalData.programme.map((item, idx) => (
+                      <div key={item.tempId || item.id} className="flex items-center gap-2 text-xs">
+                        <span className="text-gris-400 font-mono">#{idx + 1}</span>
+                        <span className="font-semibold text-gris-700">{item.nom}</span>
+                        {item.melodie && <span className="text-gris-500">— {item.melodie}</span>}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <div className="space-y-3">
                 {SECTIONS.map(s => {
                   const n = evalData.notes[s.id] || sectionVide()
                   const Icon = s.icon
+                  const isPerKhassida = isPerKhassidaSection(s.id)
+                  const progMoy = isPerKhassida ? getPerKhassidaMoyenne(s.critereId) : null
                   return (
                     <div key={s.id} className="flex items-center gap-3 py-2 border-b border-gris-50 last:border-0">
                       <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
@@ -945,7 +1441,14 @@ export default function EvaluationMembre() {
                       <div className="flex-1 min-w-0">
                         <p className="text-xs font-semibold text-gris-700 truncate">{s.label}</p>
                         {s.id === sectionPresenceId && n.nombre_present != null ? (
-                          <p className="text-[11px] text-gris-500">{n.nombre_present} présent(s) — {n.appreciation}</p>
+                          <p className="text-[11px] text-gris-500">
+                            {n.nombre_present} présent(s)
+                            {n.nombre_retards > 0 ? `, ${n.nombre_retards} retard(s)` : ''}
+                            , {Math.max(0, (codeValide?.evenement_kourel?.kourel?.effectif_actif || 0) - n.nombre_present)} absent(s)
+                            {n.appreciation ? ` — ${n.appreciation}` : ''}
+                          </p>
+                        ) : isPerKhassida && progMoy != null ? (
+                          <p className="text-[11px] text-gris-500">Moy. {progMoy}/10 — {getAppreciationFromNote(progMoy)}</p>
                         ) : n.appreciation ? (
                           <p className="text-[11px] text-gris-500">{n.appreciation}</p>
                         ) : null}
@@ -953,6 +1456,8 @@ export default function EvaluationMembre() {
                       <div className="flex-shrink-0">
                         {n.note != null ? (
                           <span className="text-sm font-black text-vert-700">{n.note}/10</span>
+                        ) : isPerKhassida && progMoy != null ? (
+                          <span className="text-sm font-black text-vert-700">{progMoy}/10</span>
                         ) : (
                           <span className="text-xs text-gris-400">—</span>
                         )}
@@ -1031,14 +1536,70 @@ export default function EvaluationMembre() {
             className="w-full h-13 py-3.5 rounded-2xl font-bold text-white flex items-center justify-center gap-2 text-sm transition-all active:scale-95 disabled:opacity-40"
             style={{ background: '#016030' }}
           >
-            Commencer l'évaluation <ChevronRight size={16} />
+            Définir le programme <ChevronRight size={16} />
           </button>
+        )}
+
+        {etape === 2 && !readOnly && (
+          <div className="flex gap-3">
+            <button
+              onClick={() => setEtape(1)}
+              className="flex-none h-13 py-3.5 px-5 rounded-2xl font-bold text-gris-700 border-2 border-gris-200 flex items-center justify-center gap-1 text-sm transition-all active:scale-95"
+            >
+              <ChevronLeft size={16} />
+            </button>
+            <button
+              onClick={() => {
+                if (evalData.programme.length === 0) {
+                  setPopup({ manque: ['programme'] })
+                  return
+                }
+                setEtape(3)
+              }}
+              className="flex-1 h-13 py-3.5 rounded-2xl font-bold text-white flex items-center justify-center gap-2 text-sm transition-all active:scale-95"
+              style={{ background: '#016030' }}
+            >
+              Commencer l'évaluation <ChevronRight size={16} />
+            </button>
+          </div>
         )}
 
         {etape === 3 && !readOnly && (
           <div className="flex gap-3">
             <button
-              onClick={() => setEtape(2)}
+              onClick={() => sectionIdx === 0 ? setEtape(2) : setSectionIdx(i => i - 1)}
+              className="flex-none h-13 py-3.5 px-5 rounded-2xl font-bold text-gris-700 border-2 border-gris-200 flex items-center justify-center gap-1 text-sm transition-all active:scale-95"
+            >
+              <ChevronLeft size={16} />
+            </button>
+            {sectionIdx < SECTIONS.length - 1 ? (
+              <button
+                onClick={() => validerEtAvancer(() => {
+                  const next = SECTIONS[sectionIdx + 1]
+                  if (next?.id === sectionGeneraleId) allerEtape4()
+                  else setSectionIdx(i => i + 1)
+                })}
+                className="flex-1 h-13 py-3.5 rounded-2xl font-bold text-white flex items-center justify-center gap-2 text-sm transition-all active:scale-95"
+                style={{ background: '#016030' }}
+              >
+                Suivant <ArrowRight size={16} />
+              </button>
+            ) : (
+              <button
+                onClick={validerEtFinaliser}
+                className="flex-1 h-13 py-3.5 rounded-2xl font-bold text-white flex items-center justify-center gap-2 text-sm transition-all active:scale-95"
+                style={{ background: '#016030' }}
+              >
+                Finaliser <ChevronRight size={16} />
+              </button>
+            )}
+          </div>
+        )}
+
+        {etape === 4 && !readOnly && (
+          <div className="flex gap-3">
+            <button
+              onClick={() => { setEtape(3); setSectionIdx(0) }}
               className="flex-none h-13 py-3.5 px-5 rounded-2xl font-bold text-gris-700 border-2 border-gris-200 flex items-center justify-center gap-1 text-sm transition-all active:scale-95"
             >
               <ChevronLeft size={16} />
@@ -1051,7 +1612,7 @@ export default function EvaluationMembre() {
           </div>
         )}
 
-        {etape === 3 && readOnly && (
+        {etape === 4 && readOnly && (
           <a href="/"
             className="flex items-center justify-center gap-2 w-full h-13 py-3.5 rounded-2xl font-bold text-white text-sm transition-all"
             style={{ background: '#6B7280' }}

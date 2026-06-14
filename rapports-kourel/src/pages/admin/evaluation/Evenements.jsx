@@ -151,31 +151,58 @@ function EvaluateurDetail({ evaluateur, note, code, onCopyCode }) {
 
       {open && effectiveNote && (
         <div className="px-4 pb-4 border-t border-gris-100 pt-3 space-y-3">
-          {SECTIONS.map(section => (
+          {(() => {
+            const programme = effectiveNote.programme || []
+            const melId = 'melodie'; const houId = 'hourouf'
+            return SECTIONS.map(section => {
+              const isPerKhassida = section.id === melId || section.id === houId
+              const sn = effectiveNote.notes?.[section.id]
+              return (
             <div key={section.id} className="bg-gris-50 rounded-lg p-3">
               <p className="text-xs font-semibold text-gris-700 mb-2">
                 {section.label}
-                {effectiveNote.notes?.[section.id]?.nombre_present != null && (
-                  <span className="ml-1.5 font-normal text-gris-400">({effectiveNote.notes[section.id].nombre_present} présent(s))</span>
+                {sn?.nombre_present != null && (
+                  <span className="ml-1.5 font-normal text-gris-400">
+                    ({sn.nombre_present} présent(s)
+                    {sn.nombre_retards > 0 ? `, ${sn.nombre_retards} retard(s)` : ''})
+                  </span>
                 )}
               </p>
+              {isPerKhassida && programme.length > 0 ? (
+                <div className="space-y-1.5">
+                  {programme.map((p, pi) => {
+                    const pn = (p.notes || []).find(n => {
+                      const critId = section.id === melId ? 1 : 2
+                      return n.critere_id === critId
+                    })
+                    return (
+                      <div key={pi} className="flex items-center justify-between bg-white rounded-lg px-3 py-1.5 border border-gris-200">
+                        <span className="text-[11px] text-gris-700 truncate">#{pi+1} {p.nom}{p.melodie ? ` — ${p.melodie}` : ''}</span>
+                        <span className="text-xs font-semibold text-gris-800 ml-2">{pn?.note != null ? `${pn.note}/10` : '—'}</span>
+                      </div>
+                    )
+                  })}
+                </div>
+              ) : (
+                <>
               <div className="grid grid-cols-3 gap-3 text-xs">
                 <div>
                   <span className="text-gris-500">Appréciation : </span>
-                  <span className="font-medium text-gris-800">{effectiveNote.notes?.[section.id]?.appreciation || '—'}</span>
+                  <span className="font-medium text-gris-800">{sn?.appreciation || '—'}</span>
                 </div>
                 <div>
                   <span className="text-gris-500">Note : </span>
-                  <span className="font-medium text-gris-800">{effectiveNote.notes?.[section.id]?.note != null ? `${effectiveNote.notes[section.id].note}/10` : '—'}</span>
+                  <span className="font-medium text-gris-800">{sn?.note != null ? `${sn.note}/10` : '—'}</span>
                 </div>
               </div>
-              {effectiveNote.notes?.[section.id]?.remarques && (
-                <p className="text-xs text-gris-600 mt-1 italic">
-                  "{effectiveNote.notes[section.id].remarques}"
-                </p>
+              {sn?.remarques && (
+                <p className="text-xs text-gris-600 mt-1 italic">"{sn.remarques}"</p>
+              )}
+              </>
               )}
             </div>
-          ))}
+            )})
+          })()}
           {effectiveNote.commentaire && (
             <div className="pt-2 border-t border-gris-200">
               <p className="text-xs font-semibold text-gris-500">Commentaire :</p>
@@ -279,6 +306,8 @@ export function EvenementsPage() {
             appreciation: n.appreciation || '',
             note: n.note,
             remarques: n.remarques || '',
+            nombre_present: n.nombre_present,
+            nombre_retards: n.nombre_retards ?? 0,
           }
         })
         const vals = Object.values(sectionNotes).filter(v => v.note != null)
@@ -415,7 +444,7 @@ export function EvenementsPage() {
   })
 
   const ouvrirAjout = () => {
-    setForm({ type_id: '', date_evenement: '', lieu: '', kourels: [] })
+    setForm({ type_id: '', date_evenement: '', lieu: '', kourels: [], statut: '' })
     setEditingId(null)
     setErrorMsg(null)
     setSheetOpen(true)
@@ -430,7 +459,7 @@ export function EvenementsPage() {
     setForm({
       type_id: String(e.type_id), date_evenement: e.date_evenement,
       lieu: String(e.lieu_id || e.lieu?.id || ''),
-      kourels,
+      kourels, statut: e.statut || 'à venir',
     })
     setEditingId(e.id)
     setErrorMsg(null)
@@ -444,9 +473,18 @@ export function EvenementsPage() {
     return codes
   }
 
-  const changerStatutEvent = (id, statut) => {
+  const [statusToast, setStatusToast] = useState(null)
+  const changerStatutEvent = async (id, statut) => {
     setData(list => list.map(e => e.id === id ? { ...e, statut } : e))
     setDetailEvent(d => d ? { ...d, statut } : d)
+    try {
+      await modifierEvenement(id, { statut })
+      setStatusToast({ ok: true, msg: `Statut changé en "${statut}"` })
+    } catch (e) {
+      console.error('Erreur changement statut:', e)
+      setStatusToast({ ok: false, msg: 'Erreur lors du changement de statut' })
+    }
+    setTimeout(() => setStatusToast(null), 3000)
   }
 
   const sauvegarder = async () => {
@@ -455,8 +493,10 @@ export function EvenementsPage() {
     try {
       const now = new Date()
       const eventDate = new Date(form.date_evenement + 'T23:59:59')
-      let statut = 'à venir'
-      if (eventDate < now) statut = 'terminé'
+      let statut = form.statut || 'à venir'
+      if (!editingId) {
+        if (eventDate < now) statut = 'terminé'
+      }
 
       let lieuId = Number(form.lieu)
       if (form.lieu === '__custom__' && form.customLieu?.trim()) {
@@ -671,6 +711,13 @@ export function EvenementsPage() {
                       </SelectContent>
                     </Select>
                   </div>
+                  {statusToast && (
+                    <div className={`mt-2 text-xs font-semibold px-3 py-1.5 rounded-lg ${
+                      statusToast.ok ? 'bg-vert-50 text-vert-700' : 'bg-rouge-bg text-rouge'
+                    }`}>
+                      {statusToast.msg}
+                    </div>
+                  )}
                 </div>
               </SheetHeader>
 
@@ -805,6 +852,26 @@ export function EvenementsPage() {
                 />
               </div>
             </div>
+
+            {editingId && (
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-gris-500 uppercase tracking-wider">Statut</Label>
+                <Select value={form.statut} onValueChange={v => setForm(f => ({ ...f, statut: v }))}>
+                  <SelectTrigger className={`h-9 text-sm ${
+                    form.statut === 'terminé' ? 'text-vert-700' :
+                    form.statut === 'en cours' ? 'text-blue-700' :
+                    'text-amber-700'
+                  }`}>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="à venir">À venir</SelectItem>
+                    <SelectItem value="en cours">En cours</SelectItem>
+                    <SelectItem value="terminé">Terminé</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
 
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold text-gris-500 uppercase tracking-wider">Lieu</Label>

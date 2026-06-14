@@ -186,7 +186,29 @@ CREATE TABLE IF NOT EXISTS evaluation_notes (
   note            DECIMAL(3,1) CHECK (note IS NULL OR (note >= 0 AND note <= 10)),
   remarques       TEXT,
   nombre_present  INTEGER,
+  nombre_retards  INTEGER DEFAULT 0,
   UNIQUE(evaluation_id, critere_id)
+);
+
+-- Programme de prestation (khassidas évalués pour un événement)
+CREATE TABLE IF NOT EXISTS evaluation_programme (
+  id              SERIAL PRIMARY KEY,
+  evaluation_id   INTEGER NOT NULL REFERENCES evaluations(id) ON DELETE CASCADE,
+  nom             TEXT NOT NULL,
+  melodie         TEXT NOT NULL DEFAULT '',
+  ordre           INTEGER DEFAULT 0,
+  created_at      TIMESTAMPTZ DEFAULT now()
+);
+
+-- Notes par khassida pour les critères (mélodie, hourouf)
+CREATE TABLE IF NOT EXISTS evaluation_programme_notes (
+  id                      SERIAL PRIMARY KEY,
+  evaluation_programme_id INTEGER NOT NULL REFERENCES evaluation_programme(id) ON DELETE CASCADE,
+  critere_id              INTEGER NOT NULL REFERENCES criteres(id) ON DELETE CASCADE,
+  appreciation            TEXT,
+  note                    DECIMAL(3,1) CHECK (note IS NULL OR (note >= 0 AND note <= 10)),
+  remarques               TEXT,
+  UNIQUE(evaluation_programme_id, critere_id)
 );
 
 -- =============================================

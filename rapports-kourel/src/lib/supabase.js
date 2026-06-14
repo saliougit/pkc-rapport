@@ -321,10 +321,31 @@ export async function getOrCreateEvaluation(evenementId, membreId) {
   return json.data
 }
 
-export async function saveEvaluationNote(evaluationId, critereId, appreciation, note, remarques, nombre_present) {
+export async function saveEvaluationNote(evaluationId, critereId, appreciation, note, remarques, nombre_present, nombre_retards) {
   const json = await api('/evaluation-notes', {
     method: 'POST',
-    body: JSON.stringify({ evaluation_id: evaluationId, critere_id: critereId, appreciation, note, remarques, nombre_present }),
+    body: JSON.stringify({ evaluation_id: evaluationId, critere_id: critereId, appreciation, note, remarques, nombre_present, nombre_retards }),
+  })
+  return json.data
+}
+
+export async function fetchEvaluationProgramme(evaluationId) {
+  const json = await api(`/evaluation-programme/${evaluationId}`)
+  return json.data
+}
+
+export async function saveEvaluationProgramme(evaluationId, items) {
+  const json = await api(`/evaluation-programme/${evaluationId}`, {
+    method: 'POST',
+    body: JSON.stringify({ items }),
+  })
+  return json.data
+}
+
+export async function saveEvaluationProgrammeNote(programmeId, critereId, appreciation, note, remarques) {
+  const json = await api('/evaluation-programme-notes', {
+    method: 'POST',
+    body: JSON.stringify({ programme_id: programmeId, critere_id: critereId, appreciation, note, remarques }),
   })
   return json.data
 }
