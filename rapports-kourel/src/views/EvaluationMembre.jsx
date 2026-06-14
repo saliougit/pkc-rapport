@@ -23,7 +23,12 @@ const SECTION_BGS    = ['#EFF6FF', '#F5F3FF', '#FFFBEB', '#FEF2F2', '#ECFDF5', '
 
 function getAppreciationFromNote(note) {
   if (note == null) return ''
-  return APPRECIATIONS.find(a => note >= a.min && note <= a.max)?.value ?? ''
+  if (note >= 9.5) return 'Excellent'
+  if (note >= 8)   return 'Très bien'
+  if (note >= 6)   return 'Bien'
+  if (note >= 4.5) return 'Passable'
+  if (note >= 2.5) return 'Médiocre'
+  return 'Mauvais'
 }
 
 function formatDate(d) {
