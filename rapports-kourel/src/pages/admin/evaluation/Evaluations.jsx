@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react'
-import { Calendar, MapPin, ChevronRight, ChevronDown, Users, CheckCircle2, Clock, AlertCircle, Save, Loader, X, Search, SlidersHorizontal, ChevronLeft, ChevronFirst, ChevronLast, RefreshCw } from 'lucide-react'
+import { Calendar, MapPin, ChevronRight, ChevronDown, Users, CheckCircle2, Clock, AlertCircle, Save, Loader, X, Search, SlidersHorizontal, ChevronLeft, ChevronFirst, ChevronLast, RefreshCw, Download } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
@@ -78,6 +78,209 @@ function getNoteFinaleAvg(notesObj) {
   const vals = Object.values(notesObj || {}).map(n => n.note_finale).filter(v => v != null)
   if (!vals.length) return null
   return (vals.reduce((a, b) => a + b, 0) / vals.length)
+}
+
+function buildRapportHTML({ event, kourel, sectionMoyennes, noteGlobale, apprGlobale, conclusion, logoSrc }) {
+  const esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  const fmtDate = (d) => {
+    const [y, m, day] = (d || '').split('-')
+    if (y && m && day) return new Date(parseInt(y), parseInt(m) - 1, parseInt(day))
+      .toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
+    return new Date(d).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
+  }
+
+  // Badge with solid colored background + white text (matching LaTeX \badge{})
+  const apprBadge = (appr) => {
+    const palette = {
+      'Excellent':  '#014421',
+      'Très bien':  '#16824E',
+      'Bien':       '#70A890',  // VertClair!80!black
+      'Passable':   '#E67E22',
+      'Médiocre':   '#C0392B',
+      'Mauvais':    '#C0392B',
+    }
+    const bg = palette[appr] || '#9CA3AF'
+    return `<span style="display:inline-block;background:${bg};color:#fff;font-size:10px;font-weight:700;padding:3px 12px;border-radius:4px;white-space:nowrap;letter-spacing:0.2px;">${esc(appr)}</span>`
+  }
+
+  // Info card matching LaTeX mini-tcolorbox style
+  const infoCard = (label, value, dark = false) =>
+    `<div style="flex:1;border:1px solid ${dark ? '#014421' : '#8CD2B4'};border-radius:5px;padding:7px 11px;background:${dark ? '#014421' : '#fff'};">
+      <div style="font-size:9px;color:${dark ? '#8CD2B4' : '#6B7280'};margin-bottom:3px;font-family:Georgia,serif;">${esc(label)}</div>
+      <div style="font-size:14px;font-weight:700;color:${dark ? '#fff' : '#014421'};font-family:Georgia,serif;">${esc(value)}</div>
+    </div>`
+
+  // tcolorbox-style box with floating title tab (attach boxed title to top left)
+  const tcBox = (title, content, borderColor = '#16824E', bgColor = '#fff') =>
+    `<div style="position:relative;margin-top:18px;">
+      <div style="position:absolute;top:-13px;left:12px;background:${borderColor};color:#fff;padding:4px 14px;border-radius:3px;font-size:11px;font-weight:700;font-family:Georgia,serif;letter-spacing:0.3px;z-index:2;">${title}</div>
+      <div style="border:2px solid ${borderColor};border-radius:7px;background:${bgColor};padding:16px 14px 14px;overflow:hidden;">
+        ${content}
+      </div>
+    </div>`
+
+  const rows = sectionMoyennes.map((s, i) => {
+    const bg = i % 2 === 0 ? '#F5F5F5' : '#fff'
+    const note = s.moy != null ? `${s.moy.toFixed(1)}/10` : '—'
+    const badge = s.appr ? apprBadge(s.appr) : `<span style="color:#D1D5DB;">—</span>`
+    return `<div style="display:flex;align-items:center;padding:12px 14px;background:${bg};border-top:1px solid #E5E7EB;">
+      <div style="flex:1;font-size:12px;font-weight:700;color:#1F2937;font-family:Georgia,serif;">${esc(s.label)}</div>
+      <div style="width:90px;font-size:13px;font-weight:800;color:#1F2937;text-align:right;font-family:Georgia,serif;display:flex;align-items:center;justify-content:flex-end;">${note}</div>
+      <div style="width:130px;display:flex;align-items:center;justify-content:flex-end;">${badge}</div>
+    </div>`
+  }).join('')
+
+  const logoHtml = logoSrc
+    ? `<img src="${logoSrc}" style="max-width:88px;max-height:88px;object-fit:contain;" />`
+    : `<div style="font-size:18px;font-weight:900;color:#014421;letter-spacing:2px;text-align:center;">DMN<br><span style="font-size:7px;color:#16824E;letter-spacing:1px;">UCAD</span></div>`
+
+  const infoContent = `
+    <div style="display:flex;gap:10px;margin-bottom:10px;">
+      ${infoCard('Événement', event.type_nom)}
+      ${infoCard('Date', fmtDate(event.date_evenement))}
+    </div>
+    <div style="display:flex;gap:10px;">
+      ${infoCard('Lieu', event.lieu_nom)}
+      ${infoCard('Kourel évalué', kourel.kourel?.nom || '—', true)}
+    </div>`
+
+  const criteriaContent = `
+    <div style="display:flex;padding:9px 14px;background:#34495E;margin:-16px -14px 0;border-radius:0;">
+      <div style="flex:1;font-size:9px;font-weight:700;color:#fff;text-transform:uppercase;letter-spacing:0.5px;font-family:Georgia,serif;">Critère</div>
+      <div style="width:90px;font-size:9px;font-weight:700;color:#fff;text-transform:uppercase;text-align:right;letter-spacing:0.5px;font-family:Georgia,serif;">Note</div>
+      <div style="width:130px;font-size:9px;font-weight:700;color:#fff;text-transform:uppercase;text-align:right;letter-spacing:0.5px;font-family:Georgia,serif;">Appréciation</div>
+    </div>
+    ${rows}`
+
+  const conclusionContent = conclusion
+    ? `<p style="font-size:12px;color:#1F2937;line-height:1.7;margin:0;white-space:pre-wrap;font-family:Georgia,serif;">${esc(conclusion)}</p>`
+    : ''
+
+  return `<div style="width:900px;padding:36px 38px;font-family:Georgia,serif;background:#fff;box-sizing:border-box;">
+
+  <!-- HEADER -->
+  <div style="display:flex;align-items:center;gap:22px;margin-bottom:14px;">
+    <div style="border:2px solid #16824E;border-radius:7px;padding:10px;flex-shrink:0;display:flex;align-items:center;justify-content:center;width:110px;height:110px;box-sizing:border-box;">
+      ${logoHtml}
+    </div>
+    <div style="flex:1;">
+      <div style="font-size:21px;font-weight:700;color:#16824E;margin-bottom:1px;letter-spacing:0.3px;">DAARA MADJMAHOUN NOREYNI</div>
+      <div style="font-size:12px;font-style:italic;color:#16824E;margin-bottom:9px;">UNIVERSITE CHEIKH ANTA DIOP DE DAKAR</div>
+      <div style="font-size:14px;font-weight:700;margin-bottom:2px;color:#1F2937;letter-spacing:0.2px;">COMISSION CONSERVATOIRE</div>
+      <div style="font-size:11.5px;color:#6B7280;margin-bottom:1px;">Pôle Kourel Centrale</div>
+      <div style="font-size:11.5px;color:#6B7280;">Comité Suivi &amp; Évaluation</div>
+    </div>
+  </div>
+
+  <!-- SEPARATOR (LaTeX triple bar) -->
+  <div style="height:5px;background:#014421;border-radius:1px;margin-bottom:2px;"></div>
+  <div style="height:3px;background:#16824E;margin-bottom:2px;"></div>
+  <div style="height:2px;background:#8CD2B4;margin-bottom:22px;"></div>
+
+  <!-- TITLE -->
+  <div style="text-align:center;margin-bottom:6px;">
+    <div style="font-size:23px;font-weight:700;color:#014421;letter-spacing:0.5px;">RAPPORT D'ÉVALUATION DE PRESTATION</div>
+    <div style="font-size:11.5px;color:#6B7280;margin-top:5px;font-style:italic;">Pôle Kourel Centrale — Commission Suivi &amp; Évaluation</div>
+  </div>
+
+  <!-- INFO BOX (tcolorbox style) -->
+  ${tcBox('Informations de la Prestation', infoContent, '#16824E', '#E8F5E9')}
+
+  <!-- NOTE GLOBALE -->
+  <div style="background:#014421;border-radius:7px;padding:18px 26px;display:flex;align-items:center;justify-content:space-between;margin-top:20px;box-shadow:4px 4px 0px rgba(0,0,0,0.28);">
+    <div>
+      <div style="font-size:13px;font-weight:700;color:#fff;margin-bottom:5px;letter-spacing:0.3px;">NOTE GLOBALE DE LA PRESTATION</div>
+      <div style="font-size:10.5px;color:#8CD2B4;font-style:italic;">Moyenne pondérée de l'ensemble des critères</div>
+    </div>
+    <div style="flex-shrink:0;text-align:center;min-width:140px;">
+      <div style="font-size:50px;font-weight:700;color:#F1C40F;line-height:1.05;font-family:Georgia,serif;display:block;">
+        ${noteGlobale || '—'}<span style="font-size:15px;color:#fff;font-weight:400;vertical-align:middle;margin-left:2px;">/10</span>
+      </div>
+      ${apprGlobale ? `<div style="display:block;font-size:13px;font-weight:700;color:#8CD2B4;margin-top:10px;">${esc(apprGlobale)}</div>` : ''}
+    </div>
+  </div>
+
+  <!-- CRITERIA TABLE (tcolorbox style) -->
+  ${tcBox('Évaluation par Critère', criteriaContent, '#16824E', '#fff')}
+
+  <!-- CONCLUSION (tcolorbox style, blue) -->
+  ${conclusion ? tcBox('Conclusion &amp; Recommandations', conclusionContent, '#34495E', '#E8EEF5') : ''}
+
+  <!-- FOOTER -->
+  <div style="margin-top:30px;">
+    <div style="height:2px;background:#8CD2B4;margin-bottom:2px;"></div>
+    <div style="height:2px;background:#16824E;margin-bottom:2px;"></div>
+    <div style="height:4px;background:#014421;margin-bottom:10px;border-radius:1px;"></div>
+    <div style="text-align:center;font-size:10px;color:#6B7280;line-height:1.7;font-family:Georgia,serif;">
+      <div style="font-weight:700;color:#404040;">Commission Suivi &amp; Évaluation — Pôle Kourel Centrale</div>
+      <div style="font-style:italic;">Daara Madjmahoun Noreyni — UCAD &nbsp;&nbsp;&nbsp; Document confidentiel — Usage interne</div>
+    </div>
+  </div>
+
+  </div>`
+}
+
+async function telechargerRapportPNG({ event, kourel, kourelNotes, sections, conclusion, noteDefinitive }) {
+  const { default: html2canvas } = await import('html2canvas')
+
+  // Charge le logo en base64 pour qu'html2canvas puisse le rendre sans CORS
+  let logoSrc = null
+  try {
+    const res = await fetch('/images/logo-dmn-removebg-preview.png')
+    if (res.ok) {
+      const blob = await res.blob()
+      logoSrc = await new Promise(resolve => {
+        const reader = new FileReader()
+        reader.onloadend = () => resolve(reader.result)
+        reader.readAsDataURL(blob)
+      })
+    }
+  } catch { /* logo absent — fallback texte */ }
+
+  const sectionMoyennes = sections.map(s => {
+    const vals = Object.values(kourelNotes).map(n => n.notes?.[s.key]?.note).filter(v => v != null)
+    const moy = vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null
+    return { ...s, moy, appr: noteVersAppreciation(moy) }
+  })
+
+  const noteFinale = noteDefinitive != null ? Number(noteDefinitive) : getNoteFinaleAvg(kourelNotes)
+  const noteGlobale = noteFinale != null ? Number(noteFinale).toFixed(2) : null
+  const apprGlobale = noteVersAppreciation(noteFinale)
+
+  const wrapper = document.createElement('div')
+  wrapper.style.cssText = 'position:fixed;top:-9999px;left:-9999px;z-index:-1;'
+  wrapper.innerHTML = buildRapportHTML({ event, kourel, sectionMoyennes, noteGlobale, apprGlobale, conclusion, logoSrc })
+  document.body.appendChild(wrapper)
+
+  // Attend que le logo soit chargé dans le DOM avant la capture
+  await new Promise(resolve => {
+    const img = wrapper.querySelector('img')
+    if (!img || img.complete) { resolve(); return }
+    img.onload = resolve
+    img.onerror = resolve
+    setTimeout(resolve, 2000)
+  })
+
+  try {
+    const canvas = await html2canvas(wrapper.firstElementChild, {
+      scale: 2,
+      useCORS: false,
+      allowTaint: true,
+      backgroundColor: '#ffffff',
+      logging: false,
+    })
+    const url = canvas.toDataURL('image/png')
+    const a = document.createElement('a')
+    a.href = url
+    const nom = (kourel.kourel?.nom || 'kourel').replace(/\s+/g, '_')
+    const date = (event.date_evenement || '').slice(0, 10)
+    a.download = `rapport_${nom}_${date}.png`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+  } finally {
+    document.body.removeChild(wrapper)
+  }
 }
 
 function EventCard({ event, onClick }) {
@@ -181,6 +384,7 @@ function EvaluateurPanel({ evaluateur, notes, sections }) {
 
   const sectionMelodieId = sections.find(s => s.label.toLowerCase().includes('mélodie') || s.label.toLowerCase().includes('melodie'))?.id
   const sectionHouroufId = sections.find(s => s.label.toLowerCase().includes('hourouf'))?.id
+  const sectionPresenceId = sections.find(s => s.label.toLowerCase().includes('présence') || s.label.toLowerCase().includes('presence'))?.id
   const isPerKhassidaSection = (sectionId) => sectionId === sectionMelodieId || sectionId === sectionHouroufId
 
   const progNotes = {}
@@ -188,7 +392,7 @@ function EvaluateurPanel({ evaluateur, notes, sections }) {
     notes.programme.forEach(p => {
       ;(p.notes || []).forEach(n => {
         if (!progNotes[n.critere_id]) progNotes[n.critere_id] = []
-        progNotes[n.critere_id].push({ khassida: p.nom, melodie: p.melodie, note: n.note, appreciation: n.appreciation })
+        progNotes[n.critere_id].push({ khassida: p.nom, melodie: p.melodie, note: n.note, appreciation: n.appreciation, remarques: n.remarques || '' })
       })
     })
   }
@@ -198,17 +402,18 @@ function EvaluateurPanel({ evaluateur, notes, sections }) {
     return vals.length ? (vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(1) : null
   }
 
+  const programme = notes?.programme || []
+
   return (
     <div className="rounded-xl border border-gris-200 bg-white overflow-hidden shadow-sm">
+      {/* Header */}
       <button
         onClick={() => setOpen(!open)}
         className="w-full flex items-center justify-between gap-3 px-4 py-3 hover:bg-gris-50 transition-colors text-left"
       >
         <div className="flex items-center gap-3 min-w-0">
           <div className="w-9 h-9 rounded-full bg-vert-600 flex items-center justify-center flex-shrink-0 shadow-sm">
-            <span className="text-xs font-bold text-white">
-              {evaluateur.prenom?.[0]}{evaluateur.nom?.[0]}
-            </span>
+            <span className="text-xs font-bold text-white">{evaluateur.prenom?.[0]}{evaluateur.nom?.[0]}</span>
           </div>
           <div className="min-w-0">
             <p className="text-sm font-bold text-gris-950 truncate">{evaluateur.prenom} {evaluateur.nom}</p>
@@ -217,109 +422,166 @@ function EvaluateurPanel({ evaluateur, notes, sections }) {
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
           {noteFinale && (
-            <div className="text-right">
-              <p className="text-sm font-black text-vert-700 leading-none">{noteFinale}<span className="text-[9px] text-vert-500">/10</span></p>
-            </div>
+            <p className="text-sm font-black text-vert-700 leading-none">{noteFinale}<span className="text-[9px] text-vert-500 font-normal">/10</span></p>
           )}
-          <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full border whitespace-nowrap ${status.class}`}>
-            {status.label}
-          </span>
+          <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full border whitespace-nowrap ${status.class}`}>{status.label}</span>
           {open ? <ChevronDown size={14} className="text-gris-300 flex-shrink-0" /> : <ChevronRight size={14} className="text-gris-300 flex-shrink-0" />}
         </div>
       </button>
 
       {open && (
-        <div className="border-t border-gris-100 px-4 py-3.5 space-y-2.5">
-          {notes ? (
+        <div className="border-t border-gris-100 px-4 py-4 space-y-4">
+          {!notes ? (
+            <p className="text-xs text-gris-400 italic text-center py-2">Évaluation non soumise.</p>
+          ) : (
             <>
-              {sections.filter(s => {
-                const sec = notes.notes?.[s.key || s.id]
-                const hasPerKhassida = isPerKhassidaSection(s.id) && (progNotes[s.key || s.id]?.length > 0)
-                return hasPerKhassida || (sec && (sec.note != null || sec.appreciation || sec.remarques))
-              }).length > 0 ? (
+              {/* Programme */}
+              {programme.length > 0 && (
                 <div className="rounded-lg border border-gris-200 overflow-hidden">
-                  <div className="grid grid-cols-[1fr_60px_80px] bg-gris-100 px-3.5 py-1.5">
-                    <span className="text-[9px] font-bold text-gris-400 uppercase">Critère</span>
-                    <span className="text-[9px] font-bold text-gris-400 uppercase text-right">Note</span>
-                    <span className="text-[9px] font-bold text-gris-400 uppercase text-right">Appréciation</span>
+                  <div className="bg-gris-100 px-3.5 py-2">
+                    <span className="text-[10px] font-bold text-gris-500 uppercase tracking-wider">Programme — {programme.length} khassida(s)</span>
                   </div>
-                  {sections.map(section => {
-                    const s = notes.notes?.[section.key || section.id]
-                    const isPerKhassida = isPerKhassidaSection(section.id)
-                    const khassidaNotes = progNotes[section.key || section.id]
-                    const hasPerKhassida = isPerKhassida && khassidaNotes?.length > 0
-                    const perKhassidaMoy = getPerKhassidaMoy(section.key || section.id)
+                  <div className="divide-y divide-gris-100">
+                    {programme.map((p, i) => (
+                      <div key={p.id || i} className="flex items-center gap-2 px-3.5 py-2 bg-white">
+                        <span className="text-[10px] font-mono text-gris-400 flex-shrink-0">#{i+1}</span>
+                        <span className="text-xs font-semibold text-gris-800">{p.nom}</span>
+                        {p.melodie && <span className="text-[11px] text-gris-400">— {p.melodie}</span>}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
-                    if (!hasPerKhassida && (!s || (s.note == null && !s.appreciation && !s.remarques))) return null
+              {/* Sections */}
+              <div className="space-y-3">
+                {sections.map(section => {
+                  const s = notes.notes?.[section.key || section.id]
+                  const isPerKhassida = isPerKhassidaSection(section.id)
+                  const isPresence = section.id === sectionPresenceId
+                  const khassidaNotes = progNotes[section.key || section.id] || []
+                  const hasPerKhassida = isPerKhassida && khassidaNotes.length > 0
+                  const perKhassidaMoy = getPerKhassidaMoy(section.key || section.id)
+                  const hasData = hasPerKhassida || (s && (s.note != null || s.appreciation || s.remarques || s.nombre_present != null))
+                  if (!hasData) return null
 
-                    const appr = hasPerKhassida && perKhassidaMoy
-                      ? noteVersAppreciation(parseFloat(perKhassidaMoy))
-                      : s?.appreciation || noteVersAppreciation(s?.note)
-                    const ac = appr ? APPREC_COLORS[appr] : null
-                    const noteDisplay = hasPerKhassida && perKhassidaMoy ? perKhassidaMoy : s?.note
+                  const appr = hasPerKhassida && perKhassidaMoy
+                    ? noteVersAppreciation(parseFloat(perKhassidaMoy))
+                    : s?.appreciation || noteVersAppreciation(s?.note)
+                  const ac = appr ? APPREC_COLORS[appr] : null
+                  const noteDisplay = hasPerKhassida && perKhassidaMoy ? perKhassidaMoy : s?.note
 
-                    return (
-                      <div key={section.id} className="border-t border-gris-100">
-                        <div className="grid items-center px-3.5 py-2 bg-white" style={{ gridTemplateColumns: hasPerKhassida ? '1fr' : '1fr 60px 80px' }}>
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <span className="text-xs font-semibold text-gris-800">{section.label}</span>
-                              {isPerKhassida && perKhassidaMoy && (
-                                <span className="text-[10px] font-black text-vert-700">moy {perKhassidaMoy}/10</span>
-                              )}
-                              {s?.nombre_present != null && (
-                                <span className="text-[10px] font-normal text-gris-400">
-                                  ({s.nombre_present} présent(s)
-                                  {s.nombre_retards > 0 ? `, ${s.nombre_retards} retard(s)` : ''}
-                                  )
-                                </span>
-                              )}
-                            </div>
-                            {hasPerKhassida && khassidaNotes.map((kn, ki) => (
-                              <div key={ki} className="flex items-center justify-between ml-3 mt-1 text-[11px]">
-                                <span className="text-gris-600 truncate">#{ki+1} {kn.khassida}{kn.melodie ? ` — ${kn.melodie}` : ''}</span>
-                                <span className="font-semibold text-gris-800 ml-2">{kn.note != null ? `${kn.note}/10` : '—'}</span>
-                              </div>
-                            ))}
-                          </div>
-                          {!hasPerKhassida && (
-                            <>
-                              <span className="text-xs font-black text-gris-900 text-right">
-                                {noteDisplay != null
-                                  ? <>{Number(noteDisplay).toFixed(1)}<span className="text-[9px] text-gris-400">/10</span></>
-                                  : <span className="text-gris-300">—</span>
-                                }
-                              </span>
-                              <span className="text-right">
-                                {appr && ac
-                                  ? <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full whitespace-nowrap" style={{ color: ac.color, background: ac.bg }}>{appr}</span>
-                                  : <span className="text-[10px] text-gris-300">—</span>
-                                }
-                              </span>
-                            </>
+                  return (
+                    <div key={section.id} className="rounded-lg border border-gris-200 overflow-hidden">
+                      {/* Section header */}
+                      <div className="flex items-center justify-between px-3.5 py-2.5 bg-gris-50 border-b border-gris-100">
+                        <span className="text-xs font-bold text-gris-800">{section.label}</span>
+                        <div className="flex items-center gap-2">
+                          {noteDisplay != null && (
+                            <span className="text-sm font-black text-gris-900">
+                              {Number(noteDisplay).toFixed(1)}<span className="text-[9px] font-normal text-gris-400">/10</span>
+                            </span>
+                          )}
+                          {appr && ac && (
+                            <span className="text-[9px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap" style={{ color: ac.color, background: ac.bg }}>{appr}</span>
                           )}
                         </div>
-                        {s?.remarques && (
-                          <div className="px-3.5 pb-2 bg-gris-50/50">
-                            <p className="text-[10px] text-gris-500 italic truncate">"{s.remarques}"</p>
+                      </div>
+
+                      <div className="bg-white px-3.5 py-3 space-y-3">
+                        {/* Présence */}
+                        {isPresence && s?.nombre_present != null && (
+                          <div className="flex flex-wrap gap-2">
+                            <span className="text-[11px] font-semibold bg-vert-50 text-vert-700 px-2.5 py-1 rounded-full border border-vert-200">
+                              ✓ {s.nombre_present} présent(s)
+                            </span>
+                            {s.nombre_retards > 0 && (
+                              <span className="text-[11px] font-semibold bg-amber-50 text-amber-700 px-2.5 py-1 rounded-full border border-amber-200">
+                                ⏱ {s.nombre_retards} retard(s)
+                              </span>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Per-khassida notes */}
+                        {hasPerKhassida && (
+                          <div className="space-y-2">
+                            <p className="text-[10px] font-bold text-gris-400 uppercase tracking-wider">Par khassida</p>
+                            {khassidaNotes.map((kn, ki) => {
+                              const knAc = kn.appreciation ? APPREC_COLORS[kn.appreciation] : null
+                              const noteExtreme = kn.note != null && (kn.note <= 5 || kn.note >= 9)
+                              return (
+                                <div key={ki} className="rounded-lg border border-gris-100 bg-gris-50 px-3 py-2 space-y-1.5">
+                                  <div className="flex items-center justify-between gap-2">
+                                    <div className="min-w-0">
+                                      <p className="text-xs font-semibold text-gris-800 truncate">{kn.khassida}</p>
+                                      {kn.melodie && <p className="text-[10px] text-gris-400 truncate">{kn.melodie}</p>}
+                                    </div>
+                                    <div className="flex items-center gap-1.5 flex-shrink-0">
+                                      {kn.note != null && (
+                                        <span className="text-sm font-black text-gris-900">
+                                          {kn.note}<span className="text-[9px] font-normal text-gris-400">/10</span>
+                                        </span>
+                                      )}
+                                      {kn.appreciation && knAc && (
+                                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full whitespace-nowrap" style={{ color: knAc.color, background: knAc.bg }}>{kn.appreciation}</span>
+                                      )}
+                                    </div>
+                                  </div>
+                                  {kn.remarques && (
+                                    <div className={`rounded px-2 py-1.5 ${noteExtreme ? 'bg-orange-50 border border-orange-200' : 'bg-white border border-gris-100'}`}>
+                                      <p className="text-[10px] font-bold mb-0.5" style={{ color: noteExtreme ? '#EA580C' : '#9CA3AF' }}>
+                                        {noteExtreme ? '⚠ Justification' : 'Remarque'}
+                                      </p>
+                                      <p className="text-xs text-gris-700 leading-relaxed">{kn.remarques}</p>
+                                    </div>
+                                  )}
+                                  {noteExtreme && !kn.remarques && (
+                                    <p className="text-[10px] text-orange-500 font-semibold">⚠ Note critique — justification manquante</p>
+                                  )}
+                                </div>
+                              )
+                            })}
+                            {perKhassidaMoy && (
+                              <div className="flex items-center justify-between px-3 py-1.5 bg-vert-50 rounded-lg border border-vert-200">
+                                <span className="text-[11px] font-bold text-vert-700">Moyenne section</span>
+                                <span className="text-sm font-black text-vert-700">{perKhassidaMoy}/10</span>
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Remarques section normale */}
+                        {!isPerKhassida && s?.remarques && (
+                          <div className={`rounded-lg px-3 py-2 ${s.note != null && (s.note <= 5 || s.note >= 9) ? 'bg-orange-50 border border-orange-200' : 'bg-gris-50 border border-gris-100'}`}>
+                            <p className="text-[10px] font-bold mb-0.5" style={{ color: s.note != null && (s.note <= 5 || s.note >= 9) ? '#EA580C' : '#9CA3AF' }}>
+                              {s.note != null && (s.note <= 5 || s.note >= 9) ? '⚠ Justification note critique' : 'Remarques'}
+                            </p>
+                            <p className="text-xs text-gris-700 leading-relaxed">{s.remarques}</p>
+                          </div>
+                        )}
+
+                        {/* Remarques section per-khassida (niveau section) */}
+                        {isPerKhassida && s?.remarques && (
+                          <div className="rounded-lg px-3 py-2 bg-gris-50 border border-gris-100">
+                            <p className="text-[10px] font-bold text-gris-400 mb-0.5">Remarques générales</p>
+                            <p className="text-xs text-gris-700 leading-relaxed">{s.remarques}</p>
                           </div>
                         )}
                       </div>
-                    )
-                  })}
+                    </div>
+                  )
+                })}
+              </div>
+
+              {/* Commentaire général */}
+              {notes.commentaire && (
+                <div className="rounded-lg border border-blue-200 bg-blue-50 px-3.5 py-3">
+                  <p className="text-[10px] font-bold text-blue-600 uppercase tracking-wider mb-1">Commentaire général</p>
+                  <p className="text-xs text-gris-700 leading-relaxed">{notes.commentaire}</p>
                 </div>
-              ) : (
-                <p className="text-xs text-gris-400 italic text-center py-2">Évaluation en cours, aucune note saisie.</p>
               )}
             </>
-          ) : (
-            <p className="text-xs text-gris-400 italic text-center py-2">Évaluation non soumise.</p>
-          )}
-          {notes?.commentaire && (
-            <div className="rounded-lg border border-blue-100 bg-blue-50/50 px-3.5 py-2.5">
-              <p className="text-[10px] font-bold text-blue-500 mb-0.5">Commentaire</p>
-              <p className="text-xs text-gris-700 leading-relaxed italic">"{notes.commentaire}"</p>
-            </div>
           )}
         </div>
       )}
@@ -373,6 +635,7 @@ export function EvaluationsPage() {
   const [openKourels, setOpenKourels] = useState({})
   const [saving, setSaving] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
+  const [downloadingId, setDownloadingId] = useState(null)
 
   const [search, setSearch] = useState('')
   const [filterStatut, setFilterStatut] = useState('tous')
@@ -813,6 +1076,33 @@ export function EvaluationsPage() {
                               placeholder={`Conclusion pour ${k.kourel?.nom || 'ce kourel'}…`}
                               rows={3}
                             />
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <button
+                              disabled={downloadingId === k.id}
+                              onClick={async () => {
+                                setDownloadingId(k.id)
+                                try {
+                                  await telechargerRapportPNG({
+                                    event: selected,
+                                    kourel: k,
+                                    kourelNotes,
+                                    sections: SECTIONS,
+                                    conclusion: conclusionsKourel[k.id] ?? k.conclusion ?? '',
+                                    noteDefinitive: notesDefinitives[k.id] !== '' && notesDefinitives[k.id] !== undefined
+                                      ? parseFloat(notesDefinitives[k.id]) : null,
+                                  })
+                                } finally {
+                                  setDownloadingId(null)
+                                }
+                              }}
+                              className="flex items-center gap-1.5 text-xs font-semibold text-vert-700 hover:text-vert-900 bg-vert-50 hover:bg-vert-100 border border-vert-200 px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              {downloadingId === k.id
+                                ? <><Loader size={12} className="animate-spin" /> Génération…</>
+                                : <><Download size={12} /> Télécharger rapport PNG</>
+                              }
+                            </button>
                           </div>
                           <div className="flex items-center justify-between gap-4">
                             <div>

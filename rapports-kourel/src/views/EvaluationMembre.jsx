@@ -4,9 +4,9 @@ import {
   ChevronRight, ChevronLeft, CheckCircle2, Clock,
   Calendar, MapPin, Users, Music, FileText,
   ArrowLeft, ArrowRight, AlertCircle, Star, Loader,
-  Plus, X, GripVertical, ListOrdered,
+  Plus, X, GripVertical, ListOrdered, Pencil, Check,
 } from 'lucide-react'
-import { fetchCriteres, getOrCreateEvaluation, saveEvaluationNote, soumettreEvaluation, validerCodeAcces, fetchProgramme, saveEvaluationProgramme, saveEvaluationProgrammeNote } from '@/lib/supabase'
+import { fetchCriteres, getOrCreateEvaluation, saveEvaluationNote, soumettreEvaluation, validerCodeAcces, saveEvaluationProgramme, saveEvaluationProgrammeNote } from '@/lib/supabase'
 
 const APPRECIATIONS = [
   { label: 'Mauvais',   value: 'Mauvais',   color: '#ee6161', bg: '#FEF2F2', active: '#EF4444', min: 0,   max: 2,   mid: 1   },
@@ -140,6 +140,155 @@ function MiniNoteSelector({ value, onChange }) {
   )
 }
 
+// ─── Accordéon khassidas ─────────────────────────────────────────────────────
+
+function KhassidaAccordion({ programme, programmeNotes, section, onProgrammeNoteChange, data, onChange }) {
+  const [openIdx, setOpenIdx] = useState(0)
+
+  const vals = programme.map(item => programmeNotes?.[item.tempId || item.id]?.[section.critereId]?.note).filter(v => v != null)
+  const avg = vals.length ? (vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(1) : null
+  const avgColor = !avg ? '#9CA3AF' : avg < 4 ? '#EF4444' : avg < 6 ? '#F97316' : avg < 8 ? '#EAB308' : '#16824E'
+
+  return (
+    <div className="space-y-2">
+      <p className="text-xs font-bold text-gris-500 uppercase tracking-widest text-center mb-1">
+        Évaluez chaque khassida
+      </p>
+
+      {programme.map((item, idx) => {
+        const pn = programmeNotes?.[item.tempId || item.id]?.[section.critereId] || {}
+        const isOpen = openIdx === idx
+        const done = pn.note != null
+        const noteColor = !done ? '#9CA3AF'
+          : pn.note < 4 ? '#EF4444'
+          : pn.note < 6 ? '#F97316'
+          : pn.note < 8 ? '#EAB308'
+          : '#16824E'
+
+        return (
+          <div key={item.tempId || item.id}
+            className="bg-white rounded-2xl border overflow-hidden transition-all"
+            style={{ borderColor: isOpen ? '#016030' : done ? '#BBF7D0' : '#E5E7EB' }}>
+
+            {/* En-tête cliquable */}
+            <button type="button"
+              className="w-full flex items-center gap-3 px-4 py-3 text-left"
+              onClick={() => setOpenIdx(isOpen ? -1 : idx)}>
+              <div className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 text-[10px] font-black"
+                style={{ background: done ? '#016030' : '#F3F4F6', color: done ? 'white' : '#9CA3AF' }}>
+                {done ? <Check size={11} /> : idx + 1}
+              </div>
+              <div className="flex-1 min-w-0 text-left">
+                <p className="text-sm font-bold text-gris-800 truncate">{item.nom}</p>
+                {item.melodie && <p className="text-[11px] text-gris-400 truncate">{item.melodie}</p>}
+              </div>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                {done ? (
+                  <span className="text-sm font-black" style={{ color: noteColor }}>{pn.note}/10</span>
+                ) : (
+                  <span className="text-[11px] text-gris-300 font-medium">—</span>
+                )}
+                <svg width="12" height="8" viewBox="0 0 12 8" fill="none"
+                  className="transition-transform duration-200"
+                  style={{ transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}>
+                  <path d="M1 1L6 6L11 1" stroke="#9CA3AF" strokeWidth="1.5" strokeLinecap="round"/>
+                </svg>
+              </div>
+            </button>
+
+            {/* Corps déplié */}
+            {isOpen && (() => {
+              const noteExtreme = pn.note != null && (pn.note <= 5 || pn.note >= 9)
+              const doitJustifier = noteExtreme && !pn.remarques?.trim()
+              return (
+                <div className="px-4 pb-4 space-y-3 border-t border-gris-100">
+                  <div className="flex justify-center pt-3">
+                    <MiniNoteSelector
+                      value={pn.note}
+                      onChange={v => onProgrammeNoteChange?.(item.tempId || item.id, { note: v, appreciation: getAppreciationFromNote(v) })}
+                    />
+                  </div>
+                  <div className="grid grid-cols-3 gap-1.5">
+                    {APPRECIATIONS.map(a => {
+                      const sel = pn.appreciation === a.value
+                      return (
+                        <button key={a.value} type="button"
+                          onClick={() => onProgrammeNoteChange?.(item.tempId || item.id, { appreciation: a.value, note: a.mid })}
+                          className="py-2 px-1 rounded-xl text-[10px] font-semibold border transition-all active:scale-95"
+                          style={{ borderColor: sel ? a.active : '#E5E7EB', background: sel ? a.active : 'white', color: sel ? 'white' : a.color }}>
+                          {a.label}
+                        </button>
+                      )
+                    })}
+                  </div>
+                  {noteExtreme && (
+                    <div>
+                      <p className="text-[10px] font-bold uppercase tracking-wider mb-1.5"
+                        style={{ color: doitJustifier ? '#EF4444' : '#6B7280' }}>
+                        Justification <span style={{ color: '#EF4444' }}>*obligatoire</span>
+                      </p>
+                      <textarea
+                        value={pn.remarques || ''}
+                        onChange={e => onProgrammeNoteChange?.(item.tempId || item.id, { remarques: e.target.value })}
+                        rows={2}
+                        placeholder="Justifiez cette note critique…"
+                        className={`w-full px-3 py-2 text-sm border rounded-xl focus:outline-none resize-none placeholder:text-gris-300 ${doitJustifier ? 'border-rouge focus:border-rouge' : 'border-gris-200 focus:border-vert-700'}`}
+                      />
+                      {doitJustifier && (
+                        <p className="text-[10px] text-rouge font-semibold mt-1 flex items-center gap-1">
+                          <AlertCircle size={11} /> Obligatoire avant de continuer
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )
+            })()}
+          </div>
+        )
+      })}
+
+      {avg && (() => {
+        const apprecVal = getAppreciationFromNote(parseFloat(avg))
+        const apprecObj = APPRECIATIONS.find(a => a.value === apprecVal)
+        return (
+          <div className="bg-white rounded-2xl border border-vert-200 px-4 py-3 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-gris-600">Moyenne de la section</span>
+              <div className="flex items-center gap-1.5">
+                <span className="text-2xl font-black" style={{ color: avgColor }}>{avg}</span>
+                <span className="text-[10px] text-gris-400">/10</span>
+              </div>
+            </div>
+            {apprecObj && (
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] text-gris-500">Appréciation</span>
+                <span className="text-[11px] font-bold px-2.5 py-1 rounded-full"
+                  style={{ background: apprecObj.bg, color: apprecObj.active }}>
+                  {apprecObj.label}
+                </span>
+              </div>
+            )}
+          </div>
+        )
+      })()}
+
+      <div>
+        <p className="text-xs font-bold text-gris-500 uppercase tracking-widest mb-2">
+          Remarques générales <span className="font-normal normal-case text-gris-400">(optionnel)</span>
+        </p>
+        <textarea
+          value={data?.remarques || ''}
+          onChange={e => onChange?.({ remarques: e.target.value })}
+          rows={3}
+          placeholder="Observations générales sur cette section…"
+          className="w-full px-4 py-3 text-sm border border-gris-200 rounded-xl focus:border-vert-700 focus:outline-none resize-none bg-white placeholder:text-gris-400"
+        />
+      </div>
+    </div>
+  )
+}
+
 // ─── Carte section ──────────────────────────────────────────────────────────
 
 function SectionCard({ section, data, onChange, index, total, readOnly, isGenerale, moyenneAuto, isPresence, presenceEffectif, isPerKhassida, programme, programmeNotes, onProgrammeNoteChange }) {
@@ -267,18 +416,24 @@ function SectionCard({ section, data, onChange, index, total, readOnly, isGenera
 
           <div className="bg-white rounded-xl border border-gris-200 p-4">
             <p className="text-xs font-bold text-gris-500 uppercase tracking-widest mb-3 text-center">Appréciation</p>
-            <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3 md:gap-6">
-              {APPRECIATIONS.map(a => (
-                <div key={a.value} className="flex flex-col items-center gap-1 min-w-fit">
-                  <div className={`w-8 h-8 rounded-full border-2 flex items-center justify-center text-[8px] sm:text-[9px] font-bold ${data.appreciation === a.value ? 'text-white' : 'text-gris-300 border-gris-200'}`}
-                    style={data.appreciation === a.value ? { borderColor: a.active, background: a.active } : {}}>
-                    {a.label[0]}
-                  </div>
-                    <span className={`text-[7px] sm:text-[9px] font-semibold whitespace-nowrap ${data.appreciation === a.value ? 'text-gris-800' : 'text-gris-300'}`}>
+            <div className="flex items-end justify-between gap-1">
+              {APPRECIATIONS.map(a => {
+                const sel = data.appreciation === a.value
+                return (
+                  <div key={a.value} className="flex flex-col items-center gap-1 flex-1">
+                    <div className="w-8 h-8 rounded-full border-2 flex items-center justify-center text-[9px] font-black flex-shrink-0"
+                      style={sel
+                        ? { borderColor: a.active, background: a.active, color: 'white' }
+                        : { borderColor: '#E5E7EB', color: '#D1D5DB' }}>
+                      {a.label[0]}
+                    </div>
+                    <span className="text-[8px] font-semibold text-center leading-tight"
+                      style={{ color: sel ? a.active : '#D1D5DB' }}>
                       {a.label}
                     </span>
-                </div>
-              ))}
+                  </div>
+                )
+              })}
             </div>
             {data.note != null && (
               <div className="mt-3 flex items-center justify-center gap-2">
@@ -304,59 +459,14 @@ function SectionCard({ section, data, onChange, index, total, readOnly, isGenera
           </div>
         </div>
       ) : isPerKhassida && programme?.length > 0 ? (
-        <div className="bg-gris-50 rounded-2xl px-5 py-5 space-y-4">
-          <p className="text-xs font-bold text-gris-500 uppercase tracking-widest text-center">
-            Évaluez chaque khassida individuellement
-          </p>
-          {programme.map((item, idx) => {
-            const pn = programmeNotes?.[item.tempId || item.id]?.[section.critereId] || {}
-            return (
-              <div key={item.tempId || item.id} className="bg-white rounded-xl border border-gris-200 p-4 space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-bold text-gris-800 truncate">{item.nom}</p>
-                    {item.melodie && <p className="text-[11px] text-gris-500 truncate">{item.melodie}</p>}
-                  </div>
-                  <span className="text-[10px] text-gris-400 font-mono ml-2">#{idx + 1}</span>
-                </div>
-                <div className="flex flex-col items-center">
-                  <MiniNoteSelector
-                    value={pn.note}
-                    onChange={v => onProgrammeNoteChange?.(item.tempId || item.id, { note: v, appreciation: getAppreciationFromNote(v) })}
-                  />
-                </div>
-                <div className="grid grid-cols-3 gap-1.5">
-                  {APPRECIATIONS.map(a => {
-                    const sel = pn.appreciation === a.value
-                    return (
-                      <button key={a.value} type="button"
-                        onClick={() => onProgrammeNoteChange?.(item.tempId || item.id, { appreciation: a.value, note: a.mid })}
-                        className="py-2 px-1 rounded-lg text-[10px] font-semibold border transition-all active:scale-95"
-                        style={{ borderColor: sel ? a.active : '#E5E7EB', background: sel ? a.active : 'white', color: sel ? 'white' : a.color }}>
-                        {a.label}
-                      </button>
-                    )
-                  })}
-                </div>
-              </div>
-            )
-          })}
-          {(() => {
-            const vals = programme.map(item => programmeNotes?.[item.tempId || item.id]?.[section.critereId]?.note).filter(v => v != null)
-            if (!vals.length) return null
-            const avg = (vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(1)
-            const avgColor = avg < 4 ? '#EF4444' : avg < 6 ? '#F97316' : avg < 8 ? '#EAB308' : '#16824E'
-            return (
-              <div className="bg-white rounded-xl border border-vert-200 p-4 flex items-center justify-between">
-                <span className="text-xs font-bold text-gris-600">Moyenne des khassidas</span>
-                <div className="flex items-center gap-2">
-                  <span className="text-2xl font-black" style={{ color: avgColor }}>{avg}</span>
-                  <span className="text-[10px] text-gris-400">/10</span>
-                </div>
-              </div>
-            )
-          })()}
-        </div>
+        <KhassidaAccordion
+          programme={programme}
+          programmeNotes={programmeNotes}
+          section={section}
+          onProgrammeNoteChange={onProgrammeNoteChange}
+          data={data}
+          onChange={onChange}
+        />
       ) : isGenerale ? (
         <div className="bg-gris-50 rounded-2xl px-5 py-5 flex flex-col items-center gap-3">
           <div className="flex flex-col items-center">
@@ -513,65 +623,79 @@ function DotsStep({ etape }) {
 // ─── Programme Item Row ────────────────────────────────────────────────────────
 
 function ProgrammeRow({ item, index, onChange, onRemove, onMoveUp, onMoveDown, isFirst, isLast, onDragStart, onDragOver, onDrop, isDragging }) {
+  const [editing, setEditing] = useState(false)
+
   return (
     <div
-      className="bg-white rounded-xl border border-gris-200 p-3 space-y-2 transition-all"
-      draggable
-      onDragStart={onDragStart}
+      className="bg-white rounded-xl border p-3 transition-all"
+      draggable={!editing}
+      onDragStart={!editing ? onDragStart : undefined}
       onDragOver={onDragOver}
       onDrop={onDrop}
       onDragEnd={() => {}}
-      style={{
-        opacity: isDragging ? 0.5 : 1,
-        cursor: 'grab',
-        borderColor: isDragging ? '#16824E' : '#E5E7EB',
-      }}
+      style={{ opacity: isDragging ? 0.5 : 1, borderColor: isDragging ? '#16824E' : editing ? '#016030' : '#E5E7EB' }}
     >
-      <div className="flex items-center gap-2">
-        {/* Drag Handle */}
-        <div className="flex flex-col gap-0.5 items-center flex-shrink-0">
-          <GripVertical size={16} className="text-gris-400 cursor-grab active:cursor-grabbing" />
-        </div>
+      <div className="flex items-center gap-2 min-w-0">
+        <GripVertical size={16} className={`flex-shrink-0 ${editing ? 'text-gris-200' : 'text-gris-300 cursor-grab'}`} />
+        <span className="text-[10px] font-mono text-gris-400 flex-shrink-0">#{index + 1}</span>
 
-        <span className="text-[10px] font-mono text-gris-400 w-4">#{index + 1}</span>
-        
-        <div className="flex-1 min-w-0 grid grid-cols-2 gap-2">
-          <div>
-            <p className="text-[9px] font-semibold text-gris-400 uppercase">Khassida</p>
+        {editing ? (
+          <div className="flex-1 min-w-0 flex flex-col gap-1.5">
             <input
+              autoFocus
               value={item.nom}
               onChange={e => onChange({ ...item, nom: e.target.value })}
               placeholder="Nom du khassida"
-              className="w-full text-sm font-semibold text-gris-800 bg-transparent border-0 border-b border-gris-200 pb-0.5 focus:border-vert-700 focus:outline-none placeholder:text-gris-300"
+              className="w-full text-sm font-semibold text-gris-800 bg-gris-50 rounded-lg px-2.5 py-1.5 border border-vert-700 focus:outline-none placeholder:text-gris-300"
             />
-          </div>
-          <div>
-            <p className="text-[9px] font-semibold text-gris-400 uppercase">Mélodie</p>
             <input
               value={item.melodie}
               onChange={e => onChange({ ...item, melodie: e.target.value })}
-              placeholder="Mélodie"
-              className="w-full text-sm font-semibold text-gris-800 bg-transparent border-0 border-b border-gris-200 pb-0.5 focus:border-vert-700 focus:outline-none placeholder:text-gris-300"
+              placeholder="Mélodie (optionnel)"
+              className="w-full text-xs text-gris-600 bg-gris-50 rounded-lg px-2.5 py-1.5 border border-gris-200 focus:border-vert-700 focus:outline-none placeholder:text-gris-300"
             />
           </div>
-        </div>
+        ) : (
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-gris-800 truncate">{item.nom}</p>
+            {item.melodie
+              ? <p className="text-[11px] text-gris-400 truncate">{item.melodie}</p>
+              : <p className="text-[11px] text-gris-300 italic">Aucune mélodie</p>
+            }
+          </div>
+        )}
 
-        {/* Up/Down buttons as fallback */}
-        <div className="flex flex-col gap-0.5">
-          <button type="button" onClick={onMoveUp} disabled={isFirst}
-            className="w-5 h-4 flex items-center justify-center text-gris-400 hover:text-gris-700 disabled:opacity-20 transition-colors">
-            <svg width="10" height="6" viewBox="0 0 10 6" fill="none"><path d="M1 5L5 1L9 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
-          </button>
-          <button type="button" onClick={onMoveDown} disabled={isLast}
-            className="w-5 h-4 flex items-center justify-center text-gris-400 hover:text-gris-700 disabled:opacity-20 transition-colors">
-            <svg width="10" height="6" viewBox="0 0 10 6" fill="none"><path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
+        <div className="flex items-center gap-1 flex-shrink-0">
+          {!editing && (
+            <div className="flex flex-col gap-0.5">
+              <button type="button" onClick={onMoveUp} disabled={isFirst}
+                className="w-6 h-5 flex items-center justify-center text-gris-400 hover:text-gris-700 disabled:opacity-20">
+                <svg width="10" height="6" viewBox="0 0 10 6" fill="none"><path d="M1 5L5 1L9 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
+              </button>
+              <button type="button" onClick={onMoveDown} disabled={isLast}
+                className="w-6 h-5 flex items-center justify-center text-gris-400 hover:text-gris-700 disabled:opacity-20">
+                <svg width="10" height="6" viewBox="0 0 10 6" fill="none"><path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
+              </button>
+            </div>
+          )}
+
+          {editing ? (
+            <button type="button" onClick={() => setEditing(false)}
+              className="w-7 h-7 rounded-full flex items-center justify-center bg-vert-700 text-white hover:bg-vert-800 transition-colors">
+              <Check size={13} />
+            </button>
+          ) : (
+            <button type="button" onClick={() => setEditing(true)}
+              className="w-7 h-7 rounded-full flex items-center justify-center text-gris-400 hover:text-vert-700 hover:bg-vert-50 transition-colors">
+              <Pencil size={13} />
+            </button>
+          )}
+
+          <button type="button" onClick={onRemove}
+            className="w-7 h-7 rounded-full flex items-center justify-center text-gris-400 hover:text-rouge hover:bg-rouge/5 transition-colors">
+            <X size={14} />
           </button>
         </div>
-
-        <button type="button" onClick={onRemove}
-          className="w-7 h-7 rounded-full flex items-center justify-center text-gris-400 hover:text-rouge hover:bg-rouge/5 transition-colors flex-shrink-0">
-          <X size={14} />
-        </button>
       </div>
     </div>
   )
@@ -589,7 +713,6 @@ export default function EvaluationMembre() {
   const [sectionIdx, setSectionIdx] = useState(0)
   const [criteres, setCriteres] = useState([])
   const [evaluationId, setEvaluationId] = useState(null)
-  const [kourelProgramme, setKourelProgramme] = useState([]) // preloaded from DB
 
   const SECTIONS = criteres.map((c, i) => ({
     id: c.id,
@@ -682,13 +805,6 @@ export default function EvaluationMembre() {
     const notes = {}
     SECTIONS.forEach(s => { notes[s.id] = sectionVide() })
     setEvalData(prev => ({ ...prev, notes }))
-
-    const kourelId = codeValide.evenement_kourel?.kourel?.id
-    if (kourelId) {
-      fetchProgramme(kourelId).then(prog => {
-        setKourelProgramme(prog || [])
-      }).catch(() => {})
-    }
 
     getOrCreateEvaluation(codeValide.evenement_kourel.evenement.id, codeValide.membre.id)
       .then(ev => {
@@ -783,8 +899,10 @@ export default function EvaluationMembre() {
       const items = evalData.programme
       if (!items.length) return false
       return items.every(item => {
-        const n = evalData.programmeNotes?.[item.tempId || item.id]?.[id]?.note
-        return n != null
+        const n = evalData.programmeNotes?.[item.tempId || item.id]?.[id]
+        if (n?.note == null) return false
+        if ((n.note <= 5 || n.note >= 9) && !n.remarques?.trim()) return false
+        return true
       })
     }
     const n = evalData.notes[id]
@@ -808,12 +926,19 @@ export default function EvaluationMembre() {
     if (isPerKhassidaSection(section.id)) {
       const items = evalData.programme
       if (!items.length) { setPopup({ sectionLabel: section.label, manque: ['programme'] }); return }
-      const missing = items.filter(item => {
-        const n = evalData.programmeNotes?.[item.tempId || item.id]?.[section.id]?.note
-        return n == null
-      })
-      if (missing.length > 0) {
+      const missingNote = items.find(item =>
+        evalData.programmeNotes?.[item.tempId || item.id]?.[section.id]?.note == null
+      )
+      if (missingNote) {
         setPopup({ sectionLabel: section.label, manque: ['appreciation'] })
+        return
+      }
+      const missingJustif = items.find(item => {
+        const n = evalData.programmeNotes?.[item.tempId || item.id]?.[section.id]
+        return n?.note != null && (n.note <= 5 || n.note >= 9) && !n.remarques?.trim()
+      })
+      if (missingJustif) {
+        setPopup({ sectionLabel: section.label, manque: ['remarques'] })
         return
       }
       cible(); return
@@ -1145,7 +1270,7 @@ export default function EvaluationMembre() {
                 <div className="text-center py-6 border-2 border-dashed border-gris-200 rounded-xl">
                   <Music size={24} className="mx-auto mb-2 text-gris-300" />
                   <p className="text-xs text-gris-400">Aucun khassida ajouté</p>
-                  <p className="text-[10px] text-gris-300 mt-1">Ajoutez depuis le programme ci-dessous ou saisissez manuellement</p>
+                  <p className="text-[10px] text-gris-300 mt-1">Saisissez le nom ci-dessous pour commencer</p>
                 </div>
               )}
 
@@ -1220,58 +1345,49 @@ export default function EvaluationMembre() {
                 </div>
               )}
 
-              <div className="bg-gris-50 rounded-xl p-3">
-                <p className="text-[10px] font-semibold text-gris-500 uppercase tracking-wider mb-2">
-                  Ajouter depuis le programme du kourel
-                </p>
-                <div className="flex flex-wrap gap-1.5 mb-3">
-                  {kourelProgramme.filter(kp => !evalData.programme.some(p => p.nom === kp.nom)).map(kp => (
-                    <button key={kp.id} type="button"
-                      onClick={() => {
-                        setEvalData(prev => ({
-                          ...prev,
-                          programme: [...prev.programme, { tempId: Date.now() + Math.random(), nom: kp.nom, melodie: kp.melodie || '', ordre: prev.programme.length }],
-                        }))
-                      }}
-                      className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-vert-200 bg-white text-xs font-semibold text-vert-700 hover:bg-vert-50 transition-colors"
-                    >
-                      <Plus size={11} /> {kp.nom}
-                    </button>
-                  ))}
-                  {kourelProgramme.filter(kp => !evalData.programme.some(p => p.nom === kp.nom)).length === 0 && (
-                    <p className="text-[10px] text-gris-400 italic">Tous les khassidas du programme sont déjà ajoutés</p>
-                  )}
-                </div>
-              </div>
-
-              <div className="mt-3 flex items-center gap-2">
+              <div className="border-t border-gris-100 pt-3 space-y-2">
+                <p className="text-[10px] font-semibold text-gris-500 uppercase tracking-wider">Ajouter un khassida</p>
                 <input
-                  placeholder="Khassida libre…"
-                  className="flex-1 text-sm px-3 py-2 border border-gris-200 rounded-lg focus:border-vert-700 focus:outline-none"
+                  placeholder="Nom du khassida *"
+                  className="w-full text-sm px-3 py-2.5 border border-gris-200 rounded-xl focus:border-vert-700 focus:outline-none placeholder:text-gris-300"
                   value={evalData._newProgrammeNom || ''}
                   onChange={e => setEvalData(prev => ({ ...prev, _newProgrammeNom: e.target.value }))}
-                />
-                <input
-                  placeholder="Mélodie"
-                  className="flex-1 text-sm px-3 py-2 border border-gris-200 rounded-lg focus:border-vert-700 focus:outline-none"
-                  value={evalData._newProgrammeMelodie || ''}
-                  onChange={e => setEvalData(prev => ({ ...prev, _newProgrammeMelodie: e.target.value }))}
-                />
-                <button type="button"
-                  onClick={() => {
-                    const nom = (evalData._newProgrammeNom || '').trim()
-                    if (!nom) return
-                    setEvalData(prev => ({
-                      ...prev,
-                      programme: [...prev.programme, { tempId: Date.now() + Math.random(), nom, melodie: prev._newProgrammeMelodie?.trim() || '', ordre: prev.programme.length }],
-                      _newProgrammeNom: '',
-                      _newProgrammeMelodie: '',
-                    }))
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') {
+                      const nom = (evalData._newProgrammeNom || '').trim()
+                      if (!nom) return
+                      setEvalData(prev => ({
+                        ...prev,
+                        programme: [...prev.programme, { tempId: Date.now() + Math.random(), nom, melodie: prev._newProgrammeMelodie?.trim() || '', ordre: prev.programme.length }],
+                        _newProgrammeNom: '',
+                        _newProgrammeMelodie: '',
+                      }))
+                    }
                   }}
-                  className="w-10 h-10 rounded-xl bg-vert-700 text-white flex items-center justify-center hover:bg-vert-800 transition-colors active:scale-95 flex-shrink-0"
-                >
-                  <Plus size={16} />
-                </button>
+                />
+                <div className="flex gap-2">
+                  <input
+                    placeholder="Mélodie (optionnel)"
+                    className="flex-1 min-w-0 text-sm px-3 py-2.5 border border-gris-200 rounded-xl focus:border-vert-700 focus:outline-none placeholder:text-gris-300"
+                    value={evalData._newProgrammeMelodie || ''}
+                    onChange={e => setEvalData(prev => ({ ...prev, _newProgrammeMelodie: e.target.value }))}
+                  />
+                  <button type="button"
+                    onClick={() => {
+                      const nom = (evalData._newProgrammeNom || '').trim()
+                      if (!nom) return
+                      setEvalData(prev => ({
+                        ...prev,
+                        programme: [...prev.programme, { tempId: Date.now() + Math.random(), nom, melodie: prev._newProgrammeMelodie?.trim() || '', ordre: prev.programme.length }],
+                        _newProgrammeNom: '',
+                        _newProgrammeMelodie: '',
+                      }))
+                    }}
+                    className="w-11 h-11 rounded-xl bg-vert-700 text-white flex items-center justify-center hover:bg-vert-800 transition-colors active:scale-95 flex-shrink-0"
+                  >
+                    <Plus size={18} />
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -1366,43 +1482,6 @@ export default function EvaluationMembre() {
               )
             })()}
 
-            <div className="flex gap-3 mt-6">
-              <button
-                onClick={() => sectionIdx === 0 ? setEtape(2) : setSectionIdx(i => i - 1)}
-                className="flex-1 h-12 rounded-2xl border-2 border-gris-200 flex items-center justify-center gap-2 text-sm font-bold text-gris-700 transition-all active:scale-95"
-              >
-                <ArrowLeft size={16} /> Préc.
-              </button>
-              {readOnly ? (
-                <button
-                  onClick={allerEtape4}
-                  className="flex-1 h-12 rounded-2xl flex items-center justify-center gap-2 text-sm font-bold text-white transition-all active:scale-95"
-                  style={{ background: '#6B7280' }}
-                >
-                  Voir le récapitulatif <ChevronRight size={16} />
-                </button>
-              ) : sectionIdx < SECTIONS.length - 1 ? (
-                <button
-                  onClick={() => validerEtAvancer(() => {
-                    const next = SECTIONS[sectionIdx + 1]
-                    if (next?.id === sectionGeneraleId) allerEtape4()
-                    else setSectionIdx(i => i + 1)
-                  })}
-                  className="flex-1 h-12 rounded-2xl flex items-center justify-center gap-2 text-sm font-bold text-white transition-all active:scale-95"
-                  style={{ background: '#016030' }}
-                >
-                  Suiv. <ArrowRight size={16} />
-                </button>
-              ) : (
-                <button
-                  onClick={validerEtFinaliser}
-                  className="flex-1 h-12 rounded-2xl flex items-center justify-center gap-2 text-sm font-bold text-white transition-all active:scale-95"
-                  style={{ background: '#016030' }}
-                >
-                  Finaliser <ChevronRight size={16} />
-                </button>
-              )}
-            </div>
           </div>
         )}
 
@@ -1564,7 +1643,7 @@ export default function EvaluationMembre() {
           </div>
         )}
 
-        {etape === 3 && !readOnly && (
+        {etape === 3 && (
           <div className="flex gap-3">
             <button
               onClick={() => sectionIdx === 0 ? setEtape(2) : setSectionIdx(i => i - 1)}
@@ -1572,7 +1651,15 @@ export default function EvaluationMembre() {
             >
               <ChevronLeft size={16} />
             </button>
-            {sectionIdx < SECTIONS.length - 1 ? (
+            {readOnly ? (
+              <button
+                onClick={allerEtape4}
+                className="flex-1 h-13 py-3.5 rounded-2xl font-bold text-white flex items-center justify-center gap-2 text-sm transition-all active:scale-95"
+                style={{ background: '#6B7280' }}
+              >
+                Voir le récapitulatif <ChevronRight size={16} />
+              </button>
+            ) : sectionIdx < SECTIONS.length - 1 ? (
               <button
                 onClick={() => validerEtAvancer(() => {
                   const next = SECTIONS[sectionIdx + 1]
