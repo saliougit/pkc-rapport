@@ -52,6 +52,11 @@ export default {
           strat:   '#E67E22',
           pastel:  '#FCF3E6',
         },
+        or: {
+          DEFAULT: '#C58A36',
+          clair:   '#D9A85C',
+          bg:      '#FBF1E0',
+        },
         rouge: {
           DEFAULT: '#B91C1C',
           bg:      '#FEE2E2',

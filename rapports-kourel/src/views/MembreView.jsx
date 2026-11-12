@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react'
-import { ChevronRight, ChevronLeft, Plus, Trash2, Edit2, Loader } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { motion } from 'framer-motion'
+import { ChevronRight, ChevronLeft, Plus, Trash2, Edit2, Loader, Check, Users } from 'lucide-react'
 import { FormulaireRapport } from '../components/FormulaireRapport'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import {
@@ -11,6 +13,20 @@ const MOIS = [
   'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
   'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'
 ]
+
+const containerVariants = {
+  hidden: {},
+  show: { transition: { staggerChildren: 0.08, delayChildren: 0.05 } },
+}
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 16 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.4, ease: [0.22, 1, 0.36, 1] } },
+}
+
+function initiales(nom = '') {
+  return nom.trim().split(/\s+/).slice(0, 2).map(m => m[0]).join('').toUpperCase()
+}
 
 export default function MembreView() {
   const [etape, setEtape] = useState('accueil')
@@ -133,130 +149,134 @@ export default function MembreView() {
 
   // === ACCUEIL ===
   return (
-    <div className="min-h-screen bg-gris-clair flex flex-col items-center justify-center px-4 py-4">
-      <div className="w-full max-w-5xl">
-
-        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3 bg-vert-fonce text-white px-3 sm:px-4 md:px-5 py-2 sm:py-3 rounded-t-2xl">
-          <div className="w-9 sm:w-10 h-9 sm:h-10 rounded-lg bg-white flex items-center justify-center p-1 flex-shrink-0">
-            <img src="/images/logo-dmn.png" alt="Logo DMN" className="w-full h-full object-contain" />
+    <div className="relative min-h-screen overflow-hidden bg-gris-clair flex flex-col lg:items-center lg:justify-center px-0 lg:px-4 py-0 lg:py-6">
+      <motion.div
+        className="relative w-full flex-1 flex flex-col lg:flex-none lg:max-w-xl"
+        variants={containerVariants}
+        initial="hidden"
+        animate="show"
+      >
+        {/* Header sobre, sans le bandeau vert plein écran */}
+        <motion.div
+          variants={itemVariants}
+          className="relative flex items-center gap-3 px-4 pt-5 pb-4 lg:pt-5 lg:px-6 lg:rounded-t-[2rem]"
+          style={{ background: 'linear-gradient(135deg, #EEF8F3 0%, #F5F3EE 100%)' }}
+        >
+          <Link
+            to="/"
+            aria-label="Retour à l'accueil"
+            className="w-9 h-9 rounded-full flex items-center justify-center text-gris-500 hover:text-vert-700 hover:bg-white/60 transition-colors flex-shrink-0"
+          >
+            <ChevronLeft size={19} />
+          </Link>
+          <div className="w-10 h-10 rounded-full bg-white shadow-sm flex items-center justify-center p-1.5 flex-shrink-0">
+            <img src="/images/logo-dmn.png" alt="DMN" className="w-full h-full object-contain" />
           </div>
           <div className="min-w-0 flex-1">
-            <div className="font-bold text-sm sm:text-base leading-tight truncate">Daara Madjmahoun Noreyni</div>
-            <div className="text-xs leading-tight" style={{ color: '#8CD2B4' }}>
-              UCAD · Pôle Kourel Centrale · Commission Conservatoire
-            </div>
+            <p className="font-bold text-base text-gris-950 leading-tight">Rapport de Suivi</p>
+            <p className="text-xs text-gris-500 leading-tight">Étape 1 · Choix du kourel</p>
           </div>
-          <a
-            href="/login"
-            title="Espace Administrateur"
-            className="flex items-center gap-1 sm:gap-1.5 text-xs font-semibold px-2 sm:px-2.5 py-1.5 rounded-lg transition flex-shrink-0 whitespace-nowrap"
-            style={{ background: 'rgba(255,255,255,0.12)', color: '#8CD2B4' }}
-          >
-            <span>Admin</span>
-          </a>
-        </div>
+        </motion.div>
 
-        <div className="bg-white shadow-xl flex flex-col sm:flex-row rounded-b-2xl overflow-hidden">
-          <div className="flex-shrink-0 flex flex-col items-center justify-center gap-2 sm:gap-3 p-3 sm:p-4 md:p-6"
-            style={{ background: '#E8F5E9', borderBottom: '1px solid #C8E6C9' }}>
-            <img src="/images/logo-dmn.png" alt="Logo DMN"
-              className="w-16 sm:w-20 h-16 sm:h-20 object-contain" style={{ mixBlendMode: 'multiply' }} />
-            <p className="text-center text-xs sm:text-xs font-bold leading-snug" style={{ color: '#014421' }}>
-              Rapport de Suivi
-            </p>
-            <div className="w-8 h-0.5 rounded" style={{ background: '#16824E' }} />
-          </div>
+        {/* Body */}
+        <motion.div
+          variants={itemVariants}
+          className="bg-white lg:shadow-xl lg:rounded-b-[2rem] px-4 pt-5 pb-28 lg:p-6 lg:pb-6 flex-1 flex flex-col"
+        >
+          <p className="text-[11px] font-bold uppercase tracking-widest text-gris-400 mb-3">
+            Sélectionnez votre kourel
+          </p>
 
-          <div className="flex-1 p-3 sm:p-4 md:p-5 flex flex-col">
-            <p className="text-xs font-bold uppercase tracking-widest mb-2 sm:mb-3" style={{ color: '#014421' }}>
-              Sélectionnez votre kourel
-            </p>
-
-            {loadingKourels ? (
-              <div className="space-y-1 sm:space-y-1.5 overflow-y-auto flex-1" style={{ maxHeight: '350px' }}>
-                {[...Array(4)].map((_, i) => (
-                  <div key={i} className="flex items-center gap-2 px-2 sm:px-3 py-1.5 sm:py-2 border rounded-lg bg-white animate-pulse" style={{ borderColor: '#E5E7EB' }}>
-                    {/* Checkbox skeleton */}
-                    <div className="w-5 h-5 rounded border-2 bg-gray-200 flex-shrink-0" />
-                    {/* Texte skeleton */}
-                    <div className="min-w-0 flex-1">
-                      <div className="h-3 bg-gray-200 rounded w-3/4 mb-1.5" />
-                      <div className="h-2.5 bg-gray-150 rounded w-1/2" />
-                    </div>
+          {loadingKourels ? (
+            <div className="space-y-2 overflow-y-auto flex-1">
+              {[...Array(4)].map((_, i) => (
+                <div key={i} className="flex items-center gap-3 px-3 py-2.5 rounded-2xl bg-gris-50 animate-pulse">
+                  <div className="w-9 h-9 rounded-full bg-gris-200 flex-shrink-0" />
+                  <div className="min-w-0 flex-1">
+                    <div className="h-3 bg-gris-200 rounded w-3/4 mb-1.5" />
+                    <div className="h-2.5 bg-gris-200 rounded w-1/2" />
                   </div>
-                ))}
-              </div>
-            ) : (
-              <div className="space-y-1 sm:space-y-1.5 overflow-y-auto flex-1" style={{ maxHeight: '350px' }}>
-                {kourels.map(kourel => (
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="space-y-2 overflow-y-auto flex-1 pr-0.5" style={{ maxHeight: '420px' }}>
+              {kourels.map(kourel => {
+                const selected = kourelSelectionne === kourel.id
+                return (
                   <label key={kourel.id}
-                    className="flex items-center gap-2 px-2 sm:px-3 py-1.5 sm:py-2 border rounded-lg cursor-pointer transition-colors text-sm sm:text-base"
-                    style={{
-                      borderColor: kourelSelectionne === kourel.id ? '#16824E' : '#E5E7EB',
-                      background:  kourelSelectionne === kourel.id ? '#E8F5E9'  : 'white',
-                    }}>
+                    className="flex items-center gap-3 px-3 py-2.5 rounded-2xl cursor-pointer transition-colors"
+                    style={{ background: selected ? '#EEF8F3' : '#F8FAF9' }}>
                     <input type="radio" name="kourel" value={kourel.id}
-                      checked={kourelSelectionne === kourel.id}
+                      checked={selected}
                       onChange={() => setKourelSelectionne(kourel.id)}
-                      className="accent-vert-principal flex-shrink-0" />
+                      className="sr-only" />
+                    <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-bold transition-colors"
+                      style={{ background: selected ? '#016A3B' : '#E5EAE7', color: selected ? 'white' : '#6B7A71' }}>
+                      {selected ? <Check size={16} /> : initiales(kourel.nom)}
+                    </div>
                     <div className="min-w-0 flex-1">
-                      <div className="text-xs sm:text-sm font-semibold truncate" style={{ color: '#014421' }}>{kourel.nom}</div>
-                      <div className="text-xs text-gray-500 truncate">{kourel.responsable}</div>
+                      <div className="text-sm font-semibold truncate text-gris-950">{kourel.nom}</div>
+                      <div className="text-xs text-gris-500 truncate">{kourel.responsable}</div>
                     </div>
                   </label>
-                ))}
+                )
+              })}
 
-                <label className="flex items-start gap-2.5 px-3 py-2 border rounded-lg cursor-pointer transition-colors"
-                  style={{
-                    borderColor: kourelSelectionne === 'autre' ? '#16824E' : '#E5E7EB',
-                    background:  kourelSelectionne === 'autre' ? '#E8F5E9'  : 'white',
-                  }}>
-                  <input type="radio" name="kourel" value="autre"
-                    checked={kourelSelectionne === 'autre'}
-                    onChange={() => setKourelSelectionne('autre')}
-                    className="accent-vert-principal mt-0.5" />
-                  <div className="flex-1">
-                    <div className="text-sm font-semibold" style={{ color: '#014421' }}>Autre kourel</div>
-                    {kourelSelectionne === 'autre' && (
-                      <div className="space-y-1.5 mt-2">
-                        <input type="text" placeholder="Nom du kourel" value={autreKourel.nom}
-                          onChange={(e) => setAutreKourel({ ...autreKourel, nom: e.target.value })}
-                          className="w-full px-3 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:border-vert-principal" />
-                        <input type="text" placeholder="Responsable" value={autreKourel.responsable}
-                          onChange={(e) => setAutreKourel({ ...autreKourel, responsable: e.target.value })}
-                          className="w-full px-3 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:border-vert-principal" />
-                      </div>
-                    )}
-                  </div>
-                </label>
-              </div>
-            )}
-          </div>
-        </div>
+              <label className="flex items-start gap-3 px-3 py-2.5 rounded-2xl cursor-pointer transition-colors"
+                style={{ background: kourelSelectionne === 'autre' ? '#EEF8F3' : '#F8FAF9' }}>
+                <input type="radio" name="kourel" value="autre"
+                  checked={kourelSelectionne === 'autre'}
+                  onChange={() => setKourelSelectionne('autre')}
+                  className="sr-only" />
+                <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 transition-colors"
+                  style={{ background: kourelSelectionne === 'autre' ? '#016A3B' : '#E5EAE7', color: kourelSelectionne === 'autre' ? 'white' : '#6B7A71' }}>
+                  {kourelSelectionne === 'autre' ? <Check size={16} /> : <Users size={16} />}
+                </div>
+                <div className="flex-1 pt-1.5">
+                  <div className="text-sm font-semibold text-gris-950">Autre kourel</div>
+                  {kourelSelectionne === 'autre' && (
+                    <div className="space-y-1.5 mt-2">
+                      <input type="text" placeholder="Nom du kourel" value={autreKourel.nom}
+                        onChange={(e) => setAutreKourel({ ...autreKourel, nom: e.target.value })}
+                        className="w-full px-3 py-2 bg-white border border-gris-200 rounded-xl text-sm focus:outline-none focus:border-vert-principal" />
+                      <input type="text" placeholder="Responsable" value={autreKourel.responsable}
+                        onChange={(e) => setAutreKourel({ ...autreKourel, responsable: e.target.value })}
+                        className="w-full px-3 py-2 bg-white border border-gris-200 rounded-xl text-sm focus:outline-none focus:border-vert-principal" />
+                    </div>
+                  )}
+                </div>
+              </label>
+            </div>
+          )}
+        </motion.div>
+      </motion.div>
 
-        <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 mt-3 sm:mt-4">
-          <button
-            onClick={() => setEtape('config_programme')}
-            disabled={!kourelSelectionne || kourelSelectionne === 'autre' || loadingProgramme}
-            className="flex-1 flex items-center justify-center gap-2 py-2 sm:py-2.5 px-4 sm:px-5 rounded-xl font-semibold text-xs sm:text-sm text-white hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition"
-            style={{ background: '#34495E' }}
-          >
-            <Edit2 size={14} />
-            Programme Annuel
-          </button>
-          <button
-            onClick={() => { setEtape('rapport'); setSousEtape(1) }}
-            disabled={!kourelSelectionne || loadingProgramme}
-            className="flex-1 flex items-center justify-center gap-2 py-2 sm:py-2.5 px-4 sm:px-5 rounded-xl font-semibold text-xs sm:text-sm text-white hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition"
-            style={{ background: '#16824E' }}
-          >
-            {loadingProgramme
-              ? <Loader size={14} className="animate-spin" />
-              : <ChevronRight size={14} />}
-            {loadingProgramme ? 'Chargement...' : 'Créer un Rapport'}
-          </button>
-        </div>
-
+      {/* Actions : barre fixe en bas sur mobile, inline sous la carte sur desktop */}
+      <div
+        className="fixed bottom-0 inset-x-0 lg:static lg:mt-4 lg:w-full lg:max-w-xl bg-white lg:bg-transparent shadow-[0_-4px_16px_rgba(0,0,0,0.06)] lg:shadow-none px-4 py-3 lg:px-0 lg:py-0 flex gap-2.5 z-20"
+        style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom))' }}
+      >
+        <button
+          onClick={() => setEtape('config_programme')}
+          disabled={!kourelSelectionne || kourelSelectionne === 'autre' || loadingProgramme}
+          className="flex-1 flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-xl font-semibold text-xs whitespace-nowrap text-white hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition"
+          style={{ background: '#34495E' }}
+        >
+          <Edit2 size={13} />
+          Programme Annuel
+        </button>
+        <button
+          onClick={() => { setEtape('rapport'); setSousEtape(1) }}
+          disabled={!kourelSelectionne || loadingProgramme}
+          className="flex-1 flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-xl font-semibold text-xs whitespace-nowrap text-white hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition"
+          style={{ background: '#16824E' }}
+        >
+          {loadingProgramme
+            ? <Loader size={13} className="animate-spin" />
+            : <ChevronRight size={13} />}
+          {loadingProgramme ? 'Chargement...' : 'Créer un Rapport'}
+        </button>
       </div>
     </div>
   )
