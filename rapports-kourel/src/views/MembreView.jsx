@@ -200,7 +200,7 @@ export default function MembreView() {
               ))}
             </div>
           ) : (
-            <div className="space-y-2 overflow-y-auto flex-1 pr-0.5" style={{ maxHeight: '420px' }}>
+            <div className="space-y-2 overflow-y-auto flex-1 pr-0.5">
               {kourels.map(kourel => {
                 const selected = kourelSelectionne === kourel.id
                 return (

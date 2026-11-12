@@ -118,7 +118,7 @@ export default function PublicAccueil() {
         </motion.div>
 
         {/* Onglets : Rapport / Évaluation */}
-        <motion.div variants={itemVariants} className="relative z-10 -mt-5 mx-5 lg:mx-6">
+        <div className="relative z-10 -mt-5 mx-5 lg:mx-6">
           <div className="bg-white rounded-lg shadow-md border border-gris-100 p-1 flex gap-1.5">
             {TABS.map(t => {
               const Icon = t.icon
@@ -139,21 +139,24 @@ export default function PublicAccueil() {
                   {active && (
                     <motion.div
                       layoutId="public-tab-active"
-                      className="absolute inset-0 rounded-md shadow-sm -z-10"
+                      initial={false}
+                      className="absolute inset-0 rounded-md shadow-sm"
                       style={{ background: t.color }}
                       transition={{ type: 'spring', stiffness: 380, damping: 32 }}
                     />
                   )}
-                  <Icon size={14} />
-                  {t.label}
+                  <span className="relative z-10 flex items-center justify-center gap-1.5">
+                    <Icon size={14} />
+                    {t.label}
+                  </span>
                 </motion.button>
               )
             })}
           </div>
-        </motion.div>
+        </div>
 
         {/* Contenu */}
-        <div className="px-4 pt-6 pb-10 lg:px-6 lg:pb-8 flex-1 flex flex-col justify-center">
+        <div className="px-4 pt-6 pb-10 lg:px-6 lg:pb-8 flex-1 flex flex-col">
           <AnimatePresence mode="wait">
             {tab === 'rapport' && (
               <InfoCard
