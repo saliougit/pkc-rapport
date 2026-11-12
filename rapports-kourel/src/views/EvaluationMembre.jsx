@@ -1,5 +1,7 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
+import { AnimatePresence, motion } from 'framer-motion'
+import { Toaster, toast } from 'sonner'
 import {
   ChevronRight, ChevronLeft, CheckCircle2, Clock,
   Calendar, MapPin, Users, Music, FileText,
@@ -20,6 +22,54 @@ const APPRECIATIONS = [
 const SECTION_ICONS = [Music, FileText, Clock, Users, Calendar, Star]
 const SECTION_COLORS = ['#3B82F6', '#8B5CF6', '#F59E0B', '#EF4444', '#10B981', '#16824E']
 const SECTION_BGS    = ['#EFF6FF', '#F5F3FF', '#FFFBEB', '#FEF2F2', '#ECFDF5', '#F0FDF4']
+
+// ─── Transitions façon app mobile (slide + fade, sensible à la direction) ────
+
+const slideVariants = {
+  enter: (dir) => ({ x: dir > 0 ? 48 : -48, opacity: 0 }),
+  center: { x: 0, opacity: 1 },
+  exit: (dir) => ({ x: dir > 0 ? -48 : 48, opacity: 0 }),
+}
+
+function SlideStep({ dir, stepKey, children, className }) {
+  return (
+    <AnimatePresence mode="wait" custom={dir} initial={false}>
+      <motion.div
+        key={stepKey}
+        custom={dir}
+        variants={slideVariants}
+        initial="enter"
+        animate="center"
+        exit="exit"
+        transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+        className={className}
+      >
+        {children}
+      </motion.div>
+    </AnimatePresence>
+  )
+}
+
+// Swipe tactile horizontal (va-et-vient entre sections/étapes) sans gêner le scroll vertical.
+function useSwipe(onSwipeLeft, onSwipeRight) {
+  const start = useRef(null)
+  return {
+    onTouchStart: (e) => {
+      const t = e.touches[0]
+      start.current = { x: t.clientX, y: t.clientY }
+    },
+    onTouchEnd: (e) => {
+      if (!start.current) return
+      const t = e.changedTouches[0]
+      const dx = t.clientX - start.current.x
+      const dy = t.clientY - start.current.y
+      start.current = null
+      if (Math.abs(dx) < 55 || Math.abs(dx) < Math.abs(dy) * 1.5) return
+      if (dx < 0) onSwipeLeft?.()
+      else onSwipeRight?.()
+    },
+  }
+}
 
 function getAppreciationFromNote(note) {
   if (note == null) return ''
@@ -554,15 +604,12 @@ function SectionCard({ section, data, onChange, index, total, readOnly, isGenera
   )
 }
 
-// ─── Toast validation ─────────────────────────────────────────────────────────
+// ─── Notifications de validation (sonner) ─────────────────────────────────────
 
-function Toast({ manque, onClose }) {
-  useEffect(() => {
-    const t = setTimeout(onClose, 3000)
-    return () => clearTimeout(t)
-  }, [])
-
-  const msg = manque.includes('nombre_present')
+function notifyManque(manque) {
+  const msg = manque.includes('programme')
+    ? 'Définissez le programme de prestation avant de continuer'
+    : manque.includes('nombre_present')
     ? 'Indiquez le nombre de présents'
     : manque.includes('remarques')
     ? 'Veuillez justifier cette note critique'
@@ -572,14 +619,7 @@ function Toast({ manque, onClose }) {
     ? 'Choisissez une appréciation'
     : 'Donnez une note sur 10'
 
-  return (
-    <div className="fixed bottom-24 left-4 right-4 z-50 flex justify-center pointer-events-none">
-      <div className="flex items-center gap-2.5 bg-gris-950 text-white px-4 py-3 rounded-2xl shadow-lg max-w-xs w-full pointer-events-auto">
-        <AlertCircle size={16} className="flex-shrink-0 text-orange-400" />
-        <p className="text-sm font-semibold">{msg}</p>
-      </div>
-    </div>
-  )
+  toast.error(msg, { duration: 3000 })
 }
 
 // ─── Dots stepper ─────────────────────────────────────────────────────────────
@@ -624,6 +664,37 @@ function DotsStep({ etape }) {
     </div>
   )
 }
+
+// ─── Tuile section à évaluer (façon padel) ────────────────────────────────────
+
+function SectionPreviewTile({ section, cornerPos }) {
+  const Icon = section.icon
+  return (
+    <div
+      className="relative overflow-hidden flex items-center gap-2.5 rounded-xl border border-gris-100 bg-white px-3 py-2.5"
+    >
+      <div
+        aria-hidden
+        className="absolute w-8 h-8 rounded-full opacity-60"
+        style={{ background: section.color, filter: 'blur(10px)', ...cornerPos }}
+      />
+      <div
+        className="relative w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
+        style={{ background: section.bg, color: section.color }}
+      >
+        <Icon size={14} />
+      </div>
+      <span className="relative text-[11px] font-bold text-gris-700 truncate">{section.label}</span>
+    </div>
+  )
+}
+
+const TILE_CORNERS = [
+  { top: '-6px', right: '-6px' },
+  { top: '-6px', left: '-6px' },
+  { bottom: '-6px', right: '-6px' },
+  { bottom: '-6px', left: '-6px' },
+]
 
 // ─── Programme Item Row ────────────────────────────────────────────────────────
 
@@ -716,6 +787,15 @@ export default function EvaluationMembre() {
   const [codeValide, setCodeValide] = useState(null)
   const [etape, setEtape] = useState(1)
   const [sectionIdx, setSectionIdx] = useState(0)
+  const [direction, setDirection] = useState(1)
+
+  // Swipe vers la droite = retour en arrière (geste natif), sans toucher à la
+  // validation du bouton "Suivant" côté avancée.
+  const contentSwipe = useSwipe(null, () => {
+    if (etape === 2) { setDirection(-1); setEtape(1) }
+    else if (etape === 3) { setDirection(-1); sectionIdx === 0 ? setEtape(2) : setSectionIdx(i => i - 1) }
+    else if (etape === 4 && !readOnly) { setDirection(-1); setEtape(3); setSectionIdx(0) }
+  })
   const [criteres, setCriteres] = useState([])
   const [evaluationId, setEvaluationId] = useState(null)
 
@@ -751,7 +831,6 @@ export default function EvaluationMembre() {
   const [saving, setSaving] = useState(false)
   const [soumis, setSoumis] = useState(false)
   const [readOnly, setReadOnly] = useState(false)
-  const [popup, setPopup] = useState(null)
   const [codeError, setCodeError] = useState(false)
   const [loadError, setLoadError] = useState(null)
   
@@ -818,7 +897,7 @@ export default function EvaluationMembre() {
         const eventClosed = codeValide.evenement_kourel?.evenement?.statut === 'terminé'
         const ro = alreadySubmitted || eventClosed
         setReadOnly(ro)
-        if (ro) setEtape(4)
+        if (ro) { setDirection(1); setEtape(4) }
         if (ev.notes?.length) {
           const loaded = {}
           SECTIONS.forEach(s => {
@@ -923,19 +1002,19 @@ export default function EvaluationMembre() {
     if (section.id === sectionGeneraleId) { cible(); return }
     if (section.id === sectionPresenceId) {
       if (evalData.notes[section.id]?.nombre_present == null) {
-        setPopup({ sectionLabel: section.label, manque: ['nombre_present'] })
+        notifyManque(['nombre_present'])
         return
       }
       cible(); return
     }
     if (isPerKhassidaSection(section.id)) {
       const items = evalData.programme
-      if (!items.length) { setPopup({ sectionLabel: section.label, manque: ['programme'] }); return }
+      if (!items.length) { notifyManque(['programme']); return }
       const missingNote = items.find(item =>
         evalData.programmeNotes?.[item.tempId || item.id]?.[section.id]?.note == null
       )
       if (missingNote) {
-        setPopup({ sectionLabel: section.label, manque: ['appreciation'] })
+        notifyManque(['appreciation'])
         return
       }
       const missingJustif = items.find(item => {
@@ -943,7 +1022,7 @@ export default function EvaluationMembre() {
         return n?.note != null && (n.note <= 5 || n.note >= 9) && !n.remarques?.trim()
       })
       if (missingJustif) {
-        setPopup({ sectionLabel: section.label, manque: ['remarques'] })
+        notifyManque(['remarques'])
         return
       }
       cible(); return
@@ -954,7 +1033,7 @@ export default function EvaluationMembre() {
     if (n?.note == null) manque.push('note')
     else if (hasExtremeNote(section.id)) manque.push('remarques')
     if (manque.length > 0) {
-      setPopup({ sectionLabel: section.label, manque })
+      notifyManque(manque)
       return
     }
     cible()
@@ -973,6 +1052,7 @@ export default function EvaluationMembre() {
       const moy = allVals.length ? parseFloat((allVals.reduce((a, b) => a + b, 0) / allVals.length).toFixed(2)) : null
       if (moy != null) updateSection(sectionGeneraleId, { note: moy, appreciation: getAppreciationFromNote(moy) })
     }
+    setDirection(1)
     setEtape(4)
   }
 
@@ -991,9 +1071,10 @@ export default function EvaluationMembre() {
         else if (hasExtremeNote(premiere.id)) manque.push('remarques')
       }
       if (manque.length > 0) {
+        setDirection(-1)
         setSectionIdx(SECTIONS.indexOf(premiere))
         setEtape(3)
-        setPopup({ sectionLabel: premiere.label, manque })
+        notifyManque(manque)
         return
       }
     }
@@ -1155,7 +1236,7 @@ export default function EvaluationMembre() {
           {getMoyenne() && (
             <div className="mt-6 rounded-2xl px-8 py-5 anim-up-3" style={{ background: '#F0FDF4', border: '1.5px solid #BBF7D0' }}>
               <p className="text-xs font-bold text-vert-600 uppercase tracking-widest mb-1">Votre moyenne</p>
-              <p className="text-5xl font-black" style={{ color: '#016030' }}>
+              <p className="font-heading text-5xl font-bold tabular-nums" style={{ color: '#016030' }}>
                 {getMoyenne()}<span className="text-xl text-vert-400">/10</span>
               </p>
             </div>
@@ -1184,16 +1265,15 @@ export default function EvaluationMembre() {
   return (
     <div className="min-h-screen flex justify-center bg-gris-50">
     <div className="w-full max-w-md flex flex-col min-h-screen bg-gris-50">
-      {popup && (
-        <Toast manque={popup.manque} onClose={() => setPopup(null)} />
-      )}
+      <Toaster position="top-center" richColors closeButton />
       <div className="flex-shrink-0 bg-white border-b border-gris-100 sticky top-0 z-10">
         <div className="px-4">
           <DotsStep etape={etape} />
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto" {...contentSwipe}>
+      <SlideStep dir={direction} stepKey={etape}>
         {etape === 1 && (
           <div className="flex flex-col">
             <div className="px-4 pt-6 pb-5" style={{ background: '#016030' }}>
@@ -1241,18 +1321,10 @@ export default function EvaluationMembre() {
                 </div>
               </div>
 
-              <div className="flex flex-wrap gap-2 pb-4">
-                {SECTIONS.map(s => {
-                  const Icon = s.icon
-                  return (
-                    <div key={s.id}
-                      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-gris-100 bg-white"
-                    >
-                      <Icon size={11} style={{ color: s.color }} />
-                      <span className="text-[11px] font-semibold text-gris-600">{s.label}</span>
-                    </div>
-                  )
-                })}
+              <div className="grid grid-cols-2 gap-2 pb-4">
+                {SECTIONS.map((s, i) => (
+                  <SectionPreviewTile key={s.id} section={s} cornerPos={TILE_CORNERS[i % TILE_CORNERS.length]} />
+                ))}
               </div>
             </div>
           </div>
@@ -1423,7 +1495,7 @@ export default function EvaluationMembre() {
                 {SECTIONS.filter(s => s.id !== sectionGeneraleId).map((s, i) => (
                   <button
                     key={s.id}
-                    onClick={() => setSectionIdx(i)}
+                    onClick={() => { setDirection(i > sectionIdx ? 1 : -1); setSectionIdx(i) }}
                     className="flex-1 h-1.5 rounded-full transition-all duration-300"
                     style={{
                       background: sectionComplete(s.id)
@@ -1466,24 +1538,26 @@ export default function EvaluationMembre() {
               }
 
               return (
-                <SectionCard
-                  section={sec}
-                  data={evalData.notes[sec.id] || sectionVide()}
-                  onChange={(changes) => updateSection(sec.id, changes)}
-                  index={sectionIdx + 1}
-                  total={SECTIONS.length}
-                  readOnly={readOnly}
-                  isGenerale={isGenerale}
-                  moyenneAuto={isPerKhassida ? progMoy : isGenerale ? moyAuto : null}
-                  isPresence={sec.id === sectionPresenceId}
-                  presenceEffectif={codeValide?.evenement_kourel?.kourel?.effectif_actif ?? 0}
-                  isPerKhassida={isPerKhassida}
-                  programme={evalData.programme}
-                  programmeNotes={evalData.programmeNotes}
-                  onProgrammeNoteChange={(itemId, changes) => {
-                    updateProgrammeNote(itemId, sec.critereId, changes)
-                  }}
-                />
+                <SlideStep dir={direction} stepKey={sectionIdx}>
+                  <SectionCard
+                    section={sec}
+                    data={evalData.notes[sec.id] || sectionVide()}
+                    onChange={(changes) => updateSection(sec.id, changes)}
+                    index={sectionIdx + 1}
+                    total={SECTIONS.length}
+                    readOnly={readOnly}
+                    isGenerale={isGenerale}
+                    moyenneAuto={isPerKhassida ? progMoy : isGenerale ? moyAuto : null}
+                    isPresence={sec.id === sectionPresenceId}
+                    presenceEffectif={codeValide?.evenement_kourel?.kourel?.effectif_actif ?? 0}
+                    isPerKhassida={isPerKhassida}
+                    programme={evalData.programme}
+                    programmeNotes={evalData.programmeNotes}
+                    onProgrammeNoteChange={(itemId, changes) => {
+                      updateProgrammeNote(itemId, sec.critereId, changes)
+                    }}
+                  />
+                </SlideStep>
               )
             })()}
 
@@ -1554,7 +1628,7 @@ export default function EvaluationMembre() {
               {getMoyenne() && (
                 <div className="mt-4 pt-3 border-t border-gris-100 flex items-center justify-between">
                   <span className="text-sm font-bold text-gris-700">Moyenne des sections</span>
-                  <span className="text-xl font-black text-vert-700">{getMoyenne()}/10</span>
+                  <span className="font-heading text-xl font-bold tabular-nums text-vert-700">{getMoyenne()}/10</span>
                 </div>
               )}
             </div>
@@ -1573,7 +1647,7 @@ export default function EvaluationMembre() {
                       className="w-20 h-20 rounded-full flex-shrink-0 flex flex-col items-center justify-center border-4"
                       style={{ borderColor: apprecObj?.active ?? '#9CA3AF', background: (apprecObj?.active ?? '#9CA3AF') + '18' }}
                     >
-                      <span className="text-2xl font-black leading-none" style={{ color: apprecObj?.active ?? '#9CA3AF' }}>
+                      <span className="font-heading text-2xl font-bold leading-none tabular-nums" style={{ color: apprecObj?.active ?? '#9CA3AF' }}>
                         {getMoyenne()}
                       </span>
                       <span className="text-[10px] text-gris-400">/10</span>
@@ -1610,12 +1684,13 @@ export default function EvaluationMembre() {
             </div>
           </div>
         )}
+      </SlideStep>
       </div>
 
       <div className="flex-shrink-0 bg-white border-t border-gris-100 px-4 py-3 sticky bottom-0 shadow-[0_-4px_12px_rgba(0,0,0,0.06)]">
         {etape === 1 && !readOnly && (
           <button
-            onClick={() => setEtape(2)}
+            onClick={() => { setDirection(1); setEtape(2) }}
             disabled={SECTIONS.length === 0}
             className="w-full h-13 py-3.5 rounded-2xl font-bold text-white flex items-center justify-center gap-2 text-sm transition-all active:scale-95 disabled:opacity-40"
             style={{ background: '#016030' }}
@@ -1627,7 +1702,7 @@ export default function EvaluationMembre() {
         {etape === 2 && !readOnly && (
           <div className="flex gap-3">
             <button
-              onClick={() => setEtape(1)}
+              onClick={() => { setDirection(-1); setEtape(1) }}
               className="flex-none h-13 py-3.5 px-5 rounded-2xl font-bold text-gris-700 border-2 border-gris-200 flex items-center justify-center gap-1 text-sm transition-all active:scale-95"
             >
               <ChevronLeft size={16} />
@@ -1635,9 +1710,10 @@ export default function EvaluationMembre() {
             <button
               onClick={() => {
                 if (evalData.programme.length === 0) {
-                  setPopup({ manque: ['programme'] })
+                  notifyManque(['programme'])
                   return
                 }
+                setDirection(1)
                 setEtape(3)
               }}
               className="flex-1 h-13 py-3.5 rounded-2xl font-bold text-white flex items-center justify-center gap-2 text-sm transition-all active:scale-95"
@@ -1651,7 +1727,7 @@ export default function EvaluationMembre() {
         {etape === 3 && (
           <div className="flex gap-3">
             <button
-              onClick={() => sectionIdx === 0 ? setEtape(2) : setSectionIdx(i => i - 1)}
+              onClick={() => { setDirection(-1); sectionIdx === 0 ? setEtape(2) : setSectionIdx(i => i - 1) }}
               className="flex-none h-13 py-3.5 px-5 rounded-2xl font-bold text-gris-700 border-2 border-gris-200 flex items-center justify-center gap-1 text-sm transition-all active:scale-95"
             >
               <ChevronLeft size={16} />
@@ -1667,6 +1743,7 @@ export default function EvaluationMembre() {
             ) : sectionIdx < SECTIONS.length - 1 ? (
               <button
                 onClick={() => validerEtAvancer(() => {
+                  setDirection(1)
                   const next = SECTIONS[sectionIdx + 1]
                   if (next?.id === sectionGeneraleId) allerEtape4()
                   else setSectionIdx(i => i + 1)
@@ -1691,7 +1768,7 @@ export default function EvaluationMembre() {
         {etape === 4 && !readOnly && (
           <div className="flex gap-3">
             <button
-              onClick={() => { setEtape(3); setSectionIdx(0) }}
+              onClick={() => { setDirection(-1); setEtape(3); setSectionIdx(0) }}
               className="flex-none h-13 py-3.5 px-5 rounded-2xl font-bold text-gris-700 border-2 border-gris-200 flex items-center justify-center gap-1 text-sm transition-all active:scale-95"
             >
               <ChevronLeft size={16} />

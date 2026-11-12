@@ -1,10 +1,77 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { FileText, Star, ChevronRight, ShieldCheck, Loader } from 'lucide-react'
+import { AnimatePresence, motion } from 'framer-motion'
+import { FileText, Star, ChevronRight, ShieldCheck, UserCog } from 'lucide-react'
 import { Input } from '@/components/ui/input'
+
+const containerVariants = {
+  hidden: {},
+  show: { transition: { staggerChildren: 0.1, delayChildren: 0.1 } },
+}
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 18 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.45, ease: [0.22, 1, 0.36, 1] } },
+}
+
+const TABS = [
+  { id: 'rapport', label: 'Rapport', icon: FileText, color: '#016A3B' },
+  { id: 'evaluation', label: 'Évaluation', icon: Star, color: '#B45309' },
+]
+
+function AccederBadge({ color }) {
+  return (
+    <span
+      className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-full"
+      style={{ background: `${color}14`, color }}
+    >
+      <span className="w-1.5 h-1.5 rounded-full" style={{ background: color }} />
+      Accéder
+    </span>
+  )
+}
+
+function OptionCard({ icon, iconBg, iconColor, cornerColor, title, description, badge, children, as: Comp = 'div', ...props }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 14 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -14 }}
+      transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+      whileHover={{ y: -3 }}
+      whileTap={{ scale: 0.98 }}
+    >
+      <Comp
+        className="relative overflow-hidden block rounded-3xl p-6 bg-white shadow-sm transition-shadow hover:shadow-lg"
+        {...props}
+      >
+        <div
+          aria-hidden
+          className="absolute w-24 h-24 rounded-full opacity-20 -top-8 -right-8"
+          style={{ background: cornerColor, filter: 'blur(26px)' }}
+        />
+        <div className="relative flex items-start gap-4">
+          <div
+            className="w-14 h-14 rounded-full flex items-center justify-center flex-shrink-0 shadow-sm"
+            style={{ background: `linear-gradient(135deg, ${iconBg}, white)`, color: iconColor }}
+          >
+            {icon}
+          </div>
+          <div className="flex-1 min-w-0 pt-0.5">
+            <p className="text-base font-bold text-gris-950 mb-1">{title}</p>
+            <p className="text-xs text-gris-500 leading-relaxed mb-2">{description}</p>
+            {badge && <AccederBadge color={iconColor} />}
+          </div>
+        </div>
+        {children}
+      </Comp>
+    </motion.div>
+  )
+}
 
 export default function PublicAccueil() {
   const navigate = useNavigate()
+  const [tab, setTab] = useState('rapport')
   const [code, setCode] = useState('')
   const [error, setError] = useState('')
 
@@ -18,108 +85,149 @@ export default function PublicAccueil() {
   }
 
   return (
-    <div className="min-h-screen bg-gris-clair flex items-center justify-center px-4 py-6">
-      <div className="w-full max-w-lg">
+    <div className="relative min-h-screen overflow-hidden bg-gris-clair flex flex-col lg:items-center lg:justify-center px-0 lg:px-4 py-0 lg:py-6">
+      <div
+        aria-hidden
+        className="absolute inset-0 opacity-[0.05]"
+        style={{
+          backgroundImage: 'radial-gradient(circle at 1px 1px, #014421 1px, transparent 0)',
+          backgroundSize: '26px 26px',
+        }}
+      />
+      <div aria-hidden className="pointer-events-none absolute -top-24 -left-20 w-80 h-80 rounded-full bg-vert-400/20 blur-3xl" />
+      <div aria-hidden className="pointer-events-none absolute -bottom-32 -right-24 w-96 h-96 rounded-full bg-amber-400/15 blur-3xl" />
+      <div aria-hidden className="pointer-events-none absolute top-1/3 -right-16 w-64 h-64 rounded-full bg-blue-400/10 blur-3xl hidden md:block" />
+
+      <motion.div
+        className="relative w-full flex-1 flex flex-col lg:flex-none lg:max-w-lg"
+        variants={containerVariants}
+        initial="hidden"
+        animate="show"
+      >
         {/* Header */}
-        <div className="bg-vert-800 text-white px-5 py-4 rounded-t-2xl">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-white flex items-center justify-center p-1 flex-shrink-0">
-              <img src="/images/logo-dmn.png" alt="DMN" className="w-full h-full object-contain" />
-            </div>
-            <div className="min-w-0">
-              <p className="font-bold text-sm leading-tight">Daara Madjmahoun Noreyni</p>
-              <p className="text-[11px] text-vert-200 leading-tight">
-                UCAD · Pôle Kourel Centrale · Commission Conservatoire
-              </p>
-            </div>
-            <Link to="/login"
-              className="ml-auto text-[11px] font-semibold px-2.5 py-1.5 rounded-lg flex-shrink-0"
-              style={{ background: 'rgba(255,255,255,0.12)', color: '#8CD2B4' }}
-            >
-              Admin
-            </Link>
+        <motion.div
+          variants={itemVariants}
+          className="relative flex flex-col items-center text-center gap-2 px-6 pt-10 pb-8 lg:pt-8 lg:rounded-t-[2rem]"
+          style={{ background: 'linear-gradient(135deg, #EEF8F3 0%, #F5F3EE 60%, #EFF6FF 100%)' }}
+        >
+          <Link
+            to="/login"
+            aria-label="Se connecter en tant qu'administrateur"
+            className="absolute top-3 right-3 w-9 h-9 rounded-full flex items-center justify-center text-gris-400 hover:text-vert-700 hover:bg-white/60 transition-colors"
+          >
+            <UserCog size={18} />
+          </Link>
+          <div className="w-16 h-16 rounded-full bg-white shadow-md flex items-center justify-center p-2.5">
+            <img src="/images/logo-dmn.png" alt="DMN" className="w-full h-full object-contain" />
           </div>
-        </div>
+          <p className="font-bold text-xl text-gris-950 leading-tight mt-2">Daara Madjmahoun Noreyni</p>
+          <p className="text-xs text-gris-500 leading-tight">
+            UCAD · Pôle Kourel Centrale · Commission Conservatoire
+          </p>
+        </motion.div>
 
         {/* Body */}
-        <div className="bg-white shadow-xl rounded-b-2xl p-6 space-y-5">
-          <p className="text-xs font-bold text-vert-800 uppercase tracking-widest text-center">
-            Espace Membre
-          </p>
+        <div className="bg-white lg:shadow-xl lg:rounded-b-[2rem] p-4 pt-6 lg:p-6 flex-1 flex flex-col justify-center pb-28 lg:pb-6 lg:flex-none lg:min-h-[240px]">
+          <AnimatePresence mode="wait">
+            {tab === 'rapport' && (
+              <OptionCard
+                key="rapport"
+                as={Link}
+                to="/rapport"
+                badge
+                icon={<FileText size={24} />}
+                iconBg="#EEF8F3"
+                iconColor="#016A3B"
+                cornerColor="#3BAD72"
+                title="Rapport Mensuel"
+                description="Générer le rapport de suivi mensuel de votre kourel : mélodies, programme annuel, appréciation."
+              />
+            )}
 
-          {/* Option 1 : Rapport Mensuel */}
-          <Link to="/rapport"
-            className="block group border border-gris-200 rounded-xl p-5 hover:border-vert-400 hover:shadow-md transition-all"
-          >
-            <div className="flex items-start gap-4">
-              <div className="w-12 h-12 rounded-xl bg-vert-50 flex items-center justify-center flex-shrink-0 group-hover:bg-vert-100 transition-colors">
-                <FileText size={22} className="text-vert-700" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-1">
-                  <p className="text-sm font-bold text-gris-950">Rapport Mensuel</p>
-                  <ChevronRight size={14} className="text-gris-400 group-hover:text-vert-700 transition-colors flex-shrink-0" />
-                </div>
-                <p className="text-xs text-gris-500 leading-relaxed">
-                  Générer le rapport de suivi mensuel de votre kourel :
-                  mélodies, programme annuel, appréciation.
-                </p>
-              </div>
-            </div>
-          </Link>
-
-          {/* Séparateur */}
-          <div className="flex items-center gap-3">
-            <div className="flex-1 h-px bg-gris-200" />
-            <span className="text-[10px] font-semibold text-gris-400 uppercase tracking-wider">ou</span>
-            <div className="flex-1 h-px bg-gris-200" />
-          </div>
-
-          {/* Option 2 : Évaluation avec code */}
-          <div className="border border-gris-200 rounded-xl p-5">
-            <div className="flex items-start gap-4 mb-4">
-              <div className="w-12 h-12 rounded-xl bg-amber-50 flex items-center justify-center flex-shrink-0">
-                <Star size={22} className="text-amber-600" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-bold text-gris-950">Évaluation d'événement</p>
-                <p className="text-xs text-gris-500 leading-relaxed">
-                  Noter un événement auquel vous avez été assigné comme évaluateur.
-                  Utilisez le code qui vous a été communiqué.
-                </p>
-              </div>
-            </div>
-
-            <form onSubmit={handleCodeSubmit} className="space-y-3">
-              <div>
-                <label className="block text-xs font-semibold text-gris-500 mb-1.5 uppercase tracking-wide">
-                  Code d'évaluation
-                </label>
-                <div className="flex flex-col sm:flex-row gap-2">
-                  <Input
-                    value={code}
-                    onChange={e => { setCode(e.target.value); setError('') }}
-                    placeholder="Entrez votre code…"
-                    className="flex-1 h-11 text-sm font-mono tracking-wider uppercase"
-                  />
-                  <button type="submit"
-                    className="w-full sm:w-auto h-11 px-5 bg-amber-600 text-white text-sm font-semibold rounded-lg hover:bg-amber-700 transition flex items-center justify-center gap-1.5 flex-shrink-0"
-                  >
-                    Accéder <ChevronRight size={15} />
-                  </button>
-                </div>
-                {error && <p className="text-xs text-rouge mt-1.5">{error}</p>}
-              </div>
-              <p className="text-[10px] text-gris-400 leading-relaxed">
-                <ShieldCheck size={10} className="inline mr-0.5" />
-                Code à 12 caractères. En cas de perte, contactez l'administrateur.
-              </p>
-            </form>
-          </div>
+            {tab === 'evaluation' && (
+              <OptionCard
+                key="evaluation"
+                icon={<Star size={24} />}
+                iconBg="#FFFBEB"
+                iconColor="#B45309"
+                cornerColor="#F59E0B"
+                title="Évaluation d'événement"
+                description="Noter un événement auquel vous avez été assigné comme évaluateur. Utilisez le code qui vous a été communiqué."
+              >
+                <form onSubmit={handleCodeSubmit} className="relative space-y-3 mt-5">
+                  <div>
+                    <label className="block text-xs text-gris-400 mb-2">
+                      Code d'évaluation
+                    </label>
+                    <div className="flex flex-col lg:flex-row gap-2.5">
+                      <Input
+                        value={code}
+                        onChange={e => { setCode(e.target.value); setError('') }}
+                        placeholder="Entrez votre code…"
+                        className="flex-1 h-12 text-sm font-mono tracking-wider uppercase rounded-2xl border-transparent bg-gris-50 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-amber-400/40"
+                      />
+                      <motion.button type="submit"
+                        whileTap={{ scale: 0.96 }}
+                        className="w-full lg:w-auto h-12 px-6 bg-amber-600 text-white text-sm font-semibold rounded-full hover:bg-amber-700 transition-colors flex items-center justify-center gap-1.5 flex-shrink-0 shadow-sm"
+                      >
+                        Accéder <ChevronRight size={15} />
+                      </motion.button>
+                    </div>
+                    {error && <p className="text-xs text-rouge mt-1.5">{error}</p>}
+                  </div>
+                  <p className="text-[10px] text-gris-400 leading-relaxed">
+                    <ShieldCheck size={10} className="inline mr-0.5" />
+                    Code à 12 caractères. En cas de perte, contactez l'administrateur.
+                  </p>
+                </form>
+              </OptionCard>
+            )}
+          </AnimatePresence>
         </div>
+      </motion.div>
+
+      {/* Bottom nav flottante : choix Rapport / Évaluation */}
+      <div
+        className="fixed bottom-5 left-1/2 -translate-x-1/2 z-20"
+        style={{ marginBottom: 'env(safe-area-inset-bottom)' }}
+      >
+        <nav className="relative flex items-center h-16 rounded-2xl bg-white shadow-xl px-2 gap-1">
+          {TABS.map(t => {
+            const Icon = t.icon
+            const active = tab === t.id
+            return (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => setTab(t.id)}
+                className="relative z-10 flex flex-col items-center justify-center gap-0.5 w-20 h-full"
+              >
+                <Icon size={20} className="transition-opacity duration-150" style={{ color: t.color, opacity: active ? 1 : 0.35 }} />
+                <span className="text-[10px] font-semibold transition-opacity duration-150" style={{ color: t.color, opacity: active ? 1 : 0.35 }}>
+                  {t.label}
+                </span>
+
+                {active && (
+                  <motion.div
+                    layoutId="public-limelight"
+                    transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+                    className="absolute top-0 z-0 w-11 h-[5px] rounded-full"
+                    style={{ background: t.color, boxShadow: `0 50px 15px ${t.color}` }}
+                  >
+                    <div
+                      className="absolute left-[-30%] top-[5px] w-[160%] h-14 pointer-events-none"
+                      style={{
+                        clipPath: 'polygon(5% 100%, 25% 0, 75% 0, 95% 100%)',
+                        background: `linear-gradient(to bottom, ${t.color}33, transparent)`,
+                      }}
+                    />
+                  </motion.div>
+                )}
+              </button>
+            )
+          })}
+        </nav>
       </div>
     </div>
-
   )
 }
-

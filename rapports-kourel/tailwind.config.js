@@ -9,6 +9,7 @@ export default {
     extend: {
       fontFamily: {
         sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+        heading: ['Fraunces', 'Georgia', 'serif'],
       },
       borderRadius: {
         lg: 'var(--radius)',
