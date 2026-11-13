@@ -260,8 +260,8 @@ app.get('/api/data/programme/:kourelId', async (req, res) => {
 
 app.post('/api/data/programme', async (req, res) => {
   try {
-    const { kourel_id, nom, melodie, ordre } = req.body
-    const { data, error } = await supabaseServer.from('programme_annuel').insert({ kourel_id, nom, melodie, ordre }).select().single()
+    const { kourel_id, nom, melodie, ordre, pages_total } = req.body
+    const { data, error } = await supabaseServer.from('programme_annuel').insert({ kourel_id, nom, melodie, ordre, pages_total: pages_total || null }).select().single()
     if (error) throw error
     res.json({ success: true, data })
   } catch (e) { res.status(500).json({ success: false, error: e.message }) }
@@ -269,8 +269,8 @@ app.post('/api/data/programme', async (req, res) => {
 
 app.put('/api/data/programme/:id', async (req, res) => {
   try {
-    const { nom, melodie } = req.body
-    const { error } = await supabaseServer.from('programme_annuel').update({ nom, melodie }).eq('id', req.params.id)
+    const { nom, melodie, pages_total } = req.body
+    const { error } = await supabaseServer.from('programme_annuel').update({ nom, melodie, pages_total: pages_total || null }).eq('id', req.params.id)
     if (error) throw error
     res.json({ success: true })
   } catch (e) { res.status(500).json({ success: false, error: e.message }) }

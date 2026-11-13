@@ -190,7 +190,16 @@ const MEL_VIDE = {
 function FormMelodie({ mel, setMel, programmeAnnuel, onConfirm, onCancel, titre, labelConfirm }) {
   const selKhassida = (khassidaId) => {
     const k = programmeAnnuel.find(k => k.id === parseInt(khassidaId))
-    if (k) setMel({ ...mel, khassida_id: k.id, nom: k.nom, melodie: k.melodie })
+    if (k) {
+      setMel({
+        ...mel,
+        khassida_id: k.id,
+        nom: k.nom,
+        melodie: k.melodie,
+        // Pré-rempli depuis le programme annuel s'il est renseigné — reste modifiable sinon.
+        pages_total: k.pages_total || mel.pages_total,
+      })
+    }
   }
   const toggleDadj = (i) => {
     const d = mel.dadj_completes
@@ -288,17 +297,19 @@ function FormMelodie({ mel, setMel, programmeAnnuel, onConfirm, onCancel, titre,
             <div>
               <label className="block text-xs font-semibold text-vert-fonce mb-1">Pages faites</label>
               <input type="number" min="0" value={mel.pages_faites}
-                onChange={(e) => setMel({ ...mel, pages_faites: parseInt(e.target.value) || 0 })}
+                onChange={(e) => setMel({ ...mel, pages_faites: e.target.value === '' ? '' : parseInt(e.target.value) })}
+                onBlur={(e) => { if (e.target.value === '') setMel(m => ({ ...m, pages_faites: 0 })) }}
                 className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm border border-vert-principal rounded-lg" />
             </div>
             <div>
               <label className="block text-xs font-semibold text-vert-fonce mb-1">Total pages</label>
               <input type="number" min="1" value={mel.pages_total}
-                onChange={(e) => setMel({ ...mel, pages_total: parseInt(e.target.value) || 1 })}
+                onChange={(e) => setMel({ ...mel, pages_total: e.target.value === '' ? '' : parseInt(e.target.value) })}
+                onBlur={(e) => { if (e.target.value === '' || parseInt(e.target.value) < 1) setMel(m => ({ ...m, pages_total: 1 })) }}
                 className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm border border-vert-principal rounded-lg" />
             </div>
             <div className="text-center text-xl sm:text-2xl font-bold text-vert-principal">
-              {Math.round((mel.pages_faites / mel.pages_total) * 100)}%
+              {Math.round(((Number(mel.pages_faites) || 0) / (Number(mel.pages_total) || 1)) * 100)}%
             </div>
           </div>
         </div>
@@ -338,7 +349,8 @@ function FormMelodie({ mel, setMel, programmeAnnuel, onConfirm, onCancel, titre,
       <div className="mb-4">
         <label className="block text-xs font-semibold text-gray-400 mb-2 uppercase tracking-wide">Taux de maîtrise</label>
         <input type="number" min="0" max="100" value={mel.taux_maitrise}
-          onChange={(e) => setMel({ ...mel, taux_maitrise: Math.min(100, Math.max(0, parseInt(e.target.value) || 0)) })}
+          onChange={(e) => setMel({ ...mel, taux_maitrise: e.target.value === '' ? '' : Math.min(100, Math.max(0, parseInt(e.target.value))) })}
+          onBlur={(e) => { if (e.target.value === '') setMel(m => ({ ...m, taux_maitrise: 0 })) }}
           className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:border-vert-principal focus:outline-none" />
         <p className="text-xs text-gray-400 mt-1">Indiquer le pourcentage de maîtrise de cette mélodie (0-100%)</p>
       </div>
@@ -368,7 +380,7 @@ function Step2Melodies({ rapport, setRapport, programmeAnnuel, calculTaux, calcu
 
   const calculerTauxEtStatut = (m) => {
     const taux = m.mode === 'pages'
-      ? Math.round((m.pages_faites / m.pages_total) * 100)
+      ? Math.round(((Number(m.pages_faites) || 0) / (Number(m.pages_total) || 1)) * 100)
       : Math.round((m.dadj_completes.length / m.dadj_total) * 100)
     return { taux, statut: calculStatut(taux) }
   }

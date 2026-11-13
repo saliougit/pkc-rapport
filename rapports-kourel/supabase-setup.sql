@@ -68,8 +68,12 @@ CREATE TABLE IF NOT EXISTS programme_annuel (
   nom         TEXT NOT NULL,
   melodie     TEXT NOT NULL,
   ordre       INTEGER DEFAULT 0,
+  pages_total INTEGER,
   created_at  TIMESTAMPTZ DEFAULT now()
 );
+
+-- Migration (si la table existait déjà avant l'ajout du nombre de pages) :
+-- ALTER TABLE programme_annuel ADD COLUMN IF NOT EXISTS pages_total INTEGER;
 
 -- =============================================
 -- 3. MEMBRES DU COMITÉ

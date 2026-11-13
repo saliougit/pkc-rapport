@@ -121,18 +121,18 @@ export async function fetchProgramme(kourelId) {
   return json.data
 }
 
-export async function ajouterKhassida(kourelId, nom, melodie, ordre) {
+export async function ajouterKhassida(kourelId, nom, melodie, ordre, pages_total = null) {
   const json = await api('/programme', {
     method: 'POST',
-    body: JSON.stringify({ kourel_id: kourelId, nom, melodie, ordre }),
+    body: JSON.stringify({ kourel_id: kourelId, nom, melodie, ordre, pages_total }),
   })
   return json.data
 }
 
-export async function modifierKhassida(id, nom, melodie) {
+export async function modifierKhassida(id, nom, melodie, pages_total = null) {
   await api(`/programme/${id}`, {
     method: 'PUT',
-    body: JSON.stringify({ nom, melodie }),
+    body: JSON.stringify({ nom, melodie, pages_total }),
   })
 }
 

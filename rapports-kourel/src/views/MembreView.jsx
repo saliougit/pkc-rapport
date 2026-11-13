@@ -286,16 +286,17 @@ export default function MembreView() {
 
 function ConfigProgrammeAnnuel({ kourel, kourelId, programmeAnnuel, setProgrammeAnnuel, retour }) {
   const [enEdition, setEnEdition] = useState(null)
-  const [nouveau, setNouveau] = useState({ nom: '', melodie: '' })
+  const [nouveau, setNouveau] = useState({ nom: '', melodie: '', pages_total: '' })
   const [saving, setSaving] = useState(false)
 
   const ajouter = async () => {
     if (!nouveau.nom || !nouveau.melodie) return
     setSaving(true)
     try {
-      const k = await ajouterKhassida(kourelId, nouveau.nom, nouveau.melodie, programmeAnnuel.length)
+      const pagesTotal = nouveau.pages_total === '' ? null : parseInt(nouveau.pages_total)
+      const k = await ajouterKhassida(kourelId, nouveau.nom, nouveau.melodie, programmeAnnuel.length, pagesTotal)
       setProgrammeAnnuel([...programmeAnnuel, k])
-      setNouveau({ nom: '', melodie: '' })
+      setNouveau({ nom: '', melodie: '', pages_total: '' })
     } finally {
       setSaving(false)
     }
@@ -309,8 +310,9 @@ function ConfigProgrammeAnnuel({ kourel, kourelId, programmeAnnuel, setProgramme
   const sauvegarderEdition = async (k) => {
     setSaving(true)
     try {
-      await modifierKhassida(k.id, k.nom, k.melodie)
-      setProgrammeAnnuel(programmeAnnuel.map(p => p.id === k.id ? k : p))
+      const pagesTotal = k.pages_total === '' || k.pages_total == null ? null : parseInt(k.pages_total)
+      await modifierKhassida(k.id, k.nom, k.melodie, pagesTotal)
+      setProgrammeAnnuel(programmeAnnuel.map(p => p.id === k.id ? { ...k, pages_total: pagesTotal } : p))
       setEnEdition(null)
     } finally {
       setSaving(false)
@@ -346,6 +348,9 @@ function ConfigProgrammeAnnuel({ kourel, kourelId, programmeAnnuel, setProgramme
               <input type="text" placeholder="Mélodie (ex: Serigne Abdou Diop)" value={nouveau.melodie}
                 onChange={(e) => setNouveau({ ...nouveau, melodie: e.target.value })}
                 className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:border-vert-principal focus:outline-none" />
+              <input type="number" min="1" placeholder="Nombre de pages (optionnel)" value={nouveau.pages_total}
+                onChange={(e) => setNouveau({ ...nouveau, pages_total: e.target.value })}
+                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:border-vert-principal focus:outline-none" />
             </div>
             <button onClick={ajouter} disabled={!nouveau.nom || !nouveau.melodie || saving}
               className="w-full flex items-center justify-center gap-2 py-2.5 text-sm font-semibold text-white rounded-lg disabled:opacity-40 hover:opacity-90 transition"
@@ -372,6 +377,9 @@ function ConfigProgrammeAnnuel({ kourel, kourelId, programmeAnnuel, setProgramme
                         <input type="text" value={enEdition.melodie}
                           onChange={(e) => setEnEdition({ ...enEdition, melodie: e.target.value })}
                           className="w-full px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-vert-principal" />
+                        <input type="number" min="1" placeholder="Nombre de pages (optionnel)" value={enEdition.pages_total ?? ''}
+                          onChange={(e) => setEnEdition({ ...enEdition, pages_total: e.target.value })}
+                          className="w-full px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-vert-principal" />
                         <div className="flex gap-2">
                           <button onClick={() => sauvegarderEdition(enEdition)}
                             className="text-xs font-semibold text-white px-3 py-1.5 rounded-lg"
@@ -390,7 +398,9 @@ function ConfigProgrammeAnnuel({ kourel, kourelId, programmeAnnuel, setProgramme
                           <span className="text-xs font-bold w-5 text-center flex-shrink-0" style={{ color: '#014421' }}>{index + 1}</span>
                           <div className="min-w-0">
                             <div className="text-sm font-semibold truncate" style={{ color: '#014421' }}>{k.nom}</div>
-                            <div className="text-xs text-gray-400 truncate">{k.melodie}</div>
+                            <div className="text-xs text-gray-400 truncate">
+                              {k.melodie}{k.pages_total ? ` · ${k.pages_total} pages` : ''}
+                            </div>
                           </div>
                         </div>
                         <div className="flex gap-1 flex-shrink-0">

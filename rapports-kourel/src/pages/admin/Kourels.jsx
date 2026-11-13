@@ -178,14 +178,16 @@ function KourelForm({ data, onChange }) {
         <div className="space-y-1.5">
           <label className="text-xs font-semibold text-gris-500 uppercase tracking-wider">Effectif total</label>
           <Input type="number" min="0" value={data.effectif_total}
-            onChange={e => onChange({ ...data, effectif_total: parseInt(e.target.value) || 0 })}
+            onChange={e => onChange({ ...data, effectif_total: e.target.value === '' ? '' : parseInt(e.target.value) })}
+            onBlur={e => { if (e.target.value === '') onChange({ ...data, effectif_total: 0 }) }}
             placeholder="0" />
           <p className="text-xs text-gris-400">Tous les membres </p>
         </div>
         <div className="space-y-1.5">
           <label className="text-xs font-semibold text-gris-500 uppercase tracking-wider">Effectif actif</label>
           <Input type="number" min="0" value={data.effectif_actif}
-            onChange={e => onChange({ ...data, effectif_actif: parseInt(e.target.value) || 0 })}
+            onChange={e => onChange({ ...data, effectif_actif: e.target.value === '' ? '' : parseInt(e.target.value) })}
+            onBlur={e => { if (e.target.value === '') onChange({ ...data, effectif_actif: 0 }) }}
             placeholder="0" />
           <p className="text-xs text-gris-400">Membres actifs (Hors membres exterieurs)</p>
         </div>

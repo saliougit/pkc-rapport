@@ -197,31 +197,92 @@ function MiniNoteSelector({ value, onChange }) {
 
 // ─── Accordéon khassidas ─────────────────────────────────────────────────────
 
-function KhassidaAccordion({ programme, programmeNotes, section, onProgrammeNoteChange, data, onChange }) {
-  const [openIdx, setOpenIdx] = useState(0)
+function CriterePerKhassidaBlock({ label, pn, onChange }) {
+  const noteExtreme = pn.note != null && (pn.note <= 5 || pn.note >= 9)
+  const doitJustifier = noteExtreme && !pn.remarques?.trim()
+  return (
+    <div className="space-y-2">
+      <p className="text-[10px] font-bold uppercase tracking-wider text-gris-400 text-center">{label}</p>
+      <div className="flex justify-center">
+        <MiniNoteSelector
+          value={pn.note}
+          onChange={v => onChange({ note: v, appreciation: getAppreciationFromNote(v) })}
+        />
+      </div>
+      <div className="grid grid-cols-3 gap-1.5">
+        {APPRECIATIONS.map(a => {
+          const sel = pn.appreciation === a.value
+          return (
+            <button key={a.value} type="button"
+              onClick={() => onChange({ appreciation: a.value, note: a.mid })}
+              className="py-2 px-1 rounded-xl text-[10px] font-semibold border transition-all active:scale-95"
+              style={{ borderColor: sel ? a.active : '#E5E7EB', background: sel ? a.active : 'white', color: sel ? 'white' : a.color }}>
+              {a.label}
+            </button>
+          )
+        })}
+      </div>
+      {noteExtreme && (
+        <div>
+          <p className="text-[10px] font-bold uppercase tracking-wider mb-1.5"
+            style={{ color: doitJustifier ? '#EF4444' : '#6B7280' }}>
+            Justification <span style={{ color: '#EF4444' }}>*obligatoire</span>
+          </p>
+          <textarea
+            value={pn.remarques || ''}
+            onChange={e => onChange({ remarques: e.target.value })}
+            rows={2}
+            placeholder="Justifiez cette note critique…"
+            className={`w-full px-3 py-2 text-sm border rounded-xl focus:outline-none resize-none placeholder:text-gris-300 ${doitJustifier ? 'border-rouge focus:border-rouge' : 'border-gris-200 focus:border-vert-700'}`}
+          />
+          {doitJustifier && (
+            <p className="text-[10px] text-rouge font-semibold mt-1 flex items-center gap-1">
+              <AlertCircle size={11} /> Obligatoire avant de continuer
+            </p>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
 
-  const vals = programme.map(item => programmeNotes?.[item.tempId || item.id]?.[section.critereId]?.note).filter(v => v != null)
+function KhassidaAccordion({ programme, programmeNotes, section, critereIdSecondaire, labelSecondaire, onProgrammeNoteChange, data, onChange }) {
+  const [openIdx, setOpenIdx] = useState(0)
+  const isDual = !!critereIdSecondaire
+
+  const combinedNote = (item) => {
+    const key = item.tempId || item.id
+    const m = programmeNotes?.[key]?.[section.critereId]?.note
+    if (!isDual) return m
+    const h = programmeNotes?.[key]?.[critereIdSecondaire]?.note
+    return m != null && h != null ? parseFloat(((m + h) / 2).toFixed(1)) : null
+  }
+
+  const vals = programme.map(item => combinedNote(item)).filter(v => v != null)
   const avg = vals.length ? (vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(1) : null
   const avgColor = !avg ? '#9CA3AF' : avg < 4 ? '#EF4444' : avg < 6 ? '#F97316' : avg < 8 ? '#EAB308' : '#16824E'
 
   return (
     <div className="space-y-2">
       <p className="text-xs font-bold text-gris-500 uppercase tracking-widest text-center mb-1">
-        Évaluez chaque khassida
+        {isDual ? `Évaluez chaque khassida (${section.label} + ${labelSecondaire})` : 'Évaluez chaque khassida'}
       </p>
 
       {programme.map((item, idx) => {
-        const pn = programmeNotes?.[item.tempId || item.id]?.[section.critereId] || {}
+        const key = item.tempId || item.id
+        const pnMel = programmeNotes?.[key]?.[section.critereId] || {}
+        const pnHou = isDual ? (programmeNotes?.[key]?.[critereIdSecondaire] || {}) : null
         const isOpen = openIdx === idx
-        const done = pn.note != null
-        const noteColor = !done ? '#9CA3AF'
-          : pn.note < 4 ? '#EF4444'
-          : pn.note < 6 ? '#F97316'
-          : pn.note < 8 ? '#EAB308'
+        const done = isDual ? (pnMel.note != null && pnHou.note != null) : pnMel.note != null
+        const cNote = combinedNote(item)
+        const noteColor = cNote == null ? '#9CA3AF'
+          : cNote < 4 ? '#EF4444'
+          : cNote < 6 ? '#F97316'
+          : cNote < 8 ? '#EAB308'
           : '#16824E'
 
         return (
-          <div key={item.tempId || item.id}
+          <div key={key}
             className="bg-white rounded-2xl border overflow-hidden transition-all"
             style={{ borderColor: isOpen ? '#016030' : done ? '#BBF7D0' : '#E5E7EB' }}>
 
@@ -238,8 +299,8 @@ function KhassidaAccordion({ programme, programmeNotes, section, onProgrammeNote
                 {item.melodie && <p className="text-[11px] text-gris-400 truncate">{item.melodie}</p>}
               </div>
               <div className="flex items-center gap-2 flex-shrink-0">
-                {done ? (
-                  <span className="text-sm font-black" style={{ color: noteColor }}>{pn.note}/10</span>
+                {cNote != null ? (
+                  <span className="text-sm font-black" style={{ color: noteColor }}>{cNote}/10</span>
                 ) : (
                   <span className="text-[11px] text-gris-300 font-medium">—</span>
                 )}
@@ -252,53 +313,22 @@ function KhassidaAccordion({ programme, programmeNotes, section, onProgrammeNote
             </button>
 
             {/* Corps déplié */}
-            {isOpen && (() => {
-              const noteExtreme = pn.note != null && (pn.note <= 5 || pn.note >= 9)
-              const doitJustifier = noteExtreme && !pn.remarques?.trim()
-              return (
-                <div className="px-4 pb-4 space-y-3 border-t border-gris-100">
-                  <div className="flex justify-center pt-3">
-                    <MiniNoteSelector
-                      value={pn.note}
-                      onChange={v => onProgrammeNoteChange?.(item.tempId || item.id, { note: v, appreciation: getAppreciationFromNote(v) })}
-                    />
-                  </div>
-                  <div className="grid grid-cols-3 gap-1.5">
-                    {APPRECIATIONS.map(a => {
-                      const sel = pn.appreciation === a.value
-                      return (
-                        <button key={a.value} type="button"
-                          onClick={() => onProgrammeNoteChange?.(item.tempId || item.id, { appreciation: a.value, note: a.mid })}
-                          className="py-2 px-1 rounded-xl text-[10px] font-semibold border transition-all active:scale-95"
-                          style={{ borderColor: sel ? a.active : '#E5E7EB', background: sel ? a.active : 'white', color: sel ? 'white' : a.color }}>
-                          {a.label}
-                        </button>
-                      )
-                    })}
-                  </div>
-                  {noteExtreme && (
-                    <div>
-                      <p className="text-[10px] font-bold uppercase tracking-wider mb-1.5"
-                        style={{ color: doitJustifier ? '#EF4444' : '#6B7280' }}>
-                        Justification <span style={{ color: '#EF4444' }}>*obligatoire</span>
-                      </p>
-                      <textarea
-                        value={pn.remarques || ''}
-                        onChange={e => onProgrammeNoteChange?.(item.tempId || item.id, { remarques: e.target.value })}
-                        rows={2}
-                        placeholder="Justifiez cette note critique…"
-                        className={`w-full px-3 py-2 text-sm border rounded-xl focus:outline-none resize-none placeholder:text-gris-300 ${doitJustifier ? 'border-rouge focus:border-rouge' : 'border-gris-200 focus:border-vert-700'}`}
-                      />
-                      {doitJustifier && (
-                        <p className="text-[10px] text-rouge font-semibold mt-1 flex items-center gap-1">
-                          <AlertCircle size={11} /> Obligatoire avant de continuer
-                        </p>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )
-            })()}
+            {isOpen && (
+              <div className={`px-4 pb-4 pt-3 border-t border-gris-100 ${isDual ? 'grid grid-cols-1 sm:grid-cols-2 gap-4' : ''}`}>
+                <CriterePerKhassidaBlock
+                  label={section.label}
+                  pn={pnMel}
+                  onChange={(changes) => onProgrammeNoteChange?.(key, section.critereId, changes)}
+                />
+                {isDual && (
+                  <CriterePerKhassidaBlock
+                    label={labelSecondaire}
+                    pn={pnHou}
+                    onChange={(changes) => onProgrammeNoteChange?.(key, critereIdSecondaire, changes)}
+                  />
+                )}
+              </div>
+            )}
           </div>
         )
       })}
@@ -346,7 +376,7 @@ function KhassidaAccordion({ programme, programmeNotes, section, onProgrammeNote
 
 // ─── Carte section ──────────────────────────────────────────────────────────
 
-function SectionCard({ section, data, onChange, index, total, readOnly, isGenerale, moyenneAuto, isPresence, presenceEffectif, isPerKhassida, programme, programmeNotes, onProgrammeNoteChange }) {
+function SectionCard({ section, data, onChange, index, total, readOnly, isGenerale, moyenneAuto, isPresence, presenceEffectif, isPerKhassida, critereIdSecondaire, labelSecondaire, programme, programmeNotes, onProgrammeNoteChange }) {
   const Icon = section.icon
   const donePct = Math.round(((index) / total) * 100)
   const noteColor = !moyenneAuto ? '#9CA3AF'
@@ -518,6 +548,8 @@ function SectionCard({ section, data, onChange, index, total, readOnly, isGenera
           programme={programme}
           programmeNotes={programmeNotes}
           section={section}
+          critereIdSecondaire={critereIdSecondaire}
+          labelSecondaire={labelSecondaire}
           onProgrammeNoteChange={onProgrammeNoteChange}
           data={data}
           onChange={onChange}
@@ -602,6 +634,35 @@ function SectionCard({ section, data, onChange, index, total, readOnly, isGenera
       )}
     </div>
   )
+}
+
+// ─── Brouillon local (anti-perte si retour arrière accidentel) ────────────────
+
+const DRAFT_PREFIX = 'eval_draft_'
+
+function loadDraft(code) {
+  try {
+    const raw = localStorage.getItem(DRAFT_PREFIX + code)
+    return raw ? JSON.parse(raw) : null
+  } catch {
+    return null
+  }
+}
+
+function saveDraft(code, data) {
+  try {
+    localStorage.setItem(DRAFT_PREFIX + code, JSON.stringify(data))
+  } catch {
+    // stockage indisponible (navigation privée, quota…) : on ignore silencieusement
+  }
+}
+
+function clearDraft(code) {
+  try {
+    localStorage.removeItem(DRAFT_PREFIX + code)
+  } catch {
+    // ignore
+  }
 }
 
 // ─── Notifications de validation (sonner) ─────────────────────────────────────
@@ -823,6 +884,27 @@ export default function EvaluationMembre() {
 
   const isPerKhassidaSection = (sectionId) => sectionId === sectionMelodieId || sectionId === sectionHouroufId
 
+  // STEPS = les sections affichées dans le stepper. Mélodie et Hourouf sont
+  // fusionnées en une seule étape (on note les deux ensemble, khassida par
+  // khassida), même si elles restent deux critères distincts en base.
+  const STEPS = (() => {
+    const houroufSection = SECTIONS.find(s => s.id === sectionHouroufId)
+    return SECTIONS
+      .filter(s => s.id !== sectionHouroufId)
+      .map(s => {
+        if (s.id === sectionMelodieId && houroufSection) {
+          return {
+            ...s,
+            label: 'Mélodie & Hourouf',
+            isMelodieHourouf: true,
+            critereIdSecondaire: houroufSection.id,
+            labelSecondaire: houroufSection.label,
+          }
+        }
+        return s
+      })
+  })()
+
   const [evalData, setEvalData] = useState(() => {
     const notes = {}
     return { notes, programme: [], programmeNotes: {}, note_finale: null, commentaire: '', soumis: false }
@@ -888,7 +970,21 @@ export default function EvaluationMembre() {
     if (!codeValide || !SECTIONS.length) return
     const notes = {}
     SECTIONS.forEach(s => { notes[s.id] = sectionVide() })
-    setEvalData(prev => ({ ...prev, notes }))
+
+    const cUpper = codeParam.toUpperCase().trim()
+    const draft = loadDraft(cUpper)
+    if (draft) {
+      setEvalData(prev => ({
+        ...prev,
+        notes: { ...notes, ...draft.notes },
+        programme: draft.programme || [],
+        programmeNotes: draft.programmeNotes || {},
+        commentaire: draft.commentaire || '',
+      }))
+      toast.success('Votre progression précédente a été restaurée.', { duration: 3000 })
+    } else {
+      setEvalData(prev => ({ ...prev, notes }))
+    }
 
     getOrCreateEvaluation(codeValide.evenement_kourel.evenement.id, codeValide.membre.id)
       .then(ev => {
@@ -925,6 +1021,18 @@ export default function EvaluationMembre() {
       })
       .catch(console.error)
   }, [codeValide, SECTIONS.length])
+
+  // Sauvegarde continue du brouillon en local, tant que rien n'est encore soumis.
+  useEffect(() => {
+    if (!codeValide || readOnly || soumis) return
+    const cUpper = codeParam.toUpperCase().trim()
+    saveDraft(cUpper, {
+      notes: evalData.notes,
+      programme: evalData.programme,
+      programmeNotes: evalData.programmeNotes,
+      commentaire: evalData.commentaire,
+    })
+  }, [evalData, codeValide, readOnly, soumis])
 
   const updateSection = (sectionId, changes) => {
     setEvalData(prev => {
@@ -969,6 +1077,36 @@ export default function EvaluationMembre() {
     return parseFloat((vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(2))
   }
 
+  // Moyenne combinée mélodie+hourouf (moyenne des deux, par khassida, puis
+  // moyenne entre khassidas) — affichée sur l'étape fusionnée.
+  const getMelodieHouroufMoyenne = () => {
+    const items = evalData.programme
+    if (!items.length || !sectionMelodieId || !sectionHouroufId) return null
+    const vals = items
+      .map(item => {
+        const m = evalData.programmeNotes?.[item.tempId || item.id]?.[sectionMelodieId]?.note
+        const h = evalData.programmeNotes?.[item.tempId || item.id]?.[sectionHouroufId]?.note
+        return m != null && h != null ? (m + h) / 2 : null
+      })
+      .filter(v => v != null)
+    if (!vals.length) return null
+    return parseFloat((vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(2))
+  }
+
+  // Mélodie et Hourouf restent deux critères distincts en base (le récap et le
+  // calcul de la note générale s'appuient dessus) même si l'étape 3 les affiche
+  // fusionnés — on garde chacune de leurs moyennes à jour en continu.
+  useEffect(() => {
+    ;[sectionMelodieId, sectionHouroufId].forEach(id => {
+      if (!id) return
+      const avg = getPerKhassidaMoyenne(id)
+      if (avg == null) return
+      const cur = evalData.notes[id]
+      if (cur?.note !== avg) updateSection(id, { note: avg, appreciation: getAppreciationFromNote(avg) })
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [evalData.programmeNotes, sectionMelodieId, sectionHouroufId])
+
   const hasExtremeNote = (id) => {
     const n = evalData.notes[id]?.note
     return n != null && (n <= 5 || n >= 9) && !evalData.notes[id]?.remarques?.trim()
@@ -995,30 +1133,57 @@ export default function EvaluationMembre() {
     return true
   }
 
-  const sectionsCompletes = SECTIONS.filter(s => sectionComplete(s.id)).length
+  const stepComplete = (step) => {
+    if (step.isMelodieHourouf) {
+      const items = evalData.programme
+      if (!items.length) return false
+      return items.every(item => {
+        const pnMel = evalData.programmeNotes?.[item.tempId || item.id]?.[step.id]
+        const pnHou = evalData.programmeNotes?.[item.tempId || item.id]?.[step.critereIdSecondaire]
+        if (pnMel?.note == null || pnHou?.note == null) return false
+        if ((pnMel.note <= 5 || pnMel.note >= 9) && !pnMel.remarques?.trim()) return false
+        if ((pnHou.note <= 5 || pnHou.note >= 9) && !pnHou.remarques?.trim()) return false
+        return true
+      })
+    }
+    return sectionComplete(step.id)
+  }
+
+  const sectionsCompletes = STEPS.filter(stepComplete).length
 
   const validerEtAvancer = (cible) => {
-    const section = SECTIONS[sectionIdx]
-    if (section.id === sectionGeneraleId) { cible(); return }
-    if (section.id === sectionPresenceId) {
-      if (evalData.notes[section.id]?.nombre_present == null) {
+    const step = STEPS[sectionIdx]
+    if (step.id === sectionGeneraleId) { cible(); return }
+    if (step.id === sectionPresenceId) {
+      if (evalData.notes[step.id]?.nombre_present == null) {
         notifyManque(['nombre_present'])
         return
       }
       cible(); return
     }
-    if (isPerKhassidaSection(section.id)) {
+    if (step.isMelodieHourouf) {
       const items = evalData.programme
       if (!items.length) { notifyManque(['programme']); return }
-      const missingNote = items.find(item =>
-        evalData.programmeNotes?.[item.tempId || item.id]?.[section.id]?.note == null
-      )
-      if (missingNote) {
-        notifyManque(['appreciation'])
+      // On peut avancer même si tous les khassidas ne sont pas encore notés —
+      // seule la soumission finale (validerAvantSoumission) bloque sur un manque.
+      const missingJustif = items.find(item => {
+        const pnMel = evalData.programmeNotes?.[item.tempId || item.id]?.[step.id]
+        const pnHou = evalData.programmeNotes?.[item.tempId || item.id]?.[step.critereIdSecondaire]
+        const melBad = pnMel?.note != null && (pnMel.note <= 5 || pnMel.note >= 9) && !pnMel.remarques?.trim()
+        const houBad = pnHou?.note != null && (pnHou.note <= 5 || pnHou.note >= 9) && !pnHou.remarques?.trim()
+        return melBad || houBad
+      })
+      if (missingJustif) {
+        notifyManque(['remarques'])
         return
       }
+      cible(); return
+    }
+    if (isPerKhassidaSection(step.id)) {
+      const items = evalData.programme
+      if (!items.length) { notifyManque(['programme']); return }
       const missingJustif = items.find(item => {
-        const n = evalData.programmeNotes?.[item.tempId || item.id]?.[section.id]
+        const n = evalData.programmeNotes?.[item.tempId || item.id]?.[step.id]
         return n?.note != null && (n.note <= 5 || n.note >= 9) && !n.remarques?.trim()
       })
       if (missingJustif) {
@@ -1027,11 +1192,11 @@ export default function EvaluationMembre() {
       }
       cible(); return
     }
-    const n = evalData.notes[section.id]
+    const n = evalData.notes[step.id]
     const manque = []
     if (!n?.appreciation) manque.push('appreciation')
     if (n?.note == null) manque.push('note')
-    else if (hasExtremeNote(section.id)) manque.push('remarques')
+    else if (hasExtremeNote(step.id)) manque.push('remarques')
     if (manque.length > 0) {
       notifyManque(manque)
       return
@@ -1056,59 +1221,96 @@ export default function EvaluationMembre() {
     setEtape(4)
   }
 
-  const validerEtFinaliser = () => {
-    const premiere = SECTIONS.find(s => s.id !== sectionGeneraleId && !sectionComplete(s.id))
-    if (premiere) {
-      const n = evalData.notes[premiere.id]
-      let manque = []
-      if (premiere.id === sectionPresenceId) {
-        manque = n?.nombre_present == null ? ['nombre_present'] : []
-      } else if (isPerKhassidaSection(premiere.id)) {
-        manque = evalData.programme.length === 0 ? ['programme'] : ['appreciation']
-      } else {
-        if (!n?.appreciation) manque.push('appreciation')
-        if (n?.note == null) manque.push('note')
-        else if (hasExtremeNote(premiere.id)) manque.push('remarques')
+  // Index dans STEPS correspondant à un id de section/critère (mélodie ET
+  // hourouf pointent tous les deux vers l'étape fusionnée).
+  const stepIndexFor = (sectionId) => {
+    const direct = STEPS.findIndex(s => s.id === sectionId)
+    if (direct !== -1) return direct
+    return STEPS.findIndex(s => s.isMelodieHourouf && s.critereIdSecondaire === sectionId)
+  }
+
+  // Avant la soumission finale : contrôle exhaustif, section par section et
+  // khassida par khassida, avec un message précis sur ce qui manque.
+  const validerAvantSoumission = () => {
+    for (let i = 0; i < SECTIONS.length; i++) {
+      const s = SECTIONS[i]
+      if (s.id === sectionGeneraleId) continue
+
+      if (s.id === sectionPresenceId) {
+        if (evalData.notes[s.id]?.nombre_present == null) {
+          return { sectionIdx: stepIndexFor(s.id), message: 'Indiquez le nombre de présents avant de soumettre.' }
+        }
+        continue
       }
-      if (manque.length > 0) {
-        setDirection(-1)
-        setSectionIdx(SECTIONS.indexOf(premiere))
-        setEtape(3)
-        notifyManque(manque)
-        return
+
+      if (isPerKhassidaSection(s.id)) {
+        const items = evalData.programme
+        if (!items.length) {
+          return { sectionIdx: stepIndexFor(s.id), message: 'Définissez le programme de prestation avant de soumettre.' }
+        }
+        for (const item of items) {
+          const n = evalData.programmeNotes?.[item.tempId || item.id]?.[s.id]
+          if (n?.note == null) {
+            return { sectionIdx: stepIndexFor(s.id), message: `Note "${s.label}" manquante pour le khassida "${item.nom}".` }
+          }
+          if ((n.note <= 5 || n.note >= 9) && !n.remarques?.trim()) {
+            return { sectionIdx: stepIndexFor(s.id), message: `Justification requise pour "${item.nom}" (${s.label}).` }
+          }
+        }
+        continue
+      }
+
+      const n = evalData.notes[s.id]
+      if (!n?.appreciation || n.note == null) {
+        return { sectionIdx: stepIndexFor(s.id), message: `La section "${s.label}" n'est pas complète.` }
+      }
+      if ((n.note <= 5 || n.note >= 9) && !n.remarques?.trim()) {
+        return { sectionIdx: stepIndexFor(s.id), message: `Justification requise pour "${s.label}".` }
       }
     }
-    allerEtape4()
+    return null
   }
 
   const soumettre = async () => {
     if (!evaluationId) return
+    const probleme = validerAvantSoumission()
+    if (probleme) {
+      toast.error(probleme.message, { duration: 4000 })
+      setDirection(-1)
+      setSectionIdx(probleme.sectionIdx)
+      setEtape(3)
+      return
+    }
     setSaving(true)
     try {
-      for (const section of SECTIONS) {
-        const d = evalData.notes[section.id]
-        if (d?.appreciation || d?.note != null || d?.remarques || d?.nombre_present != null || d?.nombre_retards) {
-          await saveEvaluationNote(evaluationId, section.critereId, d.appreciation, d.note, d.remarques, d.nombre_present, d.nombre_retards)
-        }
-      }
+      const sauvegardesSections = SECTIONS
+        .map(section => ({ section, d: evalData.notes[section.id] }))
+        .filter(({ d }) => d?.appreciation || d?.note != null || d?.remarques || d?.nombre_present != null || d?.nombre_retards)
+        .map(({ section, d }) => saveEvaluationNote(evaluationId, section.critereId, d.appreciation, d.note, d.remarques, d.nombre_present, d.nombre_retards))
+
+      await Promise.all(sauvegardesSections)
+
       if (evalData.programme.length > 0) {
         const progData = evalData.programme.map(item => ({ nom: item.nom, melodie: item.melodie }))
         const savedProgramme = await saveEvaluationProgramme(evaluationId, progData)
-        for (const item of evalData.programme) {
-          const savedItem = savedProgramme.find((_, idx) => idx === evalData.programme.indexOf(item))
-          if (!savedItem) continue
+        const sauvegardesProgramme = []
+        evalData.programme.forEach((item, idx) => {
+          const savedItem = savedProgramme[idx]
+          if (!savedItem) return
           const notes = evalData.programmeNotes[item.tempId || item.id]
-          if (notes) {
-            for (const [critereIdStr, n] of Object.entries(notes)) {
-              const critereId = Number(critereIdStr)
-              if (n?.note != null || n?.appreciation) {
-                await saveEvaluationProgrammeNote(savedItem.id, critereId, n.appreciation, n.note, n.remarques)
-              }
+          if (!notes) return
+          for (const [critereIdStr, n] of Object.entries(notes)) {
+            const critereId = Number(critereIdStr)
+            if (n?.note != null || n?.appreciation) {
+              sauvegardesProgramme.push(saveEvaluationProgrammeNote(savedItem.id, critereId, n.appreciation, n.note, n.remarques))
             }
           }
-        }
+        })
+        await Promise.all(sauvegardesProgramme)
       }
+
       await soumettreEvaluation(evaluationId, evalData.commentaire)
+      clearDraft(codeParam.toUpperCase().trim())
       setSoumis(true)
     } catch (err) {
       console.error(err)
@@ -1313,7 +1515,7 @@ export default function EvaluationMembre() {
                 </div>
                 <div className="px-4 py-3">
                   <p className="text-xs text-gris-500 leading-relaxed">
-                    Vous devez évaluer : <span className="font-semibold text-gris-700">{SECTIONS.map(s => s.label).join(', ')}</span>.
+                    Vous devez évaluer : <span className="font-semibold text-gris-700">{STEPS.map(s => s.label).join(', ')}</span>.
                   </p>
                   <p className="text-xs text-gris-400 mt-1">
                     D'abord, définissez le programme de prestation du kourel, puis évaluez chaque section.
@@ -1322,7 +1524,7 @@ export default function EvaluationMembre() {
               </div>
 
               <div className="grid grid-cols-2 gap-2 pb-4">
-                {SECTIONS.map((s, i) => (
+                {STEPS.map((s, i) => (
                   <SectionPreviewTile key={s.id} section={s} cornerPos={TILE_CORNERS[i % TILE_CORNERS.length]} />
                 ))}
               </div>
@@ -1470,7 +1672,7 @@ export default function EvaluationMembre() {
           </div>
         )}
 
-        {etape === 3 && SECTIONS.length > 0 && (
+        {etape === 3 && STEPS.length > 0 && (
           <div className="px-4 py-5">
             {readOnly && (
               <div className="mb-4 flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
@@ -1485,20 +1687,20 @@ export default function EvaluationMembre() {
             <div className="mb-5">
               <div className="flex items-center justify-between mb-1.5">
                 <span className="text-xs font-bold text-gris-600">
-                  Section {sectionIdx + 1} sur {SECTIONS.length}
+                  Section {sectionIdx + 1} sur {STEPS.length}
                 </span>
                 <span className="text-xs font-semibold text-vert-700">
-                  {sectionsCompletes}/{SECTIONS.length} complètes
+                  {sectionsCompletes}/{STEPS.length} complètes
                 </span>
               </div>
               <div className="flex gap-1">
-                {SECTIONS.filter(s => s.id !== sectionGeneraleId).map((s, i) => (
+                {STEPS.filter(s => s.id !== sectionGeneraleId).map((s, i) => (
                   <button
                     key={s.id}
                     onClick={() => { setDirection(i > sectionIdx ? 1 : -1); setSectionIdx(i) }}
                     className="flex-1 h-1.5 rounded-full transition-all duration-300"
                     style={{
-                      background: sectionComplete(s.id)
+                      background: stepComplete(s)
                         ? '#16824E'
                         : i === sectionIdx
                         ? '#014421'
@@ -1510,10 +1712,12 @@ export default function EvaluationMembre() {
             </div>
 
             {(() => {
-              const sec = SECTIONS[sectionIdx]
+              const sec = STEPS[sectionIdx]
               const isGenerale = sec.id === sectionGeneraleId
               const isPerKhassida = isPerKhassidaSection(sec.id)
-              const progMoy = isPerKhassida ? getPerKhassidaMoyenne(sec.critereId) : null
+              const progMoy = sec.isMelodieHourouf
+                ? getMelodieHouroufMoyenne()
+                : isPerKhassida ? getPerKhassidaMoyenne(sec.critereId) : null
 
               let moyAuto = null
               if (isGenerale) {
@@ -1530,12 +1734,8 @@ export default function EvaluationMembre() {
                 const cur = evalData.notes[sec.id]
                 if (moyAuto != null && cur?.note !== moyAuto) updateSection(sec.id, { note: moyAuto, appreciation: appr })
               }
-
-              if (isPerKhassida && progMoy != null) {
-                const appr = getAppreciationFromNote(progMoy)
-                const cur = evalData.notes[sec.id]
-                if (cur?.note !== progMoy) updateSection(sec.id, { note: progMoy, appreciation: appr })
-              }
+              // Les moyennes mélodie/hourouf par khassida sont tenues à jour par
+              // un effet dédié (useEffect ci-dessus), pas ici.
 
               return (
                 <SlideStep dir={direction} stepKey={sectionIdx}>
@@ -1544,17 +1744,19 @@ export default function EvaluationMembre() {
                     data={evalData.notes[sec.id] || sectionVide()}
                     onChange={(changes) => updateSection(sec.id, changes)}
                     index={sectionIdx + 1}
-                    total={SECTIONS.length}
+                    total={STEPS.length}
                     readOnly={readOnly}
                     isGenerale={isGenerale}
                     moyenneAuto={isPerKhassida ? progMoy : isGenerale ? moyAuto : null}
                     isPresence={sec.id === sectionPresenceId}
                     presenceEffectif={codeValide?.evenement_kourel?.kourel?.effectif_actif ?? 0}
                     isPerKhassida={isPerKhassida}
+                    critereIdSecondaire={sec.critereIdSecondaire}
+                    labelSecondaire={sec.labelSecondaire}
                     programme={evalData.programme}
                     programmeNotes={evalData.programmeNotes}
-                    onProgrammeNoteChange={(itemId, changes) => {
-                      updateProgrammeNote(itemId, sec.critereId, changes)
+                    onProgrammeNoteChange={(itemId, critereId, changes) => {
+                      updateProgrammeNote(itemId, critereId, changes)
                     }}
                   />
                 </SlideStep>
@@ -1740,11 +1942,11 @@ export default function EvaluationMembre() {
               >
                 Voir le récapitulatif <ChevronRight size={16} />
               </button>
-            ) : sectionIdx < SECTIONS.length - 1 ? (
+            ) : sectionIdx < STEPS.length - 1 ? (
               <button
                 onClick={() => validerEtAvancer(() => {
                   setDirection(1)
-                  const next = SECTIONS[sectionIdx + 1]
+                  const next = STEPS[sectionIdx + 1]
                   if (next?.id === sectionGeneraleId) allerEtape4()
                   else setSectionIdx(i => i + 1)
                 })}
@@ -1755,7 +1957,7 @@ export default function EvaluationMembre() {
               </button>
             ) : (
               <button
-                onClick={validerEtFinaliser}
+                onClick={() => validerEtAvancer(allerEtape4)}
                 className="flex-1 h-13 py-3.5 rounded-2xl font-bold text-white flex items-center justify-center gap-2 text-sm transition-all active:scale-95"
                 style={{ background: '#016030' }}
               >
