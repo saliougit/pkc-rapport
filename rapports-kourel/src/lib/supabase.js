@@ -114,6 +114,32 @@ export async function supprimerKourel(id) {
   await api(`/kourels/${id}`, { method: 'DELETE' })
 }
 
+// ── Programmes (versions annuelles) ─────────────────────────────────────────
+
+export async function fetchProgrammes(kourelId) {
+  const json = await api(`/programmes/${kourelId}`)
+  return json.data
+}
+
+export async function creerProgramme(kourelId, nom) {
+  const json = await api('/programmes', {
+    method: 'POST',
+    body: JSON.stringify({ kourel_id: kourelId, nom }),
+  })
+  return json.data
+}
+
+export async function activerProgramme(id) {
+  await api(`/programmes/${id}/activer`, { method: 'PUT' })
+}
+
+export async function renommerProgramme(id, nom) {
+  await api(`/programmes/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify({ nom }),
+  })
+}
+
 // ── Programme Annuel ─────────────────────────────────────────────────────────
 
 export async function fetchProgramme(kourelId) {

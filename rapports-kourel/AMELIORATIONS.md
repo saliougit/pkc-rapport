@@ -44,7 +44,7 @@ Le contrôle final à la soumission (`soumettre`) reste en plus : si un khassida
 
 **Proposition (précisée) :** `pages_total` (et bientôt `bayit_total`, voir B4) se saisit en priorité sur la définition du khassida dans le programme annuel. Le formulaire de rapport se **pré-remplit** avec cette valeur si elle existe — mais si elle n'a pas été renseignée sur le programme (champ optionnel), le formulaire de rapport garde le champ modifiable pour la saisir à ce moment-là (pas de blocage si le kourel n'a pas pensé à le faire en amont).
 
-### B2 — [ ] Versionning du programme annuel (ex. 2025-2026, 2026-2027)
+### B2 — [x] Versionning du programme annuel (ex. 2025-2026, 2026-2027)
 **Proposition :** un kourel peut avoir plusieurs "programmes" (un par période/année). Le rapport prend toujours le programme **en vigueur** (le plus récent actif).
 **Tranché :** par défaut, le programme "en vigueur" est le **dernier créé**. Le kourel peut à tout moment basculer manuellement un autre programme comme actif (statut "actif" réassignable).
 

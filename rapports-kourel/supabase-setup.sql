@@ -62,18 +62,47 @@ DO $$ BEGIN
 EXCEPTION WHEN duplicate_object OR duplicate_table THEN NULL;
 END $$;
 
-CREATE TABLE IF NOT EXISTS programme_annuel (
+-- Versions du programme annuel (2025-2026, 2026-2027…). Un seul "actif" par kourel.
+CREATE TABLE IF NOT EXISTS programmes (
   id          SERIAL PRIMARY KEY,
   kourel_id   INTEGER NOT NULL REFERENCES kourels(id) ON DELETE CASCADE,
   nom         TEXT NOT NULL,
-  melodie     TEXT NOT NULL,
-  ordre       INTEGER DEFAULT 0,
-  pages_total INTEGER,
+  actif       BOOLEAN NOT NULL DEFAULT false,
   created_at  TIMESTAMPTZ DEFAULT now()
 );
 
--- Migration (si la table existait déjà avant l'ajout du nombre de pages) :
+CREATE TABLE IF NOT EXISTS programme_annuel (
+  id           SERIAL PRIMARY KEY,
+  programme_id INTEGER REFERENCES programmes(id) ON DELETE CASCADE,
+  nom          TEXT NOT NULL,
+  melodie      TEXT NOT NULL,
+  ordre        INTEGER DEFAULT 0,
+  pages_total  INTEGER,
+  created_at   TIMESTAMPTZ DEFAULT now()
+);
+
+-- Migration (si les tables existaient déjà avant le versionning par programme) :
 -- ALTER TABLE programme_annuel ADD COLUMN IF NOT EXISTS pages_total INTEGER;
+-- CREATE TABLE IF NOT EXISTS programmes (
+--   id SERIAL PRIMARY KEY,
+--   kourel_id INTEGER NOT NULL REFERENCES kourels(id) ON DELETE CASCADE,
+--   nom TEXT NOT NULL,
+--   actif BOOLEAN NOT NULL DEFAULT false,
+--   created_at TIMESTAMPTZ DEFAULT now()
+-- );
+-- ALTER TABLE programme_annuel ADD COLUMN IF NOT EXISTS programme_id INTEGER REFERENCES programmes(id) ON DELETE CASCADE;
+-- -- Crée un programme "actuel" actif par kourel ayant déjà des khassidas, et y rattache les khassidas existants :
+-- INSERT INTO programmes (kourel_id, nom, actif)
+-- SELECT DISTINCT kourel_id, 'Programme actuel', true FROM programme_annuel WHERE kourel_id IS NOT NULL;
+-- UPDATE programme_annuel pa SET programme_id = p.id
+-- FROM programmes p WHERE p.kourel_id = pa.kourel_id AND p.actif = true AND pa.programme_id IS NULL;
+-- -- Une fois la migration des données vérifiée, le lien direct kourel_id peut être retiré :
+-- ALTER TABLE programme_annuel DROP COLUMN IF EXISTS kourel_id;
+-- -- Sécurité : un seul programme actif par kourel, et droits d'accès cohérents avec les autres tables :
+-- CREATE UNIQUE INDEX IF NOT EXISTS one_active_programme_per_kourel ON programmes (kourel_id) WHERE actif;
+-- ALTER TABLE programmes ENABLE ROW LEVEL SECURITY;
+-- CREATE POLICY "select_public" ON programmes FOR SELECT USING (true);
+-- CREATE POLICY "write_auth" ON programmes FOR ALL USING (auth.role() = 'authenticated') WITH CHECK (auth.role() = 'authenticated');
 
 -- =============================================
 -- 3. MEMBRES DU COMITÉ

@@ -249,10 +249,71 @@ app.delete('/api/data/kourels/:id', async (req, res) => {
   } catch (e) { res.status(500).json({ success: false, error: e.message }) }
 })
 
-// ── Programme annuel ─────────────────────────────────────────────────────────
+// ── Programmes (versions annuelles : 2025-2026, 2026-2027…) ─────────────────
+async function getOrCreateActiveProgramme(kourelId) {
+  const { data: existant, error: err1 } = await supabaseServer
+    .from('programmes').select('*').eq('kourel_id', kourelId).eq('actif', true).maybeSingle()
+  if (err1) throw err1
+  if (existant) return existant
+
+  const { data: cree, error: err2 } = await supabaseServer
+    .from('programmes').insert({ kourel_id: kourelId, nom: 'Programme actuel', actif: true }).select().single()
+  if (err2) throw err2
+  return cree
+}
+
+app.get('/api/data/programmes/:kourelId', async (req, res) => {
+  try {
+    const { data, error } = await supabaseServer.from('programmes').select('*').eq('kourel_id', req.params.kourelId).order('created_at', { ascending: false })
+    if (error) throw error
+    res.json({ success: true, data: data || [] })
+  } catch (e) { res.status(500).json({ success: false, error: e.message }) }
+})
+
+app.post('/api/data/programmes', async (req, res) => {
+  try {
+    const { kourel_id, nom } = req.body
+    // Le dernier créé devient automatiquement le programme en vigueur.
+    await supabaseServer.from('programmes').update({ actif: false }).eq('kourel_id', kourel_id)
+    const { data, error } = await supabaseServer.from('programmes').insert({ kourel_id, nom, actif: true }).select().single()
+    if (error) throw error
+    res.json({ success: true, data })
+  } catch (e) { res.status(500).json({ success: false, error: e.message }) }
+})
+
+app.put('/api/data/programmes/:id/activer', async (req, res) => {
+  try {
+    const { data: prog, error: errGet } = await supabaseServer.from('programmes').select('kourel_id').eq('id', req.params.id).single()
+    if (errGet) throw errGet
+    await supabaseServer.from('programmes').update({ actif: false }).eq('kourel_id', prog.kourel_id)
+    const { error } = await supabaseServer.from('programmes').update({ actif: true }).eq('id', req.params.id)
+    if (error) throw error
+    res.json({ success: true })
+  } catch (e) { res.status(500).json({ success: false, error: e.message }) }
+})
+
+app.put('/api/data/programmes/:id', async (req, res) => {
+  try {
+    const { nom } = req.body
+    const { error } = await supabaseServer.from('programmes').update({ nom }).eq('id', req.params.id)
+    if (error) throw error
+    res.json({ success: true })
+  } catch (e) { res.status(500).json({ success: false, error: e.message }) }
+})
+
+app.delete('/api/data/programmes/:id', async (req, res) => {
+  try {
+    const { error } = await supabaseServer.from('programmes').delete().eq('id', req.params.id)
+    if (error) throw error
+    res.json({ success: true })
+  } catch (e) { res.status(500).json({ success: false, error: e.message }) }
+})
+
+// ── Programme annuel (khassidas) — toujours sur le programme en vigueur ─────
 app.get('/api/data/programme/:kourelId', async (req, res) => {
   try {
-    const { data, error } = await supabaseServer.from('programme_annuel').select('*').eq('kourel_id', req.params.kourelId).order('ordre')
+    const programme = await getOrCreateActiveProgramme(req.params.kourelId)
+    const { data, error } = await supabaseServer.from('programme_annuel').select('*').eq('programme_id', programme.id).order('ordre')
     if (error) throw error
     res.json({ success: true, data: data || [] })
   } catch (e) { res.status(500).json({ success: false, error: e.message }) }
@@ -261,7 +322,8 @@ app.get('/api/data/programme/:kourelId', async (req, res) => {
 app.post('/api/data/programme', async (req, res) => {
   try {
     const { kourel_id, nom, melodie, ordre, pages_total } = req.body
-    const { data, error } = await supabaseServer.from('programme_annuel').insert({ kourel_id, nom, melodie, ordre, pages_total: pages_total || null }).select().single()
+    const programme = await getOrCreateActiveProgramme(kourel_id)
+    const { data, error } = await supabaseServer.from('programme_annuel').insert({ programme_id: programme.id, nom, melodie, ordre, pages_total: pages_total || null }).select().single()
     if (error) throw error
     res.json({ success: true, data })
   } catch (e) { res.status(500).json({ success: false, error: e.message }) }

@@ -6,7 +6,8 @@ import { FormulaireRapport } from '../components/FormulaireRapport'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import {
   fetchKourels, fetchProgramme,
-  ajouterKhassida, modifierKhassida, supprimerKhassida
+  ajouterKhassida, modifierKhassida, supprimerKhassida,
+  fetchProgrammes, creerProgramme, activerProgramme
 } from '../lib/supabase'
 
 const MOIS = [
@@ -289,6 +290,47 @@ function ConfigProgrammeAnnuel({ kourel, kourelId, programmeAnnuel, setProgramme
   const [nouveau, setNouveau] = useState({ nom: '', melodie: '', pages_total: '' })
   const [saving, setSaving] = useState(false)
 
+  const [programmes, setProgrammes] = useState([])
+  const [changingVersion, setChangingVersion] = useState(false)
+
+  useEffect(() => {
+    fetchProgrammes(kourelId).then(setProgrammes).catch(() => setProgrammes([]))
+  }, [kourelId])
+
+  const programmeActif = programmes.find(p => p.actif)
+
+  const changerVersion = async (programmeId) => {
+    setChangingVersion(true)
+    try {
+      await activerProgramme(programmeId)
+      const [progs, khassidas] = await Promise.all([
+        fetchProgrammes(kourelId),
+        fetchProgramme(kourelId),
+      ])
+      setProgrammes(progs)
+      setProgrammeAnnuel(khassidas)
+    } finally {
+      setChangingVersion(false)
+    }
+  }
+
+  const nouvelleVersion = async () => {
+    const nom = window.prompt('Nom de la nouvelle version (ex: 2026-2027)')
+    if (!nom?.trim()) return
+    setChangingVersion(true)
+    try {
+      await creerProgramme(kourelId, nom.trim())
+      const [progs, khassidas] = await Promise.all([
+        fetchProgrammes(kourelId),
+        fetchProgramme(kourelId),
+      ])
+      setProgrammes(progs)
+      setProgrammeAnnuel(khassidas)
+    } finally {
+      setChangingVersion(false)
+    }
+  }
+
   const ajouter = async () => {
     if (!nouveau.nom || !nouveau.melodie) return
     setSaving(true)
@@ -333,6 +375,26 @@ function ConfigProgrammeAnnuel({ kourel, kourelId, programmeAnnuel, setProgramme
           <button onClick={retour}
             className="flex items-center gap-1.5 text-sm font-semibold text-gray-500 hover:text-vert-fonce transition py-1.5 px-3 rounded-lg hover:bg-gray-100">
             <ChevronLeft size={16} /> Retour
+          </button>
+        </div>
+
+        <div className="flex items-center gap-2 bg-white rounded-xl shadow-sm px-5 py-3 mb-4">
+          <span className="text-xs font-semibold text-gray-400 flex-shrink-0">Version</span>
+          <select
+            value={programmeActif?.id || ''}
+            onChange={(e) => changerVersion(Number(e.target.value))}
+            disabled={changingVersion || programmes.length === 0}
+            className="flex-1 min-w-0 text-sm font-semibold px-2 py-1.5 border border-gray-200 rounded-lg focus:outline-none focus:border-vert-principal disabled:opacity-50"
+            style={{ color: '#014421' }}
+          >
+            {programmes.map(p => (
+              <option key={p.id} value={p.id}>{p.nom}{p.actif ? ' (en vigueur)' : ''}</option>
+            ))}
+          </select>
+          <button onClick={nouvelleVersion} disabled={changingVersion}
+            className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-lg text-white disabled:opacity-50 hover:opacity-90 transition flex-shrink-0"
+            style={{ background: '#16824E' }}>
+            <Plus size={13} /> Nouvelle version
           </button>
         </div>
 
