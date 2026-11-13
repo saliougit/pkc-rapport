@@ -59,7 +59,7 @@ Le contrôle final à la soumission (`soumettre`) reste en plus : si un khassida
 
 **Tranché :** "dupliquer" = la **même entité** affichée dans plusieurs trimestres (étiquette partagée), pas une copie indépendante. Une seule saisie, aucun risque de double-comptage dans les moyennes.
 
-### B4 — [ ] Nouveau mode de suivi "Par bayit"
+### B4 — [x] Nouveau mode de suivi "Par bayit"
 **Proposition (précisée) :** ajouter un 3ᵉ mode de progression (en plus de "Pages" et "Dadj") : `bayit_total` + `bayit_faits`, affiché comme un pourcentage, exactement comme le mode "Pages". Sur le programme annuel, le champ "nombre de bayit" est **optionnel** et directement disponible sur la fiche du khassida (comme `pages_total`, cf B1) — pas obligatoire à l'ajout rapide, mais saisissable sur place. Dès qu'un total (pages ou bayit) est renseigné, ce mode devient sélectionnable pour le suivi de ce khassida. Et comme pour B1 : si le total n'a pas été renseigné sur le programme, le formulaire de rapport permet toujours de le saisir à ce moment-là — rien n'est bloqué.
 
 ### B5 — [x] Champs numériques bloqués sur "1" (impossible à vider)

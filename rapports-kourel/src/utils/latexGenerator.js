@@ -66,6 +66,8 @@ export function genererLatex(rapport, kourel, programmeAnnuel) {
 
     const detailsText = melodie.mode === 'pages'
       ? `${melodie.pages_faites || 0} / ${melodie.pages_total || 0} pages`
+      : melodie.mode === 'bayit'
+      ? `${melodie.bayit_faits || 0} / ${melodie.bayit_total || 0} bayit`
       : `${(melodie.dadj_completes || []).length} Dadj complétés sur ${melodie.dadj_total || 0}`
 
     const typeText = melodie.type === 'revision' ? ' (Révision)' : ''

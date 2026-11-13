@@ -91,6 +91,8 @@ export default function MembreView() {
   const calculTaux = (mode, data) => {
     if (mode === 'pages') {
       return Math.round((data.pages_faites / data.pages_total) * 100)
+    } else if (mode === 'bayit') {
+      return Math.round((data.bayit_faits / data.bayit_total) * 100)
     } else {
       return Math.round((data.dadj_completes.length / data.dadj_total) * 100)
     }
@@ -287,7 +289,7 @@ export default function MembreView() {
 
 function ConfigProgrammeAnnuel({ kourel, kourelId, programmeAnnuel, setProgrammeAnnuel, retour }) {
   const [enEdition, setEnEdition] = useState(null)
-  const [nouveau, setNouveau] = useState({ nom: '', melodie: '', pages_total: '' })
+  const [nouveau, setNouveau] = useState({ nom: '', melodie: '', pages_total: '', bayit_total: '' })
   const [saving, setSaving] = useState(false)
 
   const [programmes, setProgrammes] = useState([])
@@ -336,9 +338,10 @@ function ConfigProgrammeAnnuel({ kourel, kourelId, programmeAnnuel, setProgramme
     setSaving(true)
     try {
       const pagesTotal = nouveau.pages_total === '' ? null : parseInt(nouveau.pages_total)
-      const k = await ajouterKhassida(kourelId, nouveau.nom, nouveau.melodie, programmeAnnuel.length, pagesTotal)
+      const bayitTotal = nouveau.bayit_total === '' ? null : parseInt(nouveau.bayit_total)
+      const k = await ajouterKhassida(kourelId, nouveau.nom, nouveau.melodie, programmeAnnuel.length, pagesTotal, bayitTotal)
       setProgrammeAnnuel([...programmeAnnuel, k])
-      setNouveau({ nom: '', melodie: '', pages_total: '' })
+      setNouveau({ nom: '', melodie: '', pages_total: '', bayit_total: '' })
     } finally {
       setSaving(false)
     }
@@ -353,8 +356,9 @@ function ConfigProgrammeAnnuel({ kourel, kourelId, programmeAnnuel, setProgramme
     setSaving(true)
     try {
       const pagesTotal = k.pages_total === '' || k.pages_total == null ? null : parseInt(k.pages_total)
-      await modifierKhassida(k.id, k.nom, k.melodie, pagesTotal)
-      setProgrammeAnnuel(programmeAnnuel.map(p => p.id === k.id ? { ...k, pages_total: pagesTotal } : p))
+      const bayitTotal = k.bayit_total === '' || k.bayit_total == null ? null : parseInt(k.bayit_total)
+      await modifierKhassida(k.id, k.nom, k.melodie, pagesTotal, bayitTotal)
+      setProgrammeAnnuel(programmeAnnuel.map(p => p.id === k.id ? { ...k, pages_total: pagesTotal, bayit_total: bayitTotal } : p))
       setEnEdition(null)
     } finally {
       setSaving(false)
@@ -413,6 +417,9 @@ function ConfigProgrammeAnnuel({ kourel, kourelId, programmeAnnuel, setProgramme
               <input type="number" min="1" placeholder="Nombre de pages (optionnel)" value={nouveau.pages_total}
                 onChange={(e) => setNouveau({ ...nouveau, pages_total: e.target.value })}
                 className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:border-vert-principal focus:outline-none" />
+              <input type="number" min="1" placeholder="Nombre de bayit (optionnel)" value={nouveau.bayit_total}
+                onChange={(e) => setNouveau({ ...nouveau, bayit_total: e.target.value })}
+                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:border-vert-principal focus:outline-none" />
             </div>
             <button onClick={ajouter} disabled={!nouveau.nom || !nouveau.melodie || saving}
               className="w-full flex items-center justify-center gap-2 py-2.5 text-sm font-semibold text-white rounded-lg disabled:opacity-40 hover:opacity-90 transition"
@@ -442,6 +449,9 @@ function ConfigProgrammeAnnuel({ kourel, kourelId, programmeAnnuel, setProgramme
                         <input type="number" min="1" placeholder="Nombre de pages (optionnel)" value={enEdition.pages_total ?? ''}
                           onChange={(e) => setEnEdition({ ...enEdition, pages_total: e.target.value })}
                           className="w-full px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-vert-principal" />
+                        <input type="number" min="1" placeholder="Nombre de bayit (optionnel)" value={enEdition.bayit_total ?? ''}
+                          onChange={(e) => setEnEdition({ ...enEdition, bayit_total: e.target.value })}
+                          className="w-full px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-vert-principal" />
                         <div className="flex gap-2">
                           <button onClick={() => sauvegarderEdition(enEdition)}
                             className="text-xs font-semibold text-white px-3 py-1.5 rounded-lg"
@@ -461,7 +471,7 @@ function ConfigProgrammeAnnuel({ kourel, kourelId, programmeAnnuel, setProgramme
                           <div className="min-w-0">
                             <div className="text-sm font-semibold truncate" style={{ color: '#014421' }}>{k.nom}</div>
                             <div className="text-xs text-gray-400 truncate">
-                              {k.melodie}{k.pages_total ? ` · ${k.pages_total} pages` : ''}
+                              {k.melodie}{k.pages_total ? ` · ${k.pages_total} pages` : ''}{k.bayit_total ? ` · ${k.bayit_total} bayit` : ''}
                             </div>
                           </div>
                         </div>

@@ -184,6 +184,7 @@ function Step1Identification({ kourel, rapport, setRapport }) {
 const MEL_VIDE = {
   source: 'programme', khassida_id: null, nom: '', melodie: '',
   type: 'nouvelle', mode: 'pages', pages_faites: 0, pages_total: 1,
+  bayit_faits: 0, bayit_total: 1,
   dadj_completes: [0], dadj_total: 1, taux_maitrise: 0
 }
 
@@ -198,6 +199,7 @@ function FormMelodie({ mel, setMel, programmeAnnuel, onConfirm, onCancel, titre,
         melodie: k.melodie,
         // Pré-rempli depuis le programme annuel s'il est renseigné — reste modifiable sinon.
         pages_total: k.pages_total || mel.pages_total,
+        bayit_total: k.bayit_total || mel.bayit_total,
       })
     }
   }
@@ -288,6 +290,12 @@ function FormMelodie({ mel, setMel, programmeAnnuel, onConfirm, onCancel, titre,
             }`}>
             Par Dadj
           </button>
+          <button onClick={() => setMel({ ...mel, mode: 'bayit' })}
+            className={`py-1.5 px-2.5 rounded text-xs font-semibold transition-all duration-200 ${
+              mel.mode === 'bayit' ? 'bg-orange-strat text-white shadow-md' : 'bg-transparent text-gray-600 hover:bg-gray-200'
+            }`}>
+            Par bayit
+          </button>
         </div>
       </div>
 
@@ -310,6 +318,30 @@ function FormMelodie({ mel, setMel, programmeAnnuel, onConfirm, onCancel, titre,
             </div>
             <div className="text-center text-xl sm:text-2xl font-bold text-vert-principal">
               {Math.round(((Number(mel.pages_faites) || 0) / (Number(mel.pages_total) || 1)) * 100)}%
+            </div>
+          </div>
+        </div>
+      )}
+
+      {mel.mode === 'bayit' && (
+        <div className="bg-vert-pastel rounded-lg p-2 sm:p-3 mb-3 sm:mb-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3 items-end">
+            <div>
+              <label className="block text-xs font-semibold text-vert-fonce mb-1">Bayit faits</label>
+              <input type="number" min="0" value={mel.bayit_faits}
+                onChange={(e) => setMel({ ...mel, bayit_faits: e.target.value === '' ? '' : parseInt(e.target.value) })}
+                onBlur={(e) => { if (e.target.value === '') setMel(m => ({ ...m, bayit_faits: 0 })) }}
+                className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm border border-vert-principal rounded-lg" />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-vert-fonce mb-1">Total bayit</label>
+              <input type="number" min="1" value={mel.bayit_total}
+                onChange={(e) => setMel({ ...mel, bayit_total: e.target.value === '' ? '' : parseInt(e.target.value) })}
+                onBlur={(e) => { if (e.target.value === '' || parseInt(e.target.value) < 1) setMel(m => ({ ...m, bayit_total: 1 })) }}
+                className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm border border-vert-principal rounded-lg" />
+            </div>
+            <div className="text-center text-xl sm:text-2xl font-bold text-vert-principal">
+              {Math.round(((Number(mel.bayit_faits) || 0) / (Number(mel.bayit_total) || 1)) * 100)}%
             </div>
           </div>
         </div>
@@ -381,6 +413,8 @@ function Step2Melodies({ rapport, setRapport, programmeAnnuel, calculTaux, calcu
   const calculerTauxEtStatut = (m) => {
     const taux = m.mode === 'pages'
       ? Math.round(((Number(m.pages_faites) || 0) / (Number(m.pages_total) || 1)) * 100)
+      : m.mode === 'bayit'
+      ? Math.round(((Number(m.bayit_faits) || 0) / (Number(m.bayit_total) || 1)) * 100)
       : Math.round((m.dadj_completes.length / m.dadj_total) * 100)
     return { taux, statut: calculStatut(taux) }
   }
@@ -483,7 +517,7 @@ function Step2Melodies({ rapport, setRapport, programmeAnnuel, calculTaux, calcu
                         <div className="w-full bg-gray-200 rounded-full h-2">
                           <div className="h-2 rounded-full bg-gradient-to-r from-rouge-alerte to-orange-strat transition-all duration-300" style={{ width: `${m.taux}%` }} />
                         </div>
-                        <p className="text-xs text-gray-500 mt-0.5">{m.mode === 'pages' ? `${m.pages_faites}/${m.pages_total} pages` : `${m.dadj_completes.length}/${m.dadj_total} Dadj`}</p>
+                        <p className="text-xs text-gray-500 mt-0.5">{m.mode === 'pages' ? `${m.pages_faites}/${m.pages_total} pages` : m.mode === 'bayit' ? `${m.bayit_faits}/${m.bayit_total} bayit` : `${m.dadj_completes.length}/${m.dadj_total} Dadj`}</p>
                       </div>
                       
                       <div className="flex items-center gap-2">

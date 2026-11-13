@@ -78,6 +78,7 @@ CREATE TABLE IF NOT EXISTS programme_annuel (
   melodie      TEXT NOT NULL,
   ordre        INTEGER DEFAULT 0,
   pages_total  INTEGER,
+  bayit_total  INTEGER,
   created_at   TIMESTAMPTZ DEFAULT now()
 );
 
