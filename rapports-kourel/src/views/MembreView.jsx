@@ -294,28 +294,30 @@ function KhassidaRow({ k, index, zone, trimestres, enEdition, setEnEdition, sauv
 
   if (isEditing) {
     return (
-      <div className="border border-gray-100 rounded-lg p-3">
+      <div className="border border-vert-principal rounded-2xl p-3.5 bg-vert-50/40">
         <div className="space-y-2">
           <input type="text" value={enEdition.nom}
             onChange={(e) => setEnEdition({ ...enEdition, nom: e.target.value })}
-            className="w-full px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-vert-principal" />
+            className="w-full h-11 px-3.5 text-sm bg-white border border-gris-200 rounded-xl focus:outline-none focus:border-vert-principal" />
           <input type="text" value={enEdition.melodie}
             onChange={(e) => setEnEdition({ ...enEdition, melodie: e.target.value })}
-            className="w-full px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-vert-principal" />
-          <input type="number" min="1" placeholder="Nombre de pages (optionnel)" value={enEdition.pages_total ?? ''}
-            onChange={(e) => setEnEdition({ ...enEdition, pages_total: e.target.value })}
-            className="w-full px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-vert-principal" />
-          <input type="number" min="1" placeholder="Nombre de bayit (optionnel)" value={enEdition.bayit_total ?? ''}
-            onChange={(e) => setEnEdition({ ...enEdition, bayit_total: e.target.value })}
-            className="w-full px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-vert-principal" />
-          <div className="flex gap-2">
+            className="w-full h-11 px-3.5 text-sm bg-white border border-gris-200 rounded-xl focus:outline-none focus:border-vert-principal" />
+          <div className="grid grid-cols-2 gap-2">
+            <input type="number" min="1" placeholder="Pages (opt.)" value={enEdition.pages_total ?? ''}
+              onChange={(e) => setEnEdition({ ...enEdition, pages_total: e.target.value })}
+              className="w-full h-11 px-3.5 text-sm bg-white border border-gris-200 rounded-xl focus:outline-none focus:border-vert-principal" />
+            <input type="number" min="1" placeholder="Bayit (opt.)" value={enEdition.bayit_total ?? ''}
+              onChange={(e) => setEnEdition({ ...enEdition, bayit_total: e.target.value })}
+              className="w-full h-11 px-3.5 text-sm bg-white border border-gris-200 rounded-xl focus:outline-none focus:border-vert-principal" />
+          </div>
+          <div className="flex gap-2 pt-1">
             <button onClick={() => sauvegarderEdition(enEdition)}
-              className="text-xs font-semibold text-white px-3 py-1.5 rounded-lg"
+              className="flex-1 text-sm font-semibold text-white h-10 rounded-xl hover:opacity-90 transition"
               style={{ background: '#16824E' }}>
               {saving ? 'Enregistrement...' : 'Sauvegarder'}
             </button>
             <button onClick={() => setEnEdition(null)}
-              className="text-xs font-semibold text-gray-500 px-3 py-1.5 rounded-lg hover:bg-gray-100">
+              className="px-4 text-sm font-semibold text-gris-500 h-10 rounded-xl hover:bg-gris-100 transition">
               Annuler
             </button>
           </div>
@@ -333,47 +335,49 @@ function KhassidaRow({ k, index, zone, trimestres, enEdition, setEnEdition, sauv
 
   return (
     <div
-      className="border border-gray-100 rounded-lg p-3 hover:border-vert-principal transition"
+      className="border border-gris-100 rounded-2xl p-3 hover:border-vert-principal hover:shadow-sm transition-all"
       draggable
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
       style={{ opacity: isDragging ? 0.4 : 1 }}
     >
       <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2 min-w-0">
-          <GripVertical size={14} className="flex-shrink-0 text-gray-300 cursor-grab hidden sm:block" />
-          <span className="text-xs font-bold w-5 text-center flex-shrink-0" style={{ color: '#014421' }}>{index + 1}</span>
+        <div className="flex items-center gap-2.5 min-w-0">
+          <GripVertical size={15} className="flex-shrink-0 text-gris-300 cursor-grab hidden sm:block" />
+          <div className="w-6 h-6 rounded-full bg-gris-50 flex items-center justify-center flex-shrink-0 text-[10px] font-bold text-vert-700">
+            {index + 1}
+          </div>
           <div className="min-w-0">
-            <div className="text-sm font-semibold truncate" style={{ color: '#014421' }}>{k.nom}</div>
-            <div className="text-xs text-gray-400 truncate">
+            <div className="text-sm font-semibold truncate text-gris-950">{k.nom}</div>
+            <div className="text-xs text-gris-400 truncate">
               {k.melodie}{k.pages_total ? ` · ${k.pages_total} pages` : ''}{k.bayit_total ? ` · ${k.bayit_total} bayit` : ''}
             </div>
           </div>
         </div>
-        <div className="flex gap-1 flex-shrink-0">
+        <div className="flex gap-0.5 flex-shrink-0">
           {destinations.length > 0 && (
             <button onClick={onToggleAssignMenu}
-              className="p-1.5 rounded-lg hover:bg-gray-100 transition" style={{ color: assignMenuOpen ? '#16824E' : '#9CA3AF' }}
+              className="p-2 rounded-lg hover:bg-gris-50 transition" style={{ color: assignMenuOpen ? '#16824E' : '#9CA3AF' }}
               title="Affecter à un trimestre">
-              <FolderInput size={14} />
+              <FolderInput size={15} />
             </button>
           )}
           <button onClick={() => setEnEdition({ ...k })}
-            className="p-1.5 rounded-lg hover:bg-blue-50 transition" style={{ color: '#34495E' }}>
-            <Edit2 size={14} />
+            className="p-2 rounded-lg hover:bg-gris-50 transition" style={{ color: '#34495E' }}>
+            <Edit2 size={15} />
           </button>
           <button onClick={() => supprimer(k.id)}
-            className="p-1.5 rounded-lg hover:bg-red-50 transition" style={{ color: '#C0392B' }}>
-            <Trash2 size={14} />
+            className="p-2 rounded-lg hover:bg-rouge/5 transition" style={{ color: '#C0392B' }}>
+            <Trash2 size={15} />
           </button>
         </div>
       </div>
 
       {assignMenuOpen && (
-        <div className="mt-2 pt-2 border-t border-gray-100 flex flex-wrap gap-1.5">
+        <div className="mt-2.5 pt-2.5 border-t border-gris-100 flex flex-wrap gap-1.5">
           {destinations.map(d => (
             <button key={d.id} onClick={() => onMove(d.id)}
-              className="text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-gray-200 hover:border-vert-principal hover:text-vert-fonce transition text-gray-600">
+              className="text-xs font-semibold px-3 py-1.5 rounded-full border border-gris-200 hover:border-vert-principal hover:text-vert-fonce hover:bg-vert-50 transition text-gris-600">
               {d.nom}
             </button>
           ))}
@@ -388,19 +392,22 @@ function KhassidaRow({ k, index, zone, trimestres, enEdition, setEnEdition, sauv
 function TrimestreCard({ trimestre, khassidas, trimestres, zone, isOver, onDragOver, onDragLeave, onDrop, onSupprimer, enEdition, setEnEdition, sauvegarderEdition, supprimer, saving, draggedKhassidaId, onDragStart, onDragEnd, onMove, assignMenuKhassidaId, setAssignMenuKhassidaId }) {
   return (
     <div
-      className="bg-white rounded-xl p-4 shadow-sm transition-colors"
+      className="bg-white rounded-2xl p-4 shadow-sm transition-all border-2 border-transparent"
       onDragOver={onDragOver} onDragLeave={onDragLeave} onDrop={onDrop}
-      style={isOver ? { boxShadow: '0 0 0 2px #16824E inset', background: '#F0F9F4' } : undefined}
+      style={isOver ? { borderColor: '#16824E', background: '#F0F9F4' } : undefined}
     >
       <div className="flex items-center justify-between mb-3">
-        <h4 className="text-sm font-bold truncate" style={{ color: '#014421' }}>{trimestre.nom}</h4>
+        <div className="flex items-center gap-2 min-w-0">
+          <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: '#16824E' }} />
+          <h4 className="text-sm font-bold truncate text-gris-950">{trimestre.nom}</h4>
+        </div>
         <button onClick={() => onSupprimer(trimestre.id)}
-          className="p-1 rounded hover:bg-red-50 flex-shrink-0" style={{ color: '#C0392B' }}>
-          <Trash2 size={13} />
+          className="p-1.5 rounded-lg hover:bg-rouge/5 flex-shrink-0" style={{ color: '#C0392B' }}>
+          <Trash2 size={14} />
         </button>
       </div>
       {khassidas.length === 0 ? (
-        <div className="text-center py-8 text-xs text-gray-400 border border-dashed border-gray-200 rounded-lg">
+        <div className="text-center py-8 px-3 text-xs text-gris-400 border border-dashed border-gris-200 rounded-xl leading-relaxed">
           Déposez un khassida ici, ou utilisez "Affecter" sur un khassida.
         </div>
       ) : (
@@ -590,83 +597,83 @@ function ConfigProgrammeAnnuel({ kourel, kourelId, programmeAnnuel, setProgramme
   }
 
   return (
-    <div className="min-h-screen bg-gris-clair flex flex-col items-center justify-center px-4 py-4">
-      <div className="w-full max-w-5xl">
-        <div className="flex items-center gap-3 bg-white rounded-xl shadow-sm px-5 py-3 mb-4">
-          <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: '#014421' }}>
-            <Edit2 size={15} color="white" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-bold truncate" style={{ color: '#014421' }}>Programme Annuel</p>
-            <p className="text-xs text-gray-400 truncate">{kourel?.nom} · {kourel?.responsable}</p>
-          </div>
+    <div className="min-h-screen bg-gris-clair px-3 sm:px-4 py-4">
+      <div className="w-full max-w-5xl mx-auto">
+        <div className="flex items-center gap-3 mb-4">
           <button onClick={retour}
-            className="flex items-center gap-1.5 text-sm font-semibold text-gray-500 hover:text-vert-fonce transition py-1.5 px-3 rounded-lg hover:bg-gray-100">
-            <ChevronLeft size={16} /> Retour
+            className="w-10 h-10 rounded-full bg-white shadow-sm flex items-center justify-center text-gris-500 hover:text-vert-700 transition-colors flex-shrink-0">
+            <ChevronLeft size={18} />
           </button>
+          <div className="min-w-0 flex-1">
+            <p className="text-base font-bold truncate text-gris-950">Programme Annuel</p>
+            <p className="text-xs text-gris-500 truncate">{kourel?.nom} · {kourel?.responsable}</p>
+          </div>
         </div>
 
-        <div className="flex items-center gap-2 bg-white rounded-xl shadow-sm px-5 py-3 mb-4">
-          <span className="text-xs font-semibold text-gray-400 flex-shrink-0">Version</span>
-          <select
-            value={programmeActif?.id || ''}
-            onChange={(e) => changerVersion(Number(e.target.value))}
-            disabled={changingVersion || programmes.length === 0}
-            className="flex-1 min-w-0 text-sm font-semibold px-2 py-1.5 border border-gray-200 rounded-lg focus:outline-none focus:border-vert-principal disabled:opacity-50"
-            style={{ color: '#014421' }}
-          >
-            {programmes.map(p => (
-              <option key={p.id} value={p.id}>{p.nom}{p.actif ? ' (en vigueur)' : ''}</option>
-            ))}
-          </select>
-          <button onClick={nouvelleVersion} disabled={changingVersion}
-            className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-lg text-white disabled:opacity-50 hover:opacity-90 transition flex-shrink-0"
-            style={{ background: '#16824E' }}>
-            <Plus size={13} /> Nouvelle version
-          </button>
+        <div className="bg-white rounded-2xl shadow-sm p-4 mb-4">
+          <p className="text-[11px] font-bold uppercase tracking-wide text-gris-400 mb-2">Version du programme</p>
+          <div className="flex flex-col sm:flex-row gap-2">
+            <select
+              value={programmeActif?.id || ''}
+              onChange={(e) => changerVersion(Number(e.target.value))}
+              disabled={changingVersion || programmes.length === 0}
+              className="flex-1 min-w-0 h-11 text-sm font-semibold px-3 border border-gris-200 rounded-xl focus:outline-none focus:border-vert-principal disabled:opacity-50 text-gris-950"
+            >
+              {programmes.map(p => (
+                <option key={p.id} value={p.id}>{p.nom}{p.actif ? ' (en vigueur)' : ''}</option>
+              ))}
+            </select>
+            <button onClick={nouvelleVersion} disabled={changingVersion}
+              className="flex items-center justify-center gap-1.5 text-sm font-semibold h-11 px-4 rounded-xl text-white disabled:opacity-50 hover:opacity-90 transition flex-shrink-0"
+              style={{ background: '#16824E' }}>
+              <Plus size={15} /> Nouvelle version
+            </button>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-          <div className="bg-white rounded-xl p-3 sm:p-4 md:p-5 shadow-sm self-start w-full">
-            <h3 className="text-xs sm:text-sm font-bold mb-3 sm:mb-4 flex items-center gap-2" style={{ color: '#014421' }}>
-              <Plus size={15} /> Nouveau khassida
+          <div className="bg-white rounded-2xl p-4 sm:p-5 shadow-sm self-start w-full">
+            <h3 className="text-sm font-bold mb-3 flex items-center gap-2 text-gris-950">
+              <Plus size={15} className="text-vert-700" /> Nouveau khassida
             </h3>
-            <div className="space-y-2 sm:space-y-3 mb-3 sm:mb-4">
+            <div className="space-y-2.5 mb-3.5">
               <input type="text" placeholder="Nom du khassida" value={nouveau.nom}
                 onChange={(e) => setNouveau({ ...nouveau, nom: e.target.value })}
-                className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm border border-gray-200 rounded-lg focus:border-vert-principal focus:outline-none" />
+                className="w-full h-11 px-3.5 text-sm border border-gris-200 rounded-xl focus:border-vert-principal focus:outline-none" />
               <input type="text" placeholder="Mélodie (ex: Serigne Abdou Diop)" value={nouveau.melodie}
                 onChange={(e) => setNouveau({ ...nouveau, melodie: e.target.value })}
-                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:border-vert-principal focus:outline-none" />
-              <input type="number" min="1" placeholder="Nombre de pages (optionnel)" value={nouveau.pages_total}
-                onChange={(e) => setNouveau({ ...nouveau, pages_total: e.target.value })}
-                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:border-vert-principal focus:outline-none" />
-              <input type="number" min="1" placeholder="Nombre de bayit (optionnel)" value={nouveau.bayit_total}
-                onChange={(e) => setNouveau({ ...nouveau, bayit_total: e.target.value })}
-                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:border-vert-principal focus:outline-none" />
+                className="w-full h-11 px-3.5 text-sm border border-gris-200 rounded-xl focus:border-vert-principal focus:outline-none" />
+              <div className="grid grid-cols-2 gap-2">
+                <input type="number" min="1" placeholder="Pages (opt.)" value={nouveau.pages_total}
+                  onChange={(e) => setNouveau({ ...nouveau, pages_total: e.target.value })}
+                  className="w-full h-11 px-3.5 text-sm border border-gris-200 rounded-xl focus:border-vert-principal focus:outline-none" />
+                <input type="number" min="1" placeholder="Bayit (opt.)" value={nouveau.bayit_total}
+                  onChange={(e) => setNouveau({ ...nouveau, bayit_total: e.target.value })}
+                  className="w-full h-11 px-3.5 text-sm border border-gris-200 rounded-xl focus:border-vert-principal focus:outline-none" />
+              </div>
             </div>
             <button onClick={ajouter} disabled={!nouveau.nom || !nouveau.melodie || saving}
-              className="w-full flex items-center justify-center gap-2 py-2.5 text-sm font-semibold text-white rounded-lg disabled:opacity-40 hover:opacity-90 transition"
+              className="w-full flex items-center justify-center gap-2 h-11 text-sm font-semibold text-white rounded-xl disabled:opacity-40 hover:opacity-90 transition"
               style={{ background: '#16824E' }}>
               <Plus size={15} /> {saving ? 'Enregistrement...' : 'Ajouter'}
             </button>
           </div>
 
           <div
-            className="bg-white rounded-xl p-5 shadow-sm transition-colors"
+            className="bg-white rounded-2xl p-4 sm:p-5 shadow-sm transition-all border-2 border-transparent"
             onDragOver={(e) => onZoneDragOver('root', e)}
             onDragLeave={() => onZoneDragLeave('root')}
             onDrop={(e) => onZoneDrop('root', e)}
-            style={overZone === 'root' ? { boxShadow: '0 0 0 2px #16824E inset' } : undefined}
+            style={overZone === 'root' ? { borderColor: '#16824E', background: '#F0F9F4' } : undefined}
           >
-            <h3 className="text-sm font-bold mb-1" style={{ color: '#014421' }}>
+            <h3 className="text-sm font-bold mb-1 text-gris-950">
               Programme annuel ({khassidasNonAffectes.length})
             </h3>
             {trimestres.length > 0 && (
-              <p className="text-[11px] text-gray-400 mb-3">Glissez (souris) ou utilisez "Affecter" sur un khassida pour le mettre dans un trimestre.</p>
+              <p className="text-[11px] text-gris-400 mb-3 leading-relaxed">Glissez (souris) ou utilisez "Affecter" sur un khassida pour le mettre dans un trimestre.</p>
             )}
             {khassidasNonAffectes.length === 0 ? (
-              <div className="text-center py-16 text-sm text-gray-400">
+              <div className="text-center py-16 text-sm text-gris-400">
                 {programmeAnnuel.length === 0 ? 'Aucun khassida. Ajoutez-en un ci-contre.' : 'Tous les khassidas sont affectés à un trimestre.'}
               </div>
             ) : (
@@ -687,18 +694,18 @@ function ConfigProgrammeAnnuel({ kourel, kourelId, programmeAnnuel, setProgramme
           </div>
         </div>
 
-        <div className="mt-4">
+        <div className="mt-4 mb-4">
           <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-bold" style={{ color: '#014421' }}>Trimestres</h3>
+            <h3 className="text-sm font-bold text-gris-950">Trimestres</h3>
             <button onClick={ajouterTrimestre}
-              className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-lg text-white hover:opacity-90 transition"
+              className="flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-xl text-white hover:opacity-90 transition"
               style={{ background: '#34495E' }}>
               <Plus size={13} /> Ajouter un trimestre
             </button>
           </div>
 
           {trimestres.length === 0 ? (
-            <div className="bg-white rounded-xl p-6 shadow-sm text-center text-sm text-gray-400">
+            <div className="bg-white rounded-2xl p-6 shadow-sm text-center text-sm text-gris-400">
               Aucun trimestre pour l'instant. Ajoutez-en un pour répartir le programme.
             </div>
           ) : (
@@ -727,23 +734,23 @@ function ConfigProgrammeAnnuel({ kourel, kourelId, programmeAnnuel, setProgramme
 
       {conflit && (
         <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" onClick={() => setConflit(null)}>
-          <div className="bg-white rounded-xl p-5 max-w-sm w-full" onClick={(e) => e.stopPropagation()}>
-            <p className="text-sm font-bold mb-1" style={{ color: '#014421' }}>Ce khassida est déjà affecté ailleurs</p>
-            <p className="text-xs text-gray-500 mb-4">
+          <div className="bg-white rounded-2xl p-5 max-w-sm w-full" onClick={(e) => e.stopPropagation()}>
+            <p className="text-sm font-bold mb-1 text-gris-950">Ce khassida est déjà affecté ailleurs</p>
+            <p className="text-xs text-gris-500 mb-4 leading-relaxed">
               Voulez-vous le déplacer vers ce trimestre (il quitte l'autre), ou l'y dupliquer (il reste aussi dans l'autre) ?
             </p>
             <div className="flex gap-2">
               <button onClick={() => resoudreConflit('deplacer')}
-                className="flex-1 py-2 text-sm font-semibold text-white rounded-lg hover:opacity-90 transition" style={{ background: '#34495E' }}>
+                className="flex-1 h-11 text-sm font-semibold text-white rounded-xl hover:opacity-90 transition" style={{ background: '#34495E' }}>
                 Déplacer
               </button>
               <button onClick={() => resoudreConflit('dupliquer')}
-                className="flex-1 py-2 text-sm font-semibold text-white rounded-lg hover:opacity-90 transition" style={{ background: '#16824E' }}>
+                className="flex-1 h-11 text-sm font-semibold text-white rounded-xl hover:opacity-90 transition" style={{ background: '#16824E' }}>
                 Dupliquer
               </button>
             </div>
             <button onClick={() => setConflit(null)}
-              className="w-full mt-2 py-2 text-xs font-semibold text-gray-400 hover:text-gray-600 transition">
+              className="w-full mt-2 py-2 text-xs font-semibold text-gris-400 hover:text-gris-600 transition">
               Annuler
             </button>
           </div>
