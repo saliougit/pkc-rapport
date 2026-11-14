@@ -402,7 +402,7 @@ function TrimestreCard({ trimestre, khassidas, trimestres, zone, isOver, onDragO
           <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: '#16824E' }} />
           <h4 className="text-sm font-bold truncate text-gris-950">{trimestre.nom}</h4>
         </div>
-        <button onClick={() => onSupprimer(trimestre.id)}
+        <button onClick={() => onSupprimer(trimestre.id, trimestre.nom)}
           className="p-1.5 rounded-lg hover:bg-rouge/5 flex-shrink-0" style={{ color: '#C0392B' }}>
           <Trash2 size={14} />
         </button>
@@ -452,6 +452,7 @@ function ConfigProgrammeAnnuel({ kourel, kourelId, programmeAnnuel, setProgramme
   const [overZone, setOverZone] = useState(null)
   const [assignMenuKhassidaId, setAssignMenuKhassidaId] = useState(null)
   const [conflit, setConflit] = useState(null) // { khassidaId, fromTrimestreId, toTrimestreId }
+  const [trimestreASupprimer, setTrimestreASupprimer] = useState(null) // { id, nom }
 
   useEffect(() => {
     if (!programmeActif?.id) { setTrimestres([]); return }
@@ -473,9 +474,12 @@ function ConfigProgrammeAnnuel({ kourel, kourelId, programmeAnnuel, setProgramme
     await rafraichirTrimestres()
   }
 
-  const supprimerUnTrimestre = async (id) => {
-    if (!window.confirm("Supprimer ce trimestre ? Les khassidas qu'il contient retourneront dans le programme annuel.")) return
-    await supprimerTrimestre(id)
+  const demanderSuppressionTrimestre = (id, nom) => setTrimestreASupprimer({ id, nom })
+
+  const confirmerSuppressionTrimestre = async () => {
+    if (!trimestreASupprimer) return
+    await supprimerTrimestre(trimestreASupprimer.id)
+    setTrimestreASupprimer(null)
     await rafraichirTrimestres()
   }
 
@@ -726,7 +730,7 @@ function ConfigProgrammeAnnuel({ kourel, kourelId, programmeAnnuel, setProgramme
                   onDragOver={(e) => onZoneDragOver(String(t.id), e)}
                   onDragLeave={() => onZoneDragLeave(String(t.id))}
                   onDrop={(e) => onZoneDrop(String(t.id), e)}
-                  onSupprimer={supprimerUnTrimestre}
+                  onSupprimer={demanderSuppressionTrimestre}
                   enEdition={enEdition} setEnEdition={setEnEdition}
                   sauvegarderEdition={sauvegarderEdition} supprimer={supprimer} saving={saving}
                   draggedKhassidaId={draggedKhassida?.id}
@@ -761,6 +765,27 @@ function ConfigProgrammeAnnuel({ kourel, kourelId, programmeAnnuel, setProgramme
               className="w-full mt-2 py-2 text-xs font-semibold text-gris-400 hover:text-gris-600 transition">
               Annuler
             </button>
+          </div>
+        </div>
+      )}
+
+      {trimestreASupprimer && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" onClick={() => setTrimestreASupprimer(null)}>
+          <div className="bg-white rounded-2xl p-5 max-w-sm w-full" onClick={(e) => e.stopPropagation()}>
+            <p className="text-sm font-bold mb-1 text-gris-950">Supprimer "{trimestreASupprimer.nom}" ?</p>
+            <p className="text-xs text-gris-500 mb-4 leading-relaxed">
+              Les khassidas qu'il contient retourneront dans le programme annuel. Cette action est irréversible.
+            </p>
+            <div className="flex gap-2">
+              <button onClick={() => setTrimestreASupprimer(null)}
+                className="flex-1 h-11 text-sm font-semibold text-gris-600 rounded-xl hover:bg-gris-100 transition border border-gris-200">
+                Annuler
+              </button>
+              <button onClick={confirmerSuppressionTrimestre}
+                className="flex-1 h-11 text-sm font-semibold text-white rounded-xl hover:opacity-90 transition" style={{ background: '#C0392B' }}>
+                Supprimer
+              </button>
+            </div>
           </div>
         </div>
       )}
