@@ -82,6 +82,22 @@ CREATE TABLE IF NOT EXISTS programme_annuel (
   created_at   TIMESTAMPTZ DEFAULT now()
 );
 
+-- Trimestres : répartition du programme annuel, un khassida peut être dans plusieurs.
+CREATE TABLE IF NOT EXISTS trimestres (
+  id           SERIAL PRIMARY KEY,
+  programme_id INTEGER NOT NULL REFERENCES programmes(id) ON DELETE CASCADE,
+  nom          TEXT NOT NULL,
+  ordre        INTEGER DEFAULT 0,
+  created_at   TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS trimestre_khassidas (
+  trimestre_id INTEGER NOT NULL REFERENCES trimestres(id) ON DELETE CASCADE,
+  khassida_id  INTEGER NOT NULL REFERENCES programme_annuel(id) ON DELETE CASCADE,
+  ordre        INTEGER DEFAULT 0,
+  PRIMARY KEY (trimestre_id, khassida_id)
+);
+
 -- Migration (si les tables existaient déjà avant le versionning par programme) :
 -- ALTER TABLE programme_annuel ADD COLUMN IF NOT EXISTS pages_total INTEGER;
 -- CREATE TABLE IF NOT EXISTS programmes (
@@ -104,6 +120,27 @@ CREATE TABLE IF NOT EXISTS programme_annuel (
 -- ALTER TABLE programmes ENABLE ROW LEVEL SECURITY;
 -- CREATE POLICY "select_public" ON programmes FOR SELECT USING (true);
 -- CREATE POLICY "write_auth" ON programmes FOR ALL USING (auth.role() = 'authenticated') WITH CHECK (auth.role() = 'authenticated');
+--
+-- -- Trimestres (si la base existait déjà avant leur ajout) :
+-- CREATE TABLE IF NOT EXISTS trimestres (
+--   id SERIAL PRIMARY KEY,
+--   programme_id INTEGER NOT NULL REFERENCES programmes(id) ON DELETE CASCADE,
+--   nom TEXT NOT NULL,
+--   ordre INTEGER DEFAULT 0,
+--   created_at TIMESTAMPTZ DEFAULT now()
+-- );
+-- CREATE TABLE IF NOT EXISTS trimestre_khassidas (
+--   trimestre_id INTEGER NOT NULL REFERENCES trimestres(id) ON DELETE CASCADE,
+--   khassida_id INTEGER NOT NULL REFERENCES programme_annuel(id) ON DELETE CASCADE,
+--   ordre INTEGER DEFAULT 0,
+--   PRIMARY KEY (trimestre_id, khassida_id)
+-- );
+-- ALTER TABLE trimestres ENABLE ROW LEVEL SECURITY;
+-- ALTER TABLE trimestre_khassidas ENABLE ROW LEVEL SECURITY;
+-- CREATE POLICY "select_public" ON trimestres FOR SELECT USING (true);
+-- CREATE POLICY "write_auth" ON trimestres FOR ALL USING (auth.role() = 'authenticated') WITH CHECK (auth.role() = 'authenticated');
+-- CREATE POLICY "select_public" ON trimestre_khassidas FOR SELECT USING (true);
+-- CREATE POLICY "write_auth" ON trimestre_khassidas FOR ALL USING (auth.role() = 'authenticated') WITH CHECK (auth.role() = 'authenticated');
 
 -- =============================================
 -- 3. MEMBRES DU COMITÉ

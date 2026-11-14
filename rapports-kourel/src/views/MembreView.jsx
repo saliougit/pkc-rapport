@@ -1,13 +1,15 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { ChevronRight, ChevronLeft, Plus, Trash2, Edit2, Loader, Check, Users } from 'lucide-react'
+import { ChevronRight, ChevronLeft, Plus, Trash2, Edit2, Loader, Check, Users, GripVertical, FolderInput } from 'lucide-react'
 import { FormulaireRapport } from '../components/FormulaireRapport'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import {
   fetchKourels, fetchProgramme,
   ajouterKhassida, modifierKhassida, supprimerKhassida,
-  fetchProgrammes, creerProgramme, activerProgramme
+  fetchProgrammes, creerProgramme, activerProgramme,
+  fetchTrimestres, creerTrimestre, supprimerTrimestre,
+  taguerKhassidaTrimestre, retirerKhassidaTrimestre, retirerKhassidaTousTrimestres
 } from '../lib/supabase'
 
 const MOIS = [
@@ -285,6 +287,141 @@ export default function MembreView() {
   )
 }
 
+// ─── Khassida : ligne affichage/édition — draggable (souris) + menu "Affecter" (tactile) ─
+
+function KhassidaRow({ k, index, zone, trimestres, enEdition, setEnEdition, sauvegarderEdition, supprimer, saving, isDragging, onDragStart, onDragEnd, onMove, assignMenuOpen, onToggleAssignMenu }) {
+  const isEditing = enEdition?.id === k.id
+
+  if (isEditing) {
+    return (
+      <div className="border border-gray-100 rounded-lg p-3">
+        <div className="space-y-2">
+          <input type="text" value={enEdition.nom}
+            onChange={(e) => setEnEdition({ ...enEdition, nom: e.target.value })}
+            className="w-full px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-vert-principal" />
+          <input type="text" value={enEdition.melodie}
+            onChange={(e) => setEnEdition({ ...enEdition, melodie: e.target.value })}
+            className="w-full px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-vert-principal" />
+          <input type="number" min="1" placeholder="Nombre de pages (optionnel)" value={enEdition.pages_total ?? ''}
+            onChange={(e) => setEnEdition({ ...enEdition, pages_total: e.target.value })}
+            className="w-full px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-vert-principal" />
+          <input type="number" min="1" placeholder="Nombre de bayit (optionnel)" value={enEdition.bayit_total ?? ''}
+            onChange={(e) => setEnEdition({ ...enEdition, bayit_total: e.target.value })}
+            className="w-full px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-vert-principal" />
+          <div className="flex gap-2">
+            <button onClick={() => sauvegarderEdition(enEdition)}
+              className="text-xs font-semibold text-white px-3 py-1.5 rounded-lg"
+              style={{ background: '#16824E' }}>
+              {saving ? 'Enregistrement...' : 'Sauvegarder'}
+            </button>
+            <button onClick={() => setEnEdition(null)}
+              className="text-xs font-semibold text-gray-500 px-3 py-1.5 rounded-lg hover:bg-gray-100">
+              Annuler
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Destinations proposées dans le menu "Affecter" (repli tactile, sans drag) :
+  // le programme annuel (si on n'y est pas déjà) + les autres trimestres.
+  const destinations = [
+    ...(zone !== 'root' ? [{ id: 'root', nom: 'Programme annuel' }] : []),
+    ...trimestres.filter(t => String(t.id) !== zone).map(t => ({ id: String(t.id), nom: t.nom })),
+  ]
+
+  return (
+    <div
+      className="border border-gray-100 rounded-lg p-3 hover:border-vert-principal transition"
+      draggable
+      onDragStart={onDragStart}
+      onDragEnd={onDragEnd}
+      style={{ opacity: isDragging ? 0.4 : 1 }}
+    >
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 min-w-0">
+          <GripVertical size={14} className="flex-shrink-0 text-gray-300 cursor-grab hidden sm:block" />
+          <span className="text-xs font-bold w-5 text-center flex-shrink-0" style={{ color: '#014421' }}>{index + 1}</span>
+          <div className="min-w-0">
+            <div className="text-sm font-semibold truncate" style={{ color: '#014421' }}>{k.nom}</div>
+            <div className="text-xs text-gray-400 truncate">
+              {k.melodie}{k.pages_total ? ` · ${k.pages_total} pages` : ''}{k.bayit_total ? ` · ${k.bayit_total} bayit` : ''}
+            </div>
+          </div>
+        </div>
+        <div className="flex gap-1 flex-shrink-0">
+          {destinations.length > 0 && (
+            <button onClick={onToggleAssignMenu}
+              className="p-1.5 rounded-lg hover:bg-gray-100 transition" style={{ color: assignMenuOpen ? '#16824E' : '#9CA3AF' }}
+              title="Affecter à un trimestre">
+              <FolderInput size={14} />
+            </button>
+          )}
+          <button onClick={() => setEnEdition({ ...k })}
+            className="p-1.5 rounded-lg hover:bg-blue-50 transition" style={{ color: '#34495E' }}>
+            <Edit2 size={14} />
+          </button>
+          <button onClick={() => supprimer(k.id)}
+            className="p-1.5 rounded-lg hover:bg-red-50 transition" style={{ color: '#C0392B' }}>
+            <Trash2 size={14} />
+          </button>
+        </div>
+      </div>
+
+      {assignMenuOpen && (
+        <div className="mt-2 pt-2 border-t border-gray-100 flex flex-wrap gap-1.5">
+          {destinations.map(d => (
+            <button key={d.id} onClick={() => onMove(d.id)}
+              className="text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-gray-200 hover:border-vert-principal hover:text-vert-fonce transition text-gray-600">
+              {d.nom}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─── Carte trimestre : zone de dépôt ─────────────────────────────────────────
+
+function TrimestreCard({ trimestre, khassidas, trimestres, zone, isOver, onDragOver, onDragLeave, onDrop, onSupprimer, enEdition, setEnEdition, sauvegarderEdition, supprimer, saving, draggedKhassidaId, onDragStart, onDragEnd, onMove, assignMenuKhassidaId, setAssignMenuKhassidaId }) {
+  return (
+    <div
+      className="bg-white rounded-xl p-4 shadow-sm transition-colors"
+      onDragOver={onDragOver} onDragLeave={onDragLeave} onDrop={onDrop}
+      style={isOver ? { boxShadow: '0 0 0 2px #16824E inset', background: '#F0F9F4' } : undefined}
+    >
+      <div className="flex items-center justify-between mb-3">
+        <h4 className="text-sm font-bold truncate" style={{ color: '#014421' }}>{trimestre.nom}</h4>
+        <button onClick={() => onSupprimer(trimestre.id)}
+          className="p-1 rounded hover:bg-red-50 flex-shrink-0" style={{ color: '#C0392B' }}>
+          <Trash2 size={13} />
+        </button>
+      </div>
+      {khassidas.length === 0 ? (
+        <div className="text-center py-8 text-xs text-gray-400 border border-dashed border-gray-200 rounded-lg">
+          Déposez un khassida ici, ou utilisez "Affecter" sur un khassida.
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {khassidas.map((k, index) => (
+            <KhassidaRow key={k.id} k={k} index={index} zone={zone} trimestres={trimestres}
+              enEdition={enEdition} setEnEdition={setEnEdition}
+              sauvegarderEdition={sauvegarderEdition} supprimer={supprimer} saving={saving}
+              isDragging={draggedKhassidaId === k.id}
+              onDragStart={(e) => onDragStart(e, k.id, zone)} onDragEnd={onDragEnd}
+              onMove={(toZone) => onMove(k.id, zone, toZone)}
+              assignMenuOpen={assignMenuKhassidaId === k.id}
+              onToggleAssignMenu={() => setAssignMenuKhassidaId(id => id === k.id ? null : k.id)}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ─── Configuration Programme Annuel ──────────────────────────────────────────
 
 function ConfigProgrammeAnnuel({ kourel, kourelId, programmeAnnuel, setProgrammeAnnuel, retour }) {
@@ -300,6 +437,92 @@ function ConfigProgrammeAnnuel({ kourel, kourelId, programmeAnnuel, setProgramme
   }, [kourelId])
 
   const programmeActif = programmes.find(p => p.actif)
+
+  // ── Trimestres : état + répartition (glisser-déposer souris, "Affecter" au tactile) ──
+  const [trimestres, setTrimestres] = useState([])
+  const [draggedKhassida, setDraggedKhassida] = useState(null) // { id, fromZone } pendant un drag souris
+  const [overZone, setOverZone] = useState(null)
+  const [assignMenuKhassidaId, setAssignMenuKhassidaId] = useState(null)
+  const [conflit, setConflit] = useState(null) // { khassidaId, fromTrimestreId, toTrimestreId }
+
+  useEffect(() => {
+    if (!programmeActif?.id) { setTrimestres([]); return }
+    fetchTrimestres(programmeActif.id).then(setTrimestres).catch(() => setTrimestres([]))
+  }, [programmeActif?.id])
+
+  const rafraichirTrimestres = async () => {
+    if (!programmeActif?.id) return
+    setTrimestres(await fetchTrimestres(programmeActif.id))
+  }
+
+  const khassidaIdsAffectes = new Set(trimestres.flatMap(t => t.khassida_ids))
+  const khassidasNonAffectes = programmeAnnuel.filter(k => !khassidaIdsAffectes.has(k.id))
+
+  const ajouterTrimestre = async () => {
+    const nom = window.prompt('Nom du trimestre (ex: Trimestre 1)')
+    if (!nom?.trim() || !programmeActif?.id) return
+    await creerTrimestre(programmeActif.id, nom.trim(), trimestres.length)
+    await rafraichirTrimestres()
+  }
+
+  const supprimerUnTrimestre = async (id) => {
+    if (!window.confirm("Supprimer ce trimestre ? Les khassidas qu'il contient retourneront dans le programme annuel.")) return
+    await supprimerTrimestre(id)
+    await rafraichirTrimestres()
+  }
+
+  const handleDrop = async (khassidaId, fromZone, toZone) => {
+    setAssignMenuKhassidaId(null)
+    if (fromZone === toZone) return
+    if (fromZone === 'root' && toZone !== 'root') {
+      await taguerKhassidaTrimestre(Number(toZone), khassidaId)
+      await rafraichirTrimestres()
+    } else if (fromZone !== 'root' && toZone === 'root') {
+      await retirerKhassidaTousTrimestres(khassidaId)
+      await rafraichirTrimestres()
+    } else if (fromZone !== 'root' && toZone !== 'root') {
+      setConflit({ khassidaId, fromTrimestreId: Number(fromZone), toTrimestreId: Number(toZone) })
+    }
+  }
+
+  const resoudreConflit = async (action) => {
+    if (!conflit) return
+    const { khassidaId, fromTrimestreId, toTrimestreId } = conflit
+    if (action === 'deplacer') {
+      await taguerKhassidaTrimestre(toTrimestreId, khassidaId)
+      await retirerKhassidaTrimestre(fromTrimestreId, khassidaId)
+    } else if (action === 'dupliquer') {
+      await taguerKhassidaTrimestre(toTrimestreId, khassidaId)
+    }
+    setConflit(null)
+    await rafraichirTrimestres()
+  }
+
+  // Drag natif HTML5 (souris / desktop). Sur tactile, le menu "Affecter" de
+  // chaque khassida (FolderInput) fait le même travail sans dépendre du drag.
+  const onRowDragStart = (e, khassidaId, fromZone) => {
+    setDraggedKhassida({ id: khassidaId, fromZone })
+    e.dataTransfer.effectAllowed = 'move'
+  }
+  const onRowDragEnd = () => {
+    setDraggedKhassida(null)
+    setOverZone(null)
+  }
+  const onZoneDragOver = (zone, e) => {
+    e.preventDefault()
+    setOverZone(zone)
+  }
+  const onZoneDragLeave = (zone) => {
+    setOverZone(z => (z === zone ? null : z))
+  }
+  const onZoneDrop = (zone, e) => {
+    e.preventDefault()
+    setOverZone(null)
+    if (!draggedKhassida) return
+    const { id, fromZone } = draggedKhassida
+    setDraggedKhassida(null)
+    handleDrop(id, fromZone, zone)
+  }
 
   const changerVersion = async (programmeId) => {
     setChangingVersion(true)
@@ -350,6 +573,7 @@ function ConfigProgrammeAnnuel({ kourel, kourelId, programmeAnnuel, setProgramme
   const supprimer = async (id) => {
     await supprimerKhassida(id)
     setProgrammeAnnuel(programmeAnnuel.filter(k => k.id !== id))
+    setTrimestres(prev => prev.map(t => ({ ...t, khassida_ids: t.khassida_ids.filter(kid => kid !== id) })))
   }
 
   const sauvegarderEdition = async (k) => {
@@ -428,72 +652,103 @@ function ConfigProgrammeAnnuel({ kourel, kourelId, programmeAnnuel, setProgramme
             </button>
           </div>
 
-          <div className="bg-white rounded-xl p-5 shadow-sm">
-            <h3 className="text-sm font-bold mb-4" style={{ color: '#014421' }}>
-              Khassidas ({programmeAnnuel.length})
+          <div
+            className="bg-white rounded-xl p-5 shadow-sm transition-colors"
+            onDragOver={(e) => onZoneDragOver('root', e)}
+            onDragLeave={() => onZoneDragLeave('root')}
+            onDrop={(e) => onZoneDrop('root', e)}
+            style={overZone === 'root' ? { boxShadow: '0 0 0 2px #16824E inset' } : undefined}
+          >
+            <h3 className="text-sm font-bold mb-1" style={{ color: '#014421' }}>
+              Programme annuel ({khassidasNonAffectes.length})
             </h3>
-            {programmeAnnuel.length === 0 ? (
-              <div className="text-center py-16 text-sm text-gray-400">Aucun khassida. Ajoutez-en un ci-contre.</div>
+            {trimestres.length > 0 && (
+              <p className="text-[11px] text-gray-400 mb-3">Glissez (souris) ou utilisez "Affecter" sur un khassida pour le mettre dans un trimestre.</p>
+            )}
+            {khassidasNonAffectes.length === 0 ? (
+              <div className="text-center py-16 text-sm text-gray-400">
+                {programmeAnnuel.length === 0 ? 'Aucun khassida. Ajoutez-en un ci-contre.' : 'Tous les khassidas sont affectés à un trimestre.'}
+              </div>
             ) : (
               <div className="space-y-2 overflow-y-auto pr-1" style={{ maxHeight: 480 }}>
-                {programmeAnnuel.map((k, index) => (
-                  <div key={k.id} className="border border-gray-100 rounded-lg p-3 hover:border-vert-principal transition">
-                    {enEdition?.id === k.id ? (
-                      <div className="space-y-2">
-                        <input type="text" value={enEdition.nom}
-                          onChange={(e) => setEnEdition({ ...enEdition, nom: e.target.value })}
-                          className="w-full px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-vert-principal" />
-                        <input type="text" value={enEdition.melodie}
-                          onChange={(e) => setEnEdition({ ...enEdition, melodie: e.target.value })}
-                          className="w-full px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-vert-principal" />
-                        <input type="number" min="1" placeholder="Nombre de pages (optionnel)" value={enEdition.pages_total ?? ''}
-                          onChange={(e) => setEnEdition({ ...enEdition, pages_total: e.target.value })}
-                          className="w-full px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-vert-principal" />
-                        <input type="number" min="1" placeholder="Nombre de bayit (optionnel)" value={enEdition.bayit_total ?? ''}
-                          onChange={(e) => setEnEdition({ ...enEdition, bayit_total: e.target.value })}
-                          className="w-full px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-vert-principal" />
-                        <div className="flex gap-2">
-                          <button onClick={() => sauvegarderEdition(enEdition)}
-                            className="text-xs font-semibold text-white px-3 py-1.5 rounded-lg"
-                            style={{ background: '#16824E' }}>
-                            {saving ? 'Enregistrement...' : 'Sauvegarder'}
-                          </button>
-                          <button onClick={() => setEnEdition(null)}
-                            className="text-xs font-semibold text-gray-500 px-3 py-1.5 rounded-lg hover:bg-gray-100">
-                            Annuler
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-2.5 min-w-0">
-                          <span className="text-xs font-bold w-5 text-center flex-shrink-0" style={{ color: '#014421' }}>{index + 1}</span>
-                          <div className="min-w-0">
-                            <div className="text-sm font-semibold truncate" style={{ color: '#014421' }}>{k.nom}</div>
-                            <div className="text-xs text-gray-400 truncate">
-                              {k.melodie}{k.pages_total ? ` · ${k.pages_total} pages` : ''}{k.bayit_total ? ` · ${k.bayit_total} bayit` : ''}
-                            </div>
-                          </div>
-                        </div>
-                        <div className="flex gap-1 flex-shrink-0">
-                          <button onClick={() => setEnEdition({ ...k })}
-                            className="p-1.5 rounded-lg hover:bg-blue-50 transition" style={{ color: '#34495E' }}>
-                            <Edit2 size={14} />
-                          </button>
-                          <button onClick={() => supprimer(k.id)}
-                            className="p-1.5 rounded-lg hover:bg-red-50 transition" style={{ color: '#C0392B' }}>
-                            <Trash2 size={14} />
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
+                {khassidasNonAffectes.map((k, index) => (
+                  <KhassidaRow key={k.id} k={k} index={index} zone="root" trimestres={trimestres}
+                    enEdition={enEdition} setEnEdition={setEnEdition}
+                    sauvegarderEdition={sauvegarderEdition} supprimer={supprimer} saving={saving}
+                    isDragging={draggedKhassida?.id === k.id}
+                    onDragStart={(e) => onRowDragStart(e, k.id, 'root')} onDragEnd={onRowDragEnd}
+                    onMove={(toZone) => handleDrop(k.id, 'root', toZone)}
+                    assignMenuOpen={assignMenuKhassidaId === k.id}
+                    onToggleAssignMenu={() => setAssignMenuKhassidaId(id => id === k.id ? null : k.id)}
+                  />
                 ))}
               </div>
             )}
           </div>
         </div>
+
+        <div className="mt-4">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-bold" style={{ color: '#014421' }}>Trimestres</h3>
+            <button onClick={ajouterTrimestre}
+              className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-lg text-white hover:opacity-90 transition"
+              style={{ background: '#34495E' }}>
+              <Plus size={13} /> Ajouter un trimestre
+            </button>
+          </div>
+
+          {trimestres.length === 0 ? (
+            <div className="bg-white rounded-xl p-6 shadow-sm text-center text-sm text-gray-400">
+              Aucun trimestre pour l'instant. Ajoutez-en un pour répartir le programme.
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+              {trimestres.map(t => (
+                <TrimestreCard key={t.id} trimestre={t} trimestres={trimestres}
+                  khassidas={t.khassida_ids.map(id => programmeAnnuel.find(k => k.id === id)).filter(Boolean)}
+                  zone={String(t.id)}
+                  isOver={overZone === String(t.id)}
+                  onDragOver={(e) => onZoneDragOver(String(t.id), e)}
+                  onDragLeave={() => onZoneDragLeave(String(t.id))}
+                  onDrop={(e) => onZoneDrop(String(t.id), e)}
+                  onSupprimer={supprimerUnTrimestre}
+                  enEdition={enEdition} setEnEdition={setEnEdition}
+                  sauvegarderEdition={sauvegarderEdition} supprimer={supprimer} saving={saving}
+                  draggedKhassidaId={draggedKhassida?.id}
+                  onDragStart={onRowDragStart} onDragEnd={onRowDragEnd}
+                  onMove={handleDrop}
+                  assignMenuKhassidaId={assignMenuKhassidaId} setAssignMenuKhassidaId={setAssignMenuKhassidaId}
+                />
+              ))}
+            </div>
+          )}
+        </div>
       </div>
+
+      {conflit && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" onClick={() => setConflit(null)}>
+          <div className="bg-white rounded-xl p-5 max-w-sm w-full" onClick={(e) => e.stopPropagation()}>
+            <p className="text-sm font-bold mb-1" style={{ color: '#014421' }}>Ce khassida est déjà affecté ailleurs</p>
+            <p className="text-xs text-gray-500 mb-4">
+              Voulez-vous le déplacer vers ce trimestre (il quitte l'autre), ou l'y dupliquer (il reste aussi dans l'autre) ?
+            </p>
+            <div className="flex gap-2">
+              <button onClick={() => resoudreConflit('deplacer')}
+                className="flex-1 py-2 text-sm font-semibold text-white rounded-lg hover:opacity-90 transition" style={{ background: '#34495E' }}>
+                Déplacer
+              </button>
+              <button onClick={() => resoudreConflit('dupliquer')}
+                className="flex-1 py-2 text-sm font-semibold text-white rounded-lg hover:opacity-90 transition" style={{ background: '#16824E' }}>
+                Dupliquer
+              </button>
+            </div>
+            <button onClick={() => setConflit(null)}
+              className="w-full mt-2 py-2 text-xs font-semibold text-gray-400 hover:text-gray-600 transition">
+              Annuler
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

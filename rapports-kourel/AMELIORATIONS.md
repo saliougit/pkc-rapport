@@ -48,7 +48,7 @@ Le contrôle final à la soumission (`soumettre`) reste en plus : si un khassida
 **Proposition :** un kourel peut avoir plusieurs "programmes" (un par période/année). Le rapport prend toujours le programme **en vigueur** (le plus récent actif).
 **Tranché :** par défaut, le programme "en vigueur" est le **dernier créé**. Le kourel peut à tout moment basculer manuellement un autre programme comme actif (statut "actif" réassignable).
 
-### B3 — [ ] Découpage en trimestres + glisser-déposer
+### B3 — [x] Découpage en trimestres + glisser-déposer
 **Proposition résumée (confirme ma compréhension) :**
 - Le kourel peut ajouter autant de trimestres qu'il veut.
 - Appui long + glisser un khassida depuis **"Programme annuel"** vers un trimestre → déplacement simple, pas de confirmation (le khassida quitte la liste "non affecté").

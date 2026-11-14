@@ -346,6 +346,75 @@ app.delete('/api/data/programme/:id', async (req, res) => {
   } catch (e) { res.status(500).json({ success: false, error: e.message }) }
 })
 
+// ── Trimestres (répartition du programme annuel) ─────────────────────────────
+app.get('/api/data/trimestres/:programmeId', async (req, res) => {
+  try {
+    const { data: trimestres, error: e1 } = await supabaseServer
+      .from('trimestres').select('*').eq('programme_id', req.params.programmeId).order('ordre')
+    if (e1) throw e1
+
+    const ids = (trimestres || []).map(t => t.id)
+    let liens = []
+    if (ids.length) {
+      const { data, error: e2 } = await supabaseServer.from('trimestre_khassidas').select('*').in('trimestre_id', ids)
+      if (e2) throw e2
+      liens = data || []
+    }
+
+    const data = (trimestres || []).map(t => ({
+      ...t,
+      khassida_ids: liens.filter(l => l.trimestre_id === t.id).map(l => l.khassida_id),
+    }))
+    res.json({ success: true, data })
+  } catch (e) { res.status(500).json({ success: false, error: e.message }) }
+})
+
+app.post('/api/data/trimestres', async (req, res) => {
+  try {
+    const { programme_id, nom, ordre } = req.body
+    const { data, error } = await supabaseServer.from('trimestres').insert({ programme_id, nom, ordre: ordre || 0 }).select().single()
+    if (error) throw error
+    res.json({ success: true, data: { ...data, khassida_ids: [] } })
+  } catch (e) { res.status(500).json({ success: false, error: e.message }) }
+})
+
+app.delete('/api/data/trimestres/:id', async (req, res) => {
+  try {
+    const { error } = await supabaseServer.from('trimestres').delete().eq('id', req.params.id)
+    if (error) throw error
+    res.json({ success: true })
+  } catch (e) { res.status(500).json({ success: false, error: e.message }) }
+})
+
+// Affecte un khassida à un trimestre (ajout simple, ou "dupliquer" quand il y est déjà ailleurs).
+app.post('/api/data/trimestre-khassidas', async (req, res) => {
+  try {
+    const { trimestre_id, khassida_id } = req.body
+    const { error } = await supabaseServer.from('trimestre_khassidas').upsert({ trimestre_id, khassida_id }, { onConflict: 'trimestre_id,khassida_id' })
+    if (error) throw error
+    res.json({ success: true })
+  } catch (e) { res.status(500).json({ success: false, error: e.message }) }
+})
+
+// Retire un khassida d'un seul trimestre précis (cas "déplacer" : on retire de l'ancien après avoir ajouté au nouveau).
+app.delete('/api/data/trimestre-khassidas/:trimestreId/:khassidaId', async (req, res) => {
+  try {
+    const { error } = await supabaseServer.from('trimestre_khassidas')
+      .delete().eq('trimestre_id', req.params.trimestreId).eq('khassida_id', req.params.khassidaId)
+    if (error) throw error
+    res.json({ success: true })
+  } catch (e) { res.status(500).json({ success: false, error: e.message }) }
+})
+
+// Retire un khassida de TOUS ses trimestres (cas : dépôt sur "Programme annuel").
+app.delete('/api/data/trimestre-khassidas/khassida/:khassidaId', async (req, res) => {
+  try {
+    const { error } = await supabaseServer.from('trimestre_khassidas').delete().eq('khassida_id', req.params.khassidaId)
+    if (error) throw error
+    res.json({ success: true })
+  } catch (e) { res.status(500).json({ success: false, error: e.message }) }
+})
+
 // ── Membres du comité ────────────────────────────────────────────────────────
 app.get('/api/data/membres', async (req, res) => {
   try {

@@ -140,6 +140,40 @@ export async function renommerProgramme(id, nom) {
   })
 }
 
+// ── Trimestres ───────────────────────────────────────────────────────────────
+
+export async function fetchTrimestres(programmeId) {
+  const json = await api(`/trimestres/${programmeId}`)
+  return json.data
+}
+
+export async function creerTrimestre(programmeId, nom, ordre = 0) {
+  const json = await api('/trimestres', {
+    method: 'POST',
+    body: JSON.stringify({ programme_id: programmeId, nom, ordre }),
+  })
+  return json.data
+}
+
+export async function supprimerTrimestre(id) {
+  await api(`/trimestres/${id}`, { method: 'DELETE' })
+}
+
+export async function taguerKhassidaTrimestre(trimestreId, khassidaId) {
+  await api('/trimestre-khassidas', {
+    method: 'POST',
+    body: JSON.stringify({ trimestre_id: trimestreId, khassida_id: khassidaId }),
+  })
+}
+
+export async function retirerKhassidaTrimestre(trimestreId, khassidaId) {
+  await api(`/trimestre-khassidas/${trimestreId}/${khassidaId}`, { method: 'DELETE' })
+}
+
+export async function retirerKhassidaTousTrimestres(khassidaId) {
+  await api(`/trimestre-khassidas/khassida/${khassidaId}`, { method: 'DELETE' })
+}
+
 // ── Programme Annuel ─────────────────────────────────────────────────────────
 
 export async function fetchProgramme(kourelId) {
