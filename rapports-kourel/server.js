@@ -323,7 +323,8 @@ app.post('/api/data/programme', async (req, res) => {
   try {
     const { kourel_id, nom, melodie, ordre, pages_total, bayit_total } = req.body
     const programme = await getOrCreateActiveProgramme(kourel_id)
-    const { data, error } = await supabaseServer.from('programme_annuel').insert({ programme_id: programme.id, nom, melodie, ordre, pages_total: pages_total || null, bayit_total: bayit_total || null }).select().single()
+    // kourel_id est conservé en plus de programme_id le temps de valider la migration (cf supabase-setup.sql).
+    const { data, error } = await supabaseServer.from('programme_annuel').insert({ programme_id: programme.id, kourel_id: programme.kourel_id, nom, melodie, ordre, pages_total: pages_total || null, bayit_total: bayit_total || null }).select().single()
     if (error) throw error
     res.json({ success: true, data })
   } catch (e) { res.status(500).json({ success: false, error: e.message }) }

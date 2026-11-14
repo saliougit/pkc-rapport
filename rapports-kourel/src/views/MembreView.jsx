@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
+import { Toaster, toast } from 'sonner'
 import { ChevronRight, ChevronLeft, Plus, Trash2, Edit2, Loader, Check, Users, GripVertical, FolderInput } from 'lucide-react'
 import { FormulaireRapport } from '../components/FormulaireRapport'
 import { useLocalStorage } from '../hooks/useLocalStorage'
@@ -572,6 +573,9 @@ function ConfigProgrammeAnnuel({ kourel, kourelId, programmeAnnuel, setProgramme
       const k = await ajouterKhassida(kourelId, nouveau.nom, nouveau.melodie, programmeAnnuel.length, pagesTotal, bayitTotal)
       setProgrammeAnnuel([...programmeAnnuel, k])
       setNouveau({ nom: '', melodie: '', pages_total: '', bayit_total: '' })
+    } catch (err) {
+      console.error(err)
+      toast.error(err?.message || "Erreur lors de l'ajout du khassida.")
     } finally {
       setSaving(false)
     }
@@ -591,6 +595,9 @@ function ConfigProgrammeAnnuel({ kourel, kourelId, programmeAnnuel, setProgramme
       await modifierKhassida(k.id, k.nom, k.melodie, pagesTotal, bayitTotal)
       setProgrammeAnnuel(programmeAnnuel.map(p => p.id === k.id ? { ...k, pages_total: pagesTotal, bayit_total: bayitTotal } : p))
       setEnEdition(null)
+    } catch (err) {
+      console.error(err)
+      toast.error(err?.message || "Erreur lors de la modification du khassida.")
     } finally {
       setSaving(false)
     }
@@ -598,6 +605,7 @@ function ConfigProgrammeAnnuel({ kourel, kourelId, programmeAnnuel, setProgramme
 
   return (
     <div className="min-h-screen bg-gris-clair px-3 sm:px-4 py-4">
+      <Toaster position="top-center" richColors closeButton />
       <div className="w-full max-w-5xl mx-auto">
         <div className="flex items-center gap-3 mb-4">
           <button onClick={retour}
