@@ -467,9 +467,9 @@ function ConfigProgrammeAnnuel({ kourel, kourelId, programmeAnnuel, setProgramme
   const khassidasNonAffectes = programmeAnnuel.filter(k => !khassidaIdsAffectes.has(k.id))
 
   const ajouterTrimestre = async () => {
-    const nom = window.prompt('Nom du trimestre (ex: Trimestre 1)')
-    if (!nom?.trim() || !programmeActif?.id) return
-    await creerTrimestre(programmeActif.id, nom.trim(), trimestres.length)
+    if (!programmeActif?.id) return
+    const nom = `Trimestre ${trimestres.length + 1}`
+    await creerTrimestre(programmeActif.id, nom, trimestres.length)
     await rafraichirTrimestres()
   }
 
